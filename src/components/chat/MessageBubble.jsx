@@ -17,7 +17,7 @@ const formatTimestamp = (timestamp) => {
   return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 };
 
-export const MessageBubble = ({ message, isSelf }) => {
+export const MessageBubble = ({ message, isSelf, onViewInvoice }) => {
   const isSystem = message.type === "system";
 
   if (isSystem) {
@@ -37,21 +37,24 @@ export const MessageBubble = ({ message, isSelf }) => {
           {/* Action Links */}
           <div className="mt-3 flex items-center justify-center gap-2">
             {message.invoiceRef && (
-              <a
-                href={
-                  message.invoicePdfUrl ||
-                  message.image ||
-                  "https://pdfobject.com/pdf/sample.pdf"
-                }
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-1 bg-white hover:bg-slate-100 border border-slate-200 text-[10px] font-bold text-slate-700 px-2.5 py-1.5 rounded-lg shadow-xs transition"
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  if (message.invoicePdfUrl && message.invoicePdfUrl !== "https://pdfobject.com/pdf/sample.pdf") {
+                    window.open(message.invoicePdfUrl, "_blank");
+                  } else if (onViewInvoice) {
+                    onViewInvoice(message.invoiceRef);
+                  } else {
+                    window.alert("Invoice document not available for preview.");
+                  }
+                }}
+                className="inline-flex items-center gap-1 bg-white hover:bg-slate-100 border border-slate-200 text-[10px] font-bold text-slate-700 px-2.5 py-1.5 rounded-lg shadow-xs transition cursor-pointer"
               >
                 <FileText className="w-3 h-3 text-brand-green-600" />
                 {message.text.includes("updated")
                   ? "View Updated Invoice"
                   : "View Invoice"}
-              </a>
+              </button>
             )}
 
             {message.orderRef && (

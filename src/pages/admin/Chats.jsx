@@ -299,6 +299,7 @@ export const Chats = () => {
                 onUpdateStatus={updateRoomStatus}
                 isAdmin={true}
                 onGenerateInvoice={handleGenerateInvoiceClick}
+                onViewInvoice={() => setIsViewerOpen(true)}
                 onBack={() => selectRoom(null)}
               />
             </div>

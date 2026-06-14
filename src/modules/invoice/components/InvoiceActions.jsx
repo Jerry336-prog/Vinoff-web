@@ -1,5 +1,7 @@
 import React from "react";
 import { Download, Printer, Edit3, CheckCircle, FileText } from "lucide-react";
+import { PDFDownloadLink, pdf } from "@react-pdf/renderer";
+import InvoicePDF from "./InvoicePDF";
 
 /**
  * Premium actions controller for single invoices.
@@ -18,8 +20,18 @@ export const InvoiceActions = ({
   showEdit = true,
   onDelete,
 }) => {
-  const handlePrint = () => {
-    window.print();
+  const handlePrint = async () => {
+    if (!invoice) return;
+    try {
+      const blob = await pdf(<InvoicePDF invoice={invoice} />).toBlob();
+      const url = URL.createObjectURL(blob);
+      const printWindow = window.open(url, "_blank");
+      if (!printWindow) {
+        console.warn("Popup blocked, could not open PDF for printing.");
+      }
+    } catch (err) {
+      console.error("Failed to generate PDF for print", err);
+    }
   };
 
   const handleDeleteClick = () => {
@@ -29,33 +41,35 @@ export const InvoiceActions = ({
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      {/* View PDF */}
+      {/* View PDF (External Link if exists) */}
       {invoice?.pdfUrl && (
         <a
           href={invoice.pdfUrl}
           target="_blank"
           rel="noreferrer"
           className="inline-flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 rounded-xl transition shadow-2xs hover:border-brand-green-300"
-          title="Open PDF Document"
+          title="Open External PDF"
         >
           <FileText className="w-3.5 h-3.5 text-brand-green-600" />
-          View PDF
+          View External PDF
         </a>
       )}
 
-      {/* Download PDF */}
-      {invoice?.pdfUrl && (
-        <a
-          href={invoice.pdfUrl}
-          target="_blank"
-          rel="noreferrer"
-          download={`${invoice.invoiceNumber}.pdf`}
+      {/* Download PDF via Option B (@react-pdf) */}
+      {invoice && (
+        <PDFDownloadLink
+          document={<InvoicePDF invoice={invoice} />}
+          fileName={`Invoice_${invoice.invoiceNumber || invoice.id}.pdf`}
           className="inline-flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 rounded-xl transition shadow-2xs hover:border-brand-green-300"
-          title="Download PDF Document"
+          title="Download Invoice as PDF"
         >
-          <Download className="w-3.5 h-3.5 text-slate-500" />
-          Download
-        </a>
+          {({ loading }) => (
+            <>
+              <Download className="w-3.5 h-3.5 text-slate-500" />
+              {loading ? "Preparing..." : "Download"}
+            </>
+          )}
+        </PDFDownloadLink>
       )}
 
       {/* Print */}

@@ -12,6 +12,7 @@ export const ChatWindow = ({
   onUpdateStatus,
   isAdmin = false,
   onGenerateInvoice,
+  onViewInvoice,
   onBack,
 }) => {
   const { user } = useContext(AuthContext);
@@ -83,7 +84,7 @@ export const ChatWindow = ({
               isSelf = msg.senderId === user?.uid;
             }
 
-            return <MessageBubble key={msg.id} message={msg} isSelf={isSelf} />;
+            return <MessageBubble key={msg.id} message={msg} isSelf={isSelf} onViewInvoice={onViewInvoice} />;
           })
         ) : (
           <p className="text-center text-xs text-slate-400 py-10">

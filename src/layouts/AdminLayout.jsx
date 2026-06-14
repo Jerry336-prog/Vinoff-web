@@ -1,4 +1,4 @@
-import React, { useContext, useState, useEffect } from 'react';
+import React, { useContext, useState, useEffect, useRef } from 'react';
 import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { ChatContext } from '../context/ChatContext';
@@ -14,6 +14,19 @@ export const AdminLayout = () => {
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [showNotifications, setShowNotifications] = useState(false);
+  const notifRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (notifRef.current && !notifRef.current.contains(event.target)) {
+        setShowNotifications(false);
+      }
+    };
+    if (showNotifications) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showNotifications]);
 
   // Security gate: only redirect AFTER Firebase has confirmed the auth state.
   // Without the loading check, this fires when user is null during initial load
@@ -73,11 +86,11 @@ export const AdminLayout = () => {
   }
 
   return (
-    <div className="flex h-screen bg-slate-100 overflow-hidden text-slate-800">
+    <div className="flex h-screen bg-slate-100 overflow-hidden text-slate-800 print:h-auto print:overflow-visible print:bg-white">
       
       {/* Sidebar for Desktop */}
       <aside 
-        className={`fixed inset-y-0 left-0 z-30 w-64 bg-slate-900 text-slate-300 border-r border-slate-800 transition-all duration-300 transform md:relative md:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-30 w-64 bg-slate-900 text-slate-300 border-r border-slate-800 transition-all duration-300 transform md:relative md:translate-x-0 print:hidden ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
@@ -163,10 +176,10 @@ export const AdminLayout = () => {
       </aside>
 
       {/* Main Panel Content Window */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden print:overflow-visible">
         
         {/* Top bar header */}
-        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6 z-10">
+        <header className="relative h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6 z-50 print:hidden">
           <div className="flex items-center gap-4">
             <button 
               onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -194,38 +207,70 @@ export const AdminLayout = () => {
 
             {/* Notification Overlay Menu */}
             {showNotifications && (
-              <div className="absolute right-0 top-12 w-80 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 p-4">
-                <div className="flex items-center justify-between border-b border-slate-100 pb-2.5 mb-2.5">
-                  <h3 className="text-sm font-bold text-slate-800">System Notifications</h3>
-                  <span className="text-[10px] bg-brand-green-100 text-brand-green-800 px-2 py-0.5 rounded-full font-bold">
-                    {unreadChatsCount} New
-                  </span>
+              <div ref={notifRef} className="absolute right-0 top-14 w-80 sm:w-96 bg-white border border-slate-200 rounded-3xl shadow-2xl z-50 overflow-hidden animate-scale-up origin-top-right">
+                <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/50 px-5 py-4">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-black text-slate-800">System Alerts</h3>
+                    {unreadChatsCount > 0 && (
+                      <span className="bg-brand-green-100 text-brand-green-800 text-[10px] px-2 py-0.5 rounded-full font-bold">
+                        {unreadChatsCount} New
+                      </span>
+                    )}
+                  </div>
+                  <button onClick={() => setShowNotifications(false)} className="text-slate-400 hover:text-slate-700 transition">
+                    <X className="w-4 h-4" />
+                  </button>
                 </div>
-                <div className="space-y-2 max-h-60 overflow-y-auto">
+                
+                <div className="max-h-[350px] overflow-y-auto p-2">
                   {unreadChatsCount > 0 ? (
-                    activeRoomsWithUnread.map(room => (
-                      <Link
-                        key={room.roomId}
-                        to="/admin/chats"
-                        onClick={() => {
-                          setShowNotifications(false);
-                        }}
-                        className="block p-2 hover:bg-slate-50 rounded-xl transition-colors border border-slate-100"
-                      >
-                        <p className="text-xs font-bold text-slate-800 truncate">{room.businessName}</p>
-                        <p className="text-[10px] text-slate-500 truncate">
-                          {room.lastMessage
-                            ? (room.lastMessage.type === "system" ? "📢 Notice update" : room.lastMessage.text)
-                            : (room.messages && room.messages.length > 0
-                              ? (room.messages[room.messages.length - 1]?.type === "system" ? "📢 Notice update" : room.messages[room.messages.length - 1]?.text)
-                              : "New notification")}
-                        </p>
-                      </Link>
-                    ))
+                    <div className="space-y-1">
+                      {activeRoomsWithUnread.map(room => (
+                        <Link
+                          key={room.roomId}
+                          to={`/admin/chats?room=${room.roomId}`}
+                          onClick={() => setShowNotifications(false)}
+                          className="flex items-start gap-3 p-3 hover:bg-slate-50 rounded-2xl transition-colors border border-transparent hover:border-slate-100 group"
+                        >
+                          <div className="w-8 h-8 rounded-full bg-brand-yellow-100 text-brand-yellow-800 flex items-center justify-center font-bold text-xs shrink-0 group-hover:scale-105 transition-transform">
+                            {room.businessName?.charAt(0) || "U"}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-bold text-slate-800 truncate">{room.businessName}</p>
+                            <p className="text-[11px] text-slate-500 truncate mt-0.5">
+                              {room.lastMessage
+                                ? (room.lastMessage.type === "system" ? "📢 Action required on order" : room.lastMessage.text)
+                                : (room.messages && room.messages.length > 0
+                                  ? (room.messages[room.messages.length - 1]?.type === "system" ? "📢 Action required on order" : room.messages[room.messages.length - 1]?.text)
+                                  : "You have a new message")}
+                            </p>
+                          </div>
+                          <div className="w-2 h-2 rounded-full bg-brand-green-500 mt-1 shrink-0"></div>
+                        </Link>
+                      ))}
+                    </div>
                   ) : (
-                    <p className="text-xs text-slate-500 text-center py-4">No new message alerts.</p>
+                    <div className="py-10 flex flex-col items-center justify-center text-center">
+                      <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center mb-3">
+                        <Bell className="w-5 h-5 text-slate-300" />
+                      </div>
+                      <p className="text-sm font-bold text-slate-700">All caught up!</p>
+                      <p className="text-xs text-slate-500 mt-1">No new alerts or messages.</p>
+                    </div>
                   )}
                 </div>
+                
+                {unreadChatsCount > 0 && (
+                  <div className="border-t border-slate-100 p-2">
+                    <Link
+                      to="/admin/chats"
+                      onClick={() => setShowNotifications(false)}
+                      className="block w-full text-center py-2.5 text-xs font-bold text-brand-green-700 hover:bg-brand-green-50 rounded-xl transition-colors"
+                    >
+                      View All Messages
+                    </Link>
+                  </div>
+                )}
               </div>
             )}
 
@@ -240,7 +285,7 @@ export const AdminLayout = () => {
         </header>
 
         {/* Dashboard Pages Mount */}
-        <main className="flex-1 overflow-y-auto p-6 md:p-8">
+        <main className="flex-1 overflow-y-auto p-6 md:p-8 print:p-0 print:overflow-visible">
           <Outlet />
         </main>
       </div>

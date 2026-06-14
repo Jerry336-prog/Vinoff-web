@@ -92,11 +92,18 @@ export const Customers = () => {
     try {
       const q = query(
         collection(db, "invoices"),
-        where("customerId", "==", customer.id),
-        orderBy("createdAt", "desc"),
+        where("customerId", "==", customer.id)
       );
       const snap = await getDocs(q);
       const list = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+      
+      // Sort client-side to avoid requiring a composite index in Firestore
+      list.sort((a, b) => {
+        const timeA = a.createdAt?.seconds || 0;
+        const timeB = b.createdAt?.seconds || 0;
+        return timeB - timeA;
+      });
+      
       setCustomerInvoices(list);
     } catch (error) {
       console.error("Error fetching customer invoices:", error);

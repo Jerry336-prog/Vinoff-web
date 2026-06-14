@@ -51,6 +51,14 @@ export const InvoiceDetails = () => {
     }
   }, [id]);
 
+  useEffect(() => {
+    if (invoice && window.location.search.includes("print=true")) {
+      setTimeout(() => {
+        window.print();
+      }, 500);
+    }
+  }, [invoice]);
+
   const handleEditClick = () => {
     setIsFormOpen(true);
   };
@@ -84,7 +92,7 @@ export const InvoiceDetails = () => {
     <div className="space-y-6">
       
       {/* Top back bar and actions */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4 print:hidden">
         <button
           onClick={() => navigate('/admin/invoices')}
           className="inline-flex items-center gap-1.5 text-xs text-slate-500 font-bold hover:text-slate-800 transition"
@@ -102,7 +110,7 @@ export const InvoiceDetails = () => {
       </div>
 
       {/* Main sheet container */}
-      <div className="bg-white border border-slate-200 rounded-3xl p-6 md:p-8 space-y-6 shadow-sm">
+      <div id="invoice-document-area" className="bg-white border border-slate-200 rounded-3xl p-6 md:p-8 space-y-6 shadow-sm print:border-none print:shadow-none print:p-0 print:m-0">
         
         {/* Invoice Header */}
         <div className="flex flex-col md:flex-row justify-between border-b border-slate-100 pb-5 gap-4">

@@ -112,10 +112,10 @@ export const InvoiceViewer = ({ invoice, isOpen = false, onClose, onEdit, onSave
       : +(total - deposit).toFixed(2);
 
   return (
-    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-      <div className="bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-2xl max-w-4xl w-full flex flex-col max-h-[90vh] animate-scale-up">
+    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4 print:absolute print:inset-0 print:bg-white print:p-0">
+      <div className="bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-2xl max-w-4xl w-full flex flex-col max-h-[90vh] animate-scale-up print:border-none print:shadow-none print:max-h-none print:block">
         {/* Header */}
-        <div className="px-6 py-4.5 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
+        <div className="px-6 py-4.5 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between print:hidden">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg bg-emerald-50 border border-emerald-250 flex items-center justify-center text-emerald-700">
               <FileText className="w-4 h-4" />
@@ -150,7 +150,7 @@ export const InvoiceViewer = ({ invoice, isOpen = false, onClose, onEdit, onSave
         </div>
 
         {/* Invoice Document Box */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6 print:p-0 print:overflow-visible">
+        <div id="invoice-document-area" className="flex-1 overflow-y-auto p-6 space-y-6 print:p-0 print:overflow-visible bg-white">
           {/* Printable Invoice Header */}
           <div className="flex flex-col md:flex-row justify-between border-b border-slate-100 pb-5 gap-4">
             <div>
@@ -321,7 +321,7 @@ export const InvoiceViewer = ({ invoice, isOpen = false, onClose, onEdit, onSave
         </div>
 
         {/* Footer controls */}
-        <div className="px-6 py-4.5 border-t border-slate-100 bg-slate-50/50 flex justify-end">
+        <div className="px-6 py-4.5 border-t border-slate-100 bg-slate-50/50 flex justify-end print:hidden">
           <button
             onClick={onClose}
             className="px-5 py-2.5 bg-slate-150 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-extrabold transition shadow-2xs"

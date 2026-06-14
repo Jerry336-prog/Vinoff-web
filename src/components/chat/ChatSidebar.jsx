@@ -145,10 +145,10 @@ export const ChatSidebar = ({
                       />
                       {isUnread && (
                         <span
-                          className="flex items-center justify-center bg-brand-green-600 text-white rounded-full text-[9px] font-black w-4.5 h-4.5 shadow-xs shadow-brand-green-200"
+                          className="flex items-center justify-center bg-brand-yellow-400 text-slate-900 rounded-full text-[10px] font-black min-w-[20px] h-5 px-1.5 shadow-sm shadow-brand-yellow-200"
                           title={`${room.unreadCount} unread messages`}
                         >
-                          {room.unreadCount}
+                          {room.unreadCount > 99 ? '99+' : room.unreadCount}
                         </span>
                       )}
                     </div>
