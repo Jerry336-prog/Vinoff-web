@@ -213,7 +213,13 @@ export const AdminLayout = () => {
                         className="block p-2 hover:bg-slate-50 rounded-xl transition-colors border border-slate-100"
                       >
                         <p className="text-xs font-bold text-slate-800 truncate">{room.businessName}</p>
-                        <p className="text-[10px] text-slate-500 truncate">{room.messages[room.messages.length - 1]?.text}</p>
+                        <p className="text-[10px] text-slate-500 truncate">
+                          {room.lastMessage
+                            ? (room.lastMessage.type === "system" ? "📢 Notice update" : room.lastMessage.text)
+                            : (room.messages && room.messages.length > 0
+                              ? (room.messages[room.messages.length - 1]?.type === "system" ? "📢 Notice update" : room.messages[room.messages.length - 1]?.text)
+                              : "New notification")}
+                        </p>
                       </Link>
                     ))
                   ) : (

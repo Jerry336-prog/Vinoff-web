@@ -209,7 +209,7 @@ export const Chats = () => {
   };
 
   return (
-    <div className="h-[calc(100vh-120px)] flex flex-col md:flex-row gap-6">
+    <div className="h-[calc(100dvh-130px)] md:h-[calc(100vh-120px)] flex flex-col md:flex-row gap-6">
       {/* Sidebar selection */}
       <div
         className={`w-full md:w-80 h-full flex-shrink-0 ${activeRoom ? "hidden md:block" : "block"}`}

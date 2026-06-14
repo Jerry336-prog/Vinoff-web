@@ -87,9 +87,21 @@ export const MessageBubble = ({ message, isSelf }) => {
         </div>
       )}
       <div
-        className={`max-w-[70%] px-3 py-2 rounded-xl ${isSelf ? "bg-emerald-700 text-white" : "bg-white border border-slate-100 text-slate-800"}`}
+        className={`max-w-[85%] md:max-w-[70%] px-3 py-2 rounded-xl flex flex-col gap-2 ${
+          isSelf ? "bg-emerald-700 text-white" : "bg-white border border-slate-100 text-slate-800"
+        }`}
       >
-        {message.text}
+        {message.image && (
+          <div className="rounded-lg overflow-hidden border border-slate-200 bg-slate-50/50 max-w-full">
+            <img 
+              src={message.image} 
+              alt="Uploaded attachment" 
+              className="max-h-60 max-w-full object-contain cursor-pointer hover:opacity-90 transition"
+              onClick={() => window.open(message.image, "_blank")}
+            />
+          </div>
+        )}
+        <span className="break-words">{message.text}</span>
       </div>
     </div>
   );

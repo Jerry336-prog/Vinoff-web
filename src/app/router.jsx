@@ -3,6 +3,7 @@ import { createBrowserRouter, Navigate } from 'react-router-dom';
 import MainLayout from '../layouts/MainLayout';
 import AdminLayout from '../layouts/AdminLayout';
 import { AuthContext } from '../context/AuthContext';
+import RouteErrorBoundary from '../components/ui/RouteErrorBoundary';
 
 // Customer Pages
 import Home from '../pages/home/Home';
@@ -82,6 +83,7 @@ export const router = createBrowserRouter([
   {
     path: '/',
     element: <MainLayout />,
+    errorElement: <RouteErrorBoundary />,
     children: [
       {
         index: true,
@@ -120,6 +122,7 @@ export const router = createBrowserRouter([
   {
     path: '/admin',
     element: <AdminGate><AdminLayout /></AdminGate>,
+    errorElement: <RouteErrorBoundary />,
     children: [
       {
         path: 'dashboard',

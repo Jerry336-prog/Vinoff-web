@@ -614,6 +614,32 @@ export const dbSubscribeToChats = (callback) => {
   });
 };
 
+/**
+ * Update the typing status for admin or customer inside the room metadata.
+ */
+export const dbUpdateTypingState = async (roomId, isTyping, role) => {
+  const ref = doc(db, "chats", roomId);
+  const updateData = {};
+  if (role === "admin") {
+    updateData.typingAdmin = isTyping;
+  } else {
+    updateData.typingCustomer = isTyping;
+  }
+  await updateDoc(ref, updateData);
+};
+
+/**
+ * Real-time listener on a single chat room document.
+ */
+export const dbSubscribeToChatRoom = (roomId, callback) => {
+  const ref = doc(db, "chats", roomId);
+  return onSnapshot(ref, (snap) => {
+    if (snap.exists()) {
+      callback({ roomId: snap.id, ...snap.data() });
+    }
+  });
+};
+
 // ─────────────────────────────────────────
 // USERS (profile + role management)
 // ─────────────────────────────────────────

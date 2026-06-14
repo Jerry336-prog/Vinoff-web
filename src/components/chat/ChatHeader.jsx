@@ -69,8 +69,8 @@ export const ChatHeader = ({
   const effectiveAvatar = getAvatarUrl() || fetchedAvatar || null;
 
   return (
-    <div className="px-6 py-4.5 bg-white border-b border-slate-200 flex items-center justify-between shadow-sm">
-      <div className="flex items-center gap-3">
+    <div className="px-4 py-3 sm:px-6 sm:py-4.5 bg-white border-b border-slate-200 flex items-center justify-between shadow-sm">
+      <div className="flex items-center gap-2 sm:gap-3">
         {onBack && (
           <button
             type="button"
@@ -81,41 +81,42 @@ export const ChatHeader = ({
             <ArrowLeft className="w-4 h-4" />
           </button>
         )}
-        <div className="w-10 h-10 rounded-xl overflow-hidden border flex-shrink-0">
+        <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl overflow-hidden border flex-shrink-0">
           <Avatar
             src={effectiveAvatar}
             alt={room?.customerName || "avatar"}
             size={40}
           />
         </div>
-        <div>
-          <h3 className="font-bold text-slate-800 text-sm leading-tight">
+        <div className="min-w-0">
+          <h3 className="font-bold text-slate-800 text-xs sm:text-sm leading-tight max-w-[85px] xs:max-w-[120px] sm:max-w-none truncate">
             {room.customerName}
           </h3>
-          <p className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider mt-0.5">
+          <p className="text-[9px] sm:text-[10px] text-slate-500 font-semibold uppercase tracking-wider mt-0.5 max-w-[85px] xs:max-w-[120px] sm:max-w-none truncate">
             {room.businessName}
           </p>
         </div>
       </div>
 
-      <div className="flex items-center gap-3.5 relative">
+      <div className="flex items-center gap-2 sm:gap-3.5 relative">
         {isAdmin && onGenerateInvoice && (
           <button
             type="button"
             onClick={onGenerateInvoice}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-brand-green-700 hover:bg-brand-green-900 text-xs font-black text-white rounded-xl transition shadow-2xs hover:shadow-xs"
+            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 bg-brand-green-700 hover:bg-brand-green-900 text-xs font-black text-white rounded-xl transition shadow-2xs hover:shadow-xs"
+            title="Generate Invoice"
           >
             <FileText className="w-3.5 h-3.5" />
-            Generate Invoice
+            <span className="hidden sm:inline">Generate Invoice</span>
           </button>
         )}
         <div className="flex items-center gap-1.5">
-          <span className="text-xs text-slate-400 font-medium">Status:</span>
+          <span className="text-xs text-slate-400 font-medium hidden sm:inline">Status:</span>
           {isAdmin ? (
             <div>
               <button
                 onClick={() => setDropdownOpen(!dropdownOpen)}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-xs font-semibold rounded-xl text-slate-700 transition"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-xs font-semibold rounded-xl text-slate-700 transition"
               >
                 <Badge status={room.status} className="border-0 px-0 py-0" />
                 <ChevronDown className="w-3.5 h-3.5" />

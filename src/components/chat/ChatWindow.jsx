@@ -3,6 +3,7 @@ import ChatHeader from "./ChatHeader";
 import MessageBubble from "./MessageBubble";
 import ChatInput from "./ChatInput";
 import { AuthContext } from "../../context/AuthContext";
+import { ChatContext } from "../../context/ChatContext";
 import { MessageSquareOff } from "lucide-react";
 
 export const ChatWindow = ({
@@ -14,12 +15,15 @@ export const ChatWindow = ({
   onBack,
 }) => {
   const { user } = useContext(AuthContext);
+  const { setTypingState } = useContext(ChatContext);
   const chatEndRef = useRef(null);
 
-  // Auto Scroll to bottom on new messages
+  const isOtherTyping = isAdmin ? room?.typingCustomer === true : room?.typingAdmin === true;
+
+  // Auto Scroll to bottom on new messages or typing state change
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [room?.messages?.length]);
+  }, [room?.messages?.length, isOtherTyping]);
 
   if (!room) {
     return (
@@ -63,7 +67,7 @@ export const ChatWindow = ({
       )} */}
 
       {/* Messages Scroll Area */}
-      <div className="flex-1 overflow-y-auto p-6 bg-slate-50/50 space-y-1">
+      <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-50/50 space-y-1">
         {room.messages && room.messages.length > 0 ? (
           room.messages.map((msg) => {
             // Determine if this message should be rendered as 'self' (right side)
@@ -86,12 +90,32 @@ export const ChatWindow = ({
             No messages yet.
           </p>
         )}
+        {isOtherTyping && (
+          <div className="flex justify-start mb-2 items-end">
+            <div className="mr-2 flex-shrink-0">
+              <div className="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center font-bold text-xs text-slate-500 border border-slate-200">
+                {isAdmin ? "C" : "AD"}
+              </div>
+            </div>
+            <div className="bg-white border border-slate-100 px-3.5 py-2 rounded-2xl flex items-center gap-1.5 shadow-xs max-w-[70%]">
+              <span className="text-[10px] font-semibold text-slate-400 mr-1 animate-pulse">
+                {isAdmin ? "Buyer is typing" : "Support is typing"}
+              </span>
+              <div className="flex gap-1 items-center h-2">
+                <span className="w-1 h-1 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+                <span className="w-1 h-1 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+                <span className="w-1 h-1 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+              </div>
+            </div>
+          </div>
+        )}
         <div ref={chatEndRef} />
       </div>
 
       {/* Input controls */}
       <ChatInput
         onSendMessage={(text, opt) => onSendMessage(room.roomId, text, opt)}
+        onTyping={(isTyping) => setTypingState(isTyping)}
       />
     </div>
   );

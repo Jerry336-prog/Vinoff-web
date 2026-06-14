@@ -22,7 +22,7 @@ export const ChatPage = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
         {/* Chat Window Box */}
-        <div className="lg:col-span-3 h-[600px]">
+        <div className="lg:col-span-3 h-[calc(100dvh-220px)] min-h-[450px] lg:h-[600px]">
           {activeRoom ? (
             <ChatWindow
               room={activeRoom}

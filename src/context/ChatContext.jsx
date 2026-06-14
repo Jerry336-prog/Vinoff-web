@@ -6,6 +6,8 @@ import {
   dbUpdateChatRoomStatus,
   dbSubscribeToChats,
   dbSubscribeToChatMessages,
+  dbSubscribeToChatRoom,
+  dbUpdateTypingState,
 } from "../services/firebase/db";
 import { AuthContext } from "./AuthContext";
 
@@ -17,6 +19,7 @@ export const ChatContext = createContext({
   sendMessage: async () => {},
   updateRoomStatus: async () => {},
   refreshRooms: async () => {},
+  setTypingState: async () => {},
 });
 
 export const ChatProvider = ({ children }) => {
@@ -28,6 +31,7 @@ export const ChatProvider = ({ children }) => {
   // Refs to hold active Firestore unsubscribe functions
   const roomsUnsubRef = useRef(null);
   const messagesUnsubRef = useRef(null);
+  const activeRoomUnsubRef = useRef(null);
 
   /**
    * Subscribe to real-time messages for a specific room.
@@ -51,6 +55,29 @@ export const ChatProvider = ({ children }) => {
   }, []);
 
   /**
+   * Subscribe to real-time metadata (typing states, room status, etc.) for a specific room.
+   * Automatically tears down the previous subscription first.
+   */
+  const subscribeToActiveRoomMetadata = useCallback((roomId) => {
+    // Tear down any existing active room metadata subscription
+    if (activeRoomUnsubRef.current) {
+      activeRoomUnsubRef.current();
+      activeRoomUnsubRef.current = null;
+    }
+
+    const unsub = dbSubscribeToChatRoom(roomId, (roomData) => {
+      setActiveRoom((prev) => {
+        if (!prev || prev.roomId !== roomId) {
+          return { ...roomData, messages: [] };
+        }
+        return { ...prev, ...roomData };
+      });
+    });
+
+    activeRoomUnsubRef.current = unsub;
+  }, []);
+
+  /**
    * Tear down all active subscriptions cleanly.
    */
   const tearDownAll = useCallback(() => {
@@ -61,6 +88,10 @@ export const ChatProvider = ({ children }) => {
     if (messagesUnsubRef.current) {
       messagesUnsubRef.current();
       messagesUnsubRef.current = null;
+    }
+    if (activeRoomUnsubRef.current) {
+      activeRoomUnsubRef.current();
+      activeRoomUnsubRef.current = null;
     }
   }, []);
 
@@ -91,7 +122,8 @@ export const ChatProvider = ({ children }) => {
         .then((room) => {
           setActiveRoom(room);
           setRooms([room]);
-          // Subscribe to real-time messages for this customer's room only
+          // Subscribe to real-time metadata and messages for this customer's room
+          subscribeToActiveRoomMetadata(user.uid);
           subscribeToRoomMessages(user.uid);
         })
         .catch((err) => console.error("Failed to load customer chat room:", err))
@@ -113,6 +145,10 @@ export const ChatProvider = ({ children }) => {
         messagesUnsubRef.current();
         messagesUnsubRef.current = null;
       }
+      if (activeRoomUnsubRef.current) {
+        activeRoomUnsubRef.current();
+        activeRoomUnsubRef.current = null;
+      }
       return;
     }
     setLoading(true);
@@ -120,7 +156,8 @@ export const ChatProvider = ({ children }) => {
       const room = await dbGetChatByRoom(roomId);
       setActiveRoom(room);
       await dbClearChatUnread(roomId);
-      // Subscribe to live messages for the selected room
+      // Subscribe to live metadata and messages for the selected room
+      subscribeToActiveRoomMetadata(roomId);
       subscribeToRoomMessages(roomId);
     } catch (error) {
       console.error("Error selecting chat room:", error);
@@ -245,6 +282,15 @@ export const ChatProvider = ({ children }) => {
     // For admin, the onSnapshot subscription already keeps rooms current
   };
 
+  const setTypingState = async (isTyping) => {
+    if (!user || !activeRoom) return;
+    try {
+      await dbUpdateTypingState(activeRoom.roomId, isTyping, user.role);
+    } catch (e) {
+      console.error("Failed to update typing state:", e);
+    }
+  };
+
   const value = {
     rooms,
     activeRoom,
@@ -253,6 +299,7 @@ export const ChatProvider = ({ children }) => {
     sendMessage,
     updateRoomStatus,
     refreshRooms,
+    setTypingState,
   };
 
   return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;
