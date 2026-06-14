@@ -38,7 +38,7 @@ export const MainLayout = () => {
       <div className="bg-brand-green-900 text-brand-yellow-400 py-1.5 px-4 text-xs font-semibold tracking-wider text-center flex items-center justify-center gap-1.5 shadow-sm">
         <span>
           📦 wholesale-ONLY PLATFORM | MINIMUM ORDER VALUE:{" "}
-          {formatCurrency(150)}
+          {formatCurrency(100000)}
         </span>
       </div>
 
