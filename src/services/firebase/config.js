@@ -22,32 +22,25 @@ const getEnv = (key) => {
 const firebaseConfig = {
   apiKey:
     getEnv("VITE_FIREBASE_API_KEY") ||
-    getEnv("REACT_APP_FIREBASE_API_KEY") ||
-    "AIzaSyC6moXJdb-KYtgT5zTHnTc_nkDc1lfx6uw",
+    getEnv("REACT_APP_FIREBASE_API_KEY"),
   authDomain:
     getEnv("VITE_FIREBASE_AUTH_DOMAIN") ||
-    getEnv("REACT_APP_FIREBASE_AUTH_DOMAIN") ||
-    "vinoff-web.firebaseapp.com",
+    getEnv("REACT_APP_FIREBASE_AUTH_DOMAIN"),
   projectId:
     getEnv("VITE_FIREBASE_PROJECT_ID") ||
-    getEnv("REACT_APP_FIREBASE_PROJECT_ID") ||
-    "vinoff-web",
+    getEnv("REACT_APP_FIREBASE_PROJECT_ID"),
   storageBucket:
     getEnv("VITE_FIREBASE_STORAGE_BUCKET") ||
-    getEnv("REACT_APP_FIREBASE_STORAGE_BUCKET") ||
-    "vinoff-web.firebasestorage.app",
+    getEnv("REACT_APP_FIREBASE_STORAGE_BUCKET"),
   messagingSenderId:
     getEnv("VITE_FIREBASE_MESSAGING_SENDER_ID") ||
-    getEnv("REACT_APP_FIREBASE_MESSAGING_SENDER_ID") ||
-    "415749885370",
+    getEnv("REACT_APP_FIREBASE_MESSAGING_SENDER_ID"),
   appId:
     getEnv("VITE_FIREBASE_APP_ID") ||
-    getEnv("REACT_APP_FIREBASE_APP_ID") ||
-    "1:415749885370:web:0c77719c6407df370a6183",
+    getEnv("REACT_APP_FIREBASE_APP_ID"),
   measurementId:
     getEnv("VITE_FIREBASE_MEASUREMENT_ID") ||
-    getEnv("REACT_APP_FIREBASE_MEASUREMENT_ID") ||
-    "G-THGXBSZVHC",
+    getEnv("REACT_APP_FIREBASE_MEASUREMENT_ID"),
 };
 
 let app;
