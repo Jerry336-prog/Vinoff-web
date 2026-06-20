@@ -17,15 +17,19 @@ export const InstallPrompt = () => {
 
     if (checkStandalone()) return;
 
-    // Listen for the beforeinstallprompt event
+    const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    const lastDismissed = sessionStorage.getItem('pwaPromptDismissed');
+
+    // Force show on mobile if not dismissed and not standalone
+    if (isMobileDevice && !lastDismissed) {
+      const timer = setTimeout(() => setShowPrompt(true), 1500);
+      return () => clearTimeout(timer);
+    }
+
+    // Listen for the beforeinstallprompt event for Android/Chrome
     const handleBeforeInstallPrompt = (e) => {
-      // Prevent Chrome 67 and earlier from automatically showing the prompt
       e.preventDefault();
-      // Stash the event so it can be triggered later.
       setDeferredPrompt(e);
-      
-      // Check if we should show the custom prompt (e.g., don't spam if they literally just closed it this session)
-      const lastDismissed = sessionStorage.getItem('pwaPromptDismissed');
       if (!lastDismissed) {
         setShowPrompt(true);
       }
@@ -39,26 +43,29 @@ export const InstallPrompt = () => {
   }, []);
 
   const handleInstallClick = async () => {
-    if (!deferredPrompt) return;
-    
-    // Show the browser's install prompt
-    deferredPrompt.prompt();
-    
-    // Wait for the user to respond to the prompt
-    const { outcome } = await deferredPrompt.userChoice;
-    
-    if (outcome === 'accepted') {
-      console.log('User accepted the install prompt');
-      setShowPrompt(false);
+    if (deferredPrompt) {
+      // Show the browser's install prompt
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      
+      if (outcome === 'accepted') {
+        console.log('User accepted the install prompt');
+        setShowPrompt(false);
+      } else {
+        console.log('User dismissed the install prompt');
+        sessionStorage.setItem('pwaPromptDismissed', 'true');
+        setShowPrompt(false);
+      }
+      setDeferredPrompt(null);
     } else {
-      console.log('User dismissed the install prompt');
-      // They dismissed the actual browser prompt, let's hide ours for this session
-      sessionStorage.setItem('pwaPromptDismissed', 'true');
-      setShowPrompt(false);
+      // If deferredPrompt is missing (e.g. iOS Safari), show manual instructions
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+      if (isIOS) {
+        alert("To install: Tap the Share button at the bottom of Safari, then select 'Add to Home Screen'.");
+      } else {
+        alert("To install: Open your browser menu and select 'Add to Home Screen' or 'Install App'.");
+      }
     }
-    
-    // We can't use the prompt again, discard it
-    setDeferredPrompt(null);
   };
 
   const handleDismiss = () => {
@@ -71,77 +78,55 @@ export const InstallPrompt = () => {
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
-      <div className="bg-white rounded-3xl shadow-2xl max-w-sm w-full overflow-hidden animate-in slide-in-from-bottom-8 duration-500 relative">
+      <div className="bg-white rounded-3xl shadow-2xl max-w-xs w-full overflow-hidden animate-in slide-in-from-bottom-8 duration-500 relative">
         
         {/* Dismiss Button */}
         <button 
           onClick={handleDismiss}
-          className="absolute top-4 right-4 p-2 text-white/80 hover:text-white bg-black/20 hover:bg-black/40 rounded-full backdrop-blur-md transition-all z-10"
+          className="absolute top-3 right-3 p-1.5 text-slate-400 hover:text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-full transition-colors z-10"
         >
-          <X className="w-5 h-5" />
+          <X className="w-4 h-4" />
         </button>
 
-        {/* Header Hero Area */}
-        <div className="bg-gradient-to-br from-brand-green-600 to-emerald-800 p-8 text-center relative overflow-hidden">
-          <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
-          <div className="w-16 h-16 bg-white rounded-2xl mx-auto flex items-center justify-center shadow-lg transform -rotate-3 mb-4">
-            <span className="text-3xl font-black text-brand-green-700">V</span>
-          </div>
-          <h2 className="text-2xl font-bold text-white tracking-tight leading-tight relative z-10">
+        {/* Header & Logo */}
+        <div className="p-5 text-center">
+          <img 
+            src="/logo.png" 
+            alt="Vinoff Logo" 
+            className="w-14 h-14 mx-auto mb-3 object-contain"
+            onError={(e) => {
+              e.target.onerror = null;
+              e.target.src = '/favicon.svg';
+            }}
+          />
+          <h2 className="text-lg font-bold text-slate-800 tracking-tight leading-tight">
             Install Vinoff App
           </h2>
-          <p className="text-emerald-100 text-sm mt-2 relative z-10 font-medium">
-            Get the ultimate B2B wholesale experience directly on your device.
+          <p className="text-slate-500 text-xs mt-1 font-medium">
+            Order seamlessly with our lightning-fast mobile app.
           </p>
         </div>
 
-        {/* Feature Guide */}
-        <div className="p-6 space-y-5">
-          <div className="flex gap-4 items-start">
-            <div className="bg-emerald-100 p-2.5 rounded-xl text-brand-green-700 shrink-0">
-              <Zap className="w-5 h-5" />
-            </div>
-            <div>
-              <h4 className="font-bold text-slate-800 text-sm">Lightning Fast</h4>
-              <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-                App loads instantly and works seamlessly even on poor networks with offline caching.
-              </p>
-            </div>
+        {/* Feature Guide (Compact) */}
+        <div className="px-5 pb-5 grid grid-cols-2 gap-3">
+          <div className="bg-slate-50 border border-slate-100 p-2.5 rounded-2xl text-center">
+            <Zap className="w-4 h-4 text-brand-green-600 mx-auto mb-1.5" />
+            <h4 className="font-bold text-slate-700 text-[10px] leading-tight">Fast & Offline</h4>
           </div>
-
-          <div className="flex gap-4 items-start">
-            <div className="bg-blue-100 p-2.5 rounded-xl text-blue-700 shrink-0">
-              <Smartphone className="w-5 h-5" />
-            </div>
-            <div>
-              <h4 className="font-bold text-slate-800 text-sm">One-Tap Access</h4>
-              <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-                Adds a shortcut to your home screen so you can order inventory in seconds.
-              </p>
-            </div>
-          </div>
-
-          <div className="flex gap-4 items-start">
-            <div className="bg-amber-100 p-2.5 rounded-xl text-amber-700 shrink-0">
-              <ShieldCheck className="w-5 h-5" />
-            </div>
-            <div>
-              <h4 className="font-bold text-slate-800 text-sm">Secure & Safe</h4>
-              <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-                No app store required. Completely safe, lightweight, and takes zero storage space.
-              </p>
-            </div>
+          <div className="bg-slate-50 border border-slate-100 p-2.5 rounded-2xl text-center">
+            <Smartphone className="w-4 h-4 text-blue-600 mx-auto mb-1.5" />
+            <h4 className="font-bold text-slate-700 text-[10px] leading-tight">1-Tap Access</h4>
           </div>
         </div>
 
         {/* Actions */}
-        <div className="p-6 pt-2 border-t border-slate-100 bg-slate-50 flex flex-col gap-3">
+        <div className="px-5 pb-5 flex flex-col gap-2">
           <Button 
             onClick={handleInstallClick} 
-            className="w-full py-3.5 rounded-xl text-sm shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2"
+            className="w-full py-3 rounded-xl text-sm shadow-sm flex items-center justify-center gap-2"
           >
             <Download className="w-4 h-4" />
-            Install App Now
+            Install Now
           </Button>
           <button 
             onClick={handleDismiss}
