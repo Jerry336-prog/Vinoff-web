@@ -27,7 +27,7 @@ import { useInvoice } from "../hooks/useInvoice";
  * @param {function} onClose - Close modal callback
  * @param {function} onEdit - Edit callback from viewer
  */
-export const InvoiceViewer = ({ invoice, isOpen = false, onClose, onEdit, onSaveSuccess }) => {
+export const InvoiceViewer = ({ invoice, isOpen = false, onClose, onEdit, onSaveSuccess, readOnly = false }) => {
   const { deleteInvoice, updateInvoice } = useInvoice();
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
   const [pendingDeleteInvoice, setPendingDeleteInvoice] = useState(null);
@@ -134,10 +134,10 @@ export const InvoiceViewer = ({ invoice, isOpen = false, onClose, onEdit, onSave
             {/* Quick Actions inside header */}
             <InvoiceActions
               invoice={invoice}
-              onEdit={onEdit}
-              onMarkPaid={handleMarkPaid}
-              showEdit={!!onEdit}
-              onDelete={requestDelete}
+              onEdit={readOnly ? undefined : onEdit}
+              onMarkPaid={readOnly ? undefined : handleMarkPaid}
+              showEdit={!readOnly && !!onEdit}
+              onDelete={readOnly ? undefined : requestDelete}
             />
 
             <button

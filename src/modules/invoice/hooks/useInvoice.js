@@ -328,7 +328,16 @@ export const useInvoice = () => {
     return { id: snap.id, ...snap.data() };
   }, []);
 
-  return { getInvoice, getCustomerInvoices, createInvoice, updateInvoice, deleteInvoice };
+  const getInvoiceByNumber = useCallback(async (invoiceNumber) => {
+    const q = query(collection(db, "invoices"), where("invoiceNumber", "==", invoiceNumber));
+    const snap = await getDocs(q);
+    if (snap.empty) {
+      throw new Error(`Invoice ${invoiceNumber} not found.`);
+    }
+    return { id: snap.docs[0].id, ...snap.docs[0].data() };
+  }, []);
+
+  return { getInvoice, getInvoiceByNumber, getCustomerInvoices, createInvoice, updateInvoice, deleteInvoice };
 };
 
 export default useInvoice;

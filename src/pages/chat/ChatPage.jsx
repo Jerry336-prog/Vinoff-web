@@ -1,11 +1,51 @@
-import React, { useContext } from "react";
+import React, { useContext, useState } from "react";
 import { ChatContext } from "../../context/ChatContext";
 import ChatWindow from "../../components/chat/ChatWindow";
 import { Info, HelpCircle } from "lucide-react";
+import InvoiceViewer from "../../modules/invoice/components/InvoiceViewer";
+import { useInvoice } from "../../modules/invoice/hooks/useInvoice";
 
 export const ChatPage = () => {
   const chatContext = useContext(ChatContext) || {};
   const { activeRoom, sendMessage, updateRoomStatus } = chatContext;
+  const { getInvoiceByNumber, getCustomerInvoices } = useInvoice();
+
+  const [activeInvoice, setActiveInvoice] = useState(null);
+  const [isViewerOpen, setIsViewerOpen] = useState(false);
+
+  const handleViewInvoice = async (invoiceRef) => {
+    try {
+      if (!invoiceRef) return;
+
+      // Try 1: Direct lookup by invoiceNumber field
+      try {
+        const invoice = await getInvoiceByNumber(invoiceRef);
+        setActiveInvoice(invoice);
+        setIsViewerOpen(true);
+        return;
+      } catch {
+        // invoiceRef doesn't match any invoice doc's invoiceNumber — fall through
+      }
+
+      // Try 2: The invoiceRef might be from an order-creation message.
+      // Look up all invoices for this customer and find one linked to the same order.
+      if (activeRoom?.customerId) {
+        const invoices = await getCustomerInvoices(activeRoom.customerId);
+        if (invoices.length > 0) {
+          // Show the most recent invoice for this customer
+          setActiveInvoice(invoices[0]);
+          setIsViewerOpen(true);
+          return;
+        }
+      }
+
+      // No invoice found at all
+      alert("The admin hasn't generated an invoice for this order yet. Please wait for the admin to create one.");
+    } catch (err) {
+      console.error("Failed to load invoice:", err);
+      alert("This invoice is currently unavailable. Please try again later.");
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -29,6 +69,7 @@ export const ChatPage = () => {
               onSendMessage={sendMessage}
               onUpdateStatus={updateRoomStatus}
               isAdmin={false}
+              onViewInvoice={handleViewInvoice}
             />
           ) : (
             <div className="h-full bg-white border border-slate-200 rounded-3xl p-6 flex flex-col items-center justify-center text-center animate-pulse text-slate-400">
@@ -71,6 +112,14 @@ export const ChatPage = () => {
           </div>
         </div>
       </div>
+
+      {/* Invoice Viewer Modal for Customer */}
+      <InvoiceViewer
+        invoice={activeInvoice}
+        isOpen={isViewerOpen}
+        onClose={() => setIsViewerOpen(false)}
+        readOnly={true}
+      />
     </div>
   );
 };
