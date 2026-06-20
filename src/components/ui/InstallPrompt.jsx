@@ -91,7 +91,7 @@ export const InstallPrompt = () => {
         {/* Header & Logo */}
         <div className="p-5 text-center">
           <img 
-            src="/logo.png" 
+            src="/Logo.png" 
             alt="Vinoff Logo" 
             className="w-14 h-14 mx-auto mb-3 object-contain"
             onError={(e) => {
