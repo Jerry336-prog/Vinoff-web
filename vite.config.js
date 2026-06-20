@@ -9,7 +9,11 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       devOptions: {
-        enabled: true
+        enabled: true,
+        type: 'module'
+      },
+      workbox: {
+        maximumFileSizeToCacheInBytes: 4000000 // 4MB
       },
       manifest: {
         name: 'Vinoff Web App',
@@ -17,16 +21,11 @@ export default defineConfig({
         description: 'Vinoff online store and management',
         theme_color: '#ffffff',
         icons: [
-          // Basic placeholder icons (user can update these later)
           {
-            src: '/pwa-192x192.png',
-            sizes: '192x192',
-            type: 'image/png'
-          },
-          {
-            src: '/pwa-512x512.png',
-            sizes: '512x512',
-            type: 'image/png'
+            src: '/favicon.svg',
+            sizes: '192x192 512x512',
+            type: 'image/svg+xml',
+            purpose: 'any maskable'
           }
         ]
       }

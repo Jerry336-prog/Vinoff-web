@@ -5,9 +5,9 @@ import { Layers } from 'lucide-react';
 export const ProductGrid = ({ products = [], loading = false }) => {
   if (loading) {
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="columns-2 sm:columns-3 lg:columns-4 gap-3 sm:gap-4 space-y-3 sm:space-y-4">
         {[1, 2, 3, 4, 5, 6].map((i) => (
-          <div key={i} className="bg-white border border-slate-200 rounded-3xl p-5 space-y-4 animate-pulse shadow-sm">
+          <div key={i} className="break-inside-avoid bg-white border border-slate-200 rounded-3xl p-5 space-y-4 animate-pulse shadow-sm">
             <div className="bg-slate-200 rounded-2xl aspect-[4/3] w-full" />
             <div className="h-4 bg-slate-200 rounded w-2/3" />
             <div className="h-3 bg-slate-200 rounded w-full" />
@@ -31,9 +31,11 @@ export const ProductGrid = ({ products = [], loading = false }) => {
   }
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+    <div className="columns-2 sm:columns-3 lg:columns-4 gap-3 sm:gap-4 space-y-3 sm:space-y-4">
       {products.map((product) => (
-        <ProductCard key={product.id} product={product} />
+        <div key={product.id} className="break-inside-avoid">
+          <ProductCard product={product} />
+        </div>
       ))}
     </div>
   );
