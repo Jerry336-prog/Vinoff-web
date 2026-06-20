@@ -96,7 +96,7 @@ export const InstallPrompt = () => {
             className="w-14 h-14 mx-auto mb-3 object-contain"
             onError={(e) => {
               e.target.onerror = null;
-              e.target.src = '/favicon.svg';
+              e.target.src = '/Logo.png';
             }}
           />
           <h2 className="text-lg font-bold text-slate-800 tracking-tight leading-tight">
