@@ -5,6 +5,7 @@ import { CartProvider } from './context/CartContext';
 import { ChatProvider } from './context/ChatContext';
 import { InvoiceProvider } from './modules/invoice/context/InvoiceContext';
 import { router } from './app/router';
+import InstallPrompt from './components/ui/InstallPrompt';
 
 function App() {
   return (
@@ -12,6 +13,7 @@ function App() {
       <CartProvider>
         <ChatProvider>
           <InvoiceProvider>
+            <InstallPrompt />
             <RouterProvider router={router} />
           </InvoiceProvider>
         </ChatProvider>
