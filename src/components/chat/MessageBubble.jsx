@@ -90,21 +90,35 @@ export const MessageBubble = ({ message, isSelf, onViewInvoice }) => {
         </div>
       )}
       <div
-        className={`max-w-[85%] md:max-w-[70%] px-3 py-2 rounded-xl flex flex-col gap-2 ${
-          isSelf ? "bg-emerald-700 text-white" : "bg-white border border-slate-100 text-slate-800"
+        className={`max-w-[85%] md:max-w-[70%] flex flex-col gap-1 ${
+          isSelf ? "items-end" : "items-start"
         }`}
       >
-        {message.image && (
-          <div className="rounded-lg overflow-hidden border border-slate-200 bg-slate-50/50 max-w-full">
-            <img 
-              src={message.image} 
-              alt="Uploaded attachment" 
-              className="max-h-60 max-w-full object-contain cursor-pointer hover:opacity-90 transition"
-              onClick={() => window.open(message.image, "_blank")}
-            />
-          </div>
+        {!isSelf && message.senderName && message.senderRole === "admin" && (
+          <span className="text-[9px] font-extrabold text-brand-green-700 uppercase tracking-wider px-1">
+            {message.senderName}
+          </span>
         )}
-        <span className="break-words">{message.text}</span>
+        <div
+          className={`px-3 py-2 rounded-xl flex flex-col gap-2 ${
+            isSelf ? "bg-emerald-700 text-white" : "bg-white border border-slate-100 text-slate-800"
+          }`}
+        >
+          {message.image && (
+            <div className="rounded-lg overflow-hidden border border-slate-200 bg-slate-50/50 max-w-full">
+              <img 
+                src={message.image} 
+                alt="Uploaded attachment" 
+                className="max-h-60 max-w-full object-contain cursor-pointer hover:opacity-90 transition"
+                onClick={() => window.open(message.image, "_blank")}
+              />
+            </div>
+          )}
+          <span className="break-words">{message.text}</span>
+        </div>
+        <span className={`text-[9px] text-slate-400 px-1 ${ isSelf ? 'text-right' : 'text-left' }`}>
+          {formatTimestamp(message.timestamp)}
+        </span>
       </div>
     </div>
   );

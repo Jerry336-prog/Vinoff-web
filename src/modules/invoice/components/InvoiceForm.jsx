@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { dbGetProducts, dbGetAllUsers } from '../../../services/firebase/db';
 import { calculateInvoice } from '../utils/calculateInvoice';
 import { INVOICE_STATUS } from '../utils/invoiceStatus';
@@ -6,6 +6,8 @@ import { useInvoice } from '../hooks/useInvoice';
 import { formatCurrency } from '../../../utils/formatCurrency';
 import { X, Plus, Trash2, Search, Percent, DollarSign, Edit3, User, BookOpen } from 'lucide-react';
 import Button from '../../../components/ui/Button';
+import { AuthContext } from '../../../context/AuthContext';
+
 
 /**
  * Premium Invoice Form Modal for creating and editing wholesale invoices.
@@ -18,6 +20,7 @@ import Button from '../../../components/ui/Button';
  */
 export const InvoiceForm = ({ initialData = {}, isOpen = false, onClose, onSave }) => {
   const { createInvoice, updateInvoice } = useInvoice();
+  const { user } = useContext(AuthContext);
 
   // Database lists
   const [productsList, setProductsList] = useState([]);
@@ -147,6 +150,10 @@ export const InvoiceForm = ({ initialData = {}, isOpen = false, onClose, onSave 
     setErrorMessage('');
 
     try {
+      const adminLabel = user
+        ? `${user.name || 'Admin'} (${user.role === 'super_admin' ? 'Super Admin' : 'Admin'})`
+        : 'Admin';
+
       let finalInvoice;
       const invoicePayload = {
         customerId,
@@ -158,7 +165,8 @@ export const InvoiceForm = ({ initialData = {}, isOpen = false, onClose, onSave 
         deposit: status === 'Paid' ? calcs.total : (Number(deposit) || 0),
         status,
         notes,
-        createdBy: "Jerry (Admin)"
+        createdBy: initialData?.id ? (initialData.createdBy || adminLabel) : adminLabel,
+        updatedByAdmin: initialData?.id ? adminLabel : null,
       };
 
       if (initialData?.id) {

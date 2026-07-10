@@ -148,7 +148,7 @@ const numberOrDefault = (value, fallback) => {
   return Number.isFinite(parsed) ? parsed : fallback;
 };
 
-export const dbAddProduct = async (product) => {
+export const dbAddProduct = async (product, adminName = null) => {
   const ref = await addDoc(collection(db, "products"), {
     ...product,
     cartonPrice: numberOrDefault(product.cartonPrice, 0),
@@ -157,11 +157,12 @@ export const dbAddProduct = async (product) => {
     stock: numberOrDefault(product.stock, 0),
     unitStock: numberOrDefault(product.unitStock, 0),
     createdAt: serverTimestamp(),
+    createdByAdmin: adminName || product.createdByAdmin || null,
   });
-  return { id: ref.id, ...product };
+  return { id: ref.id, ...product, createdByAdmin: adminName || product.createdByAdmin || null };
 };
 
-export const dbUpdateProduct = async (id, updatedFields) => {
+export const dbUpdateProduct = async (id, updatedFields, adminName = null) => {
   const ref = doc(db, "products", id);
   const payload = { ...updatedFields };
   const numericDefaults = {
@@ -177,6 +178,11 @@ export const dbUpdateProduct = async (id, updatedFields) => {
       payload[field] = numberOrDefault(updatedFields[field], fallback);
     }
   });
+
+  if (adminName) {
+    payload.updatedByAdmin = adminName;
+    payload.updatedAt = serverTimestamp();
+  }
 
   await updateDoc(ref, payload);
   const snap = await getDoc(ref);
@@ -620,7 +626,7 @@ export const dbSubscribeToChats = (callback) => {
 export const dbUpdateTypingState = async (roomId, isTyping, role) => {
   const ref = doc(db, "chats", roomId);
   const updateData = {};
-  if (role === "admin") {
+  if (role === "admin" || role === "super_admin") {
     updateData.typingAdmin = isTyping;
   } else {
     updateData.typingCustomer = isTyping;
@@ -661,8 +667,8 @@ export const dbGetAllUsers = async () => {
  * The user's role takes effect on their NEXT login (AuthContext reloads on auth change).
  */
 export const dbUpdateUserRole = async (uid, role) => {
-  if (role !== "admin" && role !== "customer") {
-    throw new Error('Role must be "admin" or "customer"');
+  if (role !== "admin" && role !== "customer" && role !== "super_admin") {
+    throw new Error('Role must be "admin", "customer", or "super_admin"');
   }
   await updateDoc(doc(db, "users", uid), { role });
   return true;

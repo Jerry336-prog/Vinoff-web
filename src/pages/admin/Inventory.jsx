@@ -1,10 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useContext } from 'react';
 import { dbGetProducts, dbUpdateProduct } from '../../services/firebase/db';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { AlertTriangle, ArrowUp, Search } from 'lucide-react';
 import { showModal, showPrompt } from '../../services/ui/modal';
+import { AuthContext } from '../../context/AuthContext';
 
 export const Inventory = () => {
+  const { user } = useContext(AuthContext);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -43,11 +45,12 @@ export const Inventory = () => {
     if (amount === null) return;
 
     const parsedAmount = Number(amount);
+    const adminName = user ? `${user.name || 'Admin'} (${user.role === 'super_admin' ? 'Super Admin' : 'Admin'})` : 'Admin';
 
     try {
       await dbUpdateProduct(product.id, {
         [field]: (Number(product[field]) || 0) + parsedAmount,
-      });
+      }, adminName);
       await fetchInventory();
     } catch (err) {
       await showModal({
@@ -109,7 +112,19 @@ export const Inventory = () => {
                   
                   return (
                     <tr key={p.id} className="hover:bg-slate-50/50">
-                      <td className="py-4 px-4 font-bold text-slate-800">{p.name}</td>
+                      <td className="py-4 px-4 font-bold text-slate-800">
+                        {p.name}
+                        {p.updatedByAdmin && (
+                          <p className="text-[9px] text-slate-400 font-medium mt-0.5">
+                            Last restocked by: <span className="font-bold text-slate-500">{p.updatedByAdmin}</span>
+                          </p>
+                        )}
+                        {!p.updatedByAdmin && p.createdByAdmin && (
+                          <p className="text-[9px] text-slate-400 font-medium mt-0.5">
+                            Added by: <span className="font-bold text-slate-500">{p.createdByAdmin}</span>
+                          </p>
+                        )}
+                      </td>
                       <td className="py-4 px-4">
                         <span className="text-[10px] bg-slate-50 border border-slate-200 px-2.5 py-0.5 rounded-full text-slate-600 font-semibold uppercase">
                           {p.category}

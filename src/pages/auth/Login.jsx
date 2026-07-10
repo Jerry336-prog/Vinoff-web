@@ -24,7 +24,7 @@ export const Login = () => {
     setError('');
     try {
       const logged = await login(email, password);
-      if (logged.role === 'admin') {
+      if (logged.role === 'admin' || logged.role === 'super_admin') {
         navigate('/admin/dashboard');
       } else {
         navigate('/shop');

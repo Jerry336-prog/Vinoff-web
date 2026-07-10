@@ -1,5 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useContext } from "react";
 import useProducts from "../../hooks/useProducts";
+import { AuthContext } from "../../context/AuthContext";
 import { formatCurrency } from "../../utils/formatCurrency";
 import {
   Plus,
@@ -16,6 +17,7 @@ import useCloudinaryUpload from "../../hooks/useCloudinaryUpload";
 import { showConfirm, showModal } from "../../services/ui/modal";
 
 export const Products = () => {
+  const { user } = useContext(AuthContext);
   const {
     products,
     loading,
@@ -85,11 +87,13 @@ export const Products = () => {
       image,
     };
 
+    const adminName = user ? `${user.name || 'Admin'} (${user.role === 'super_admin' ? 'Super Admin' : 'Admin'})` : 'Admin';
+
     try {
       if (editingId) {
-        await updateProduct(editingId, payload);
+        await updateProduct(editingId, payload, adminName);
       } else {
-        await addProduct(payload);
+        await addProduct(payload, adminName);
       }
       setDrawerOpen(false);
     } catch (err) {
@@ -198,6 +202,16 @@ export const Products = () => {
                           <p className="text-[10px] text-slate-400 font-medium mt-0.5">
                             Pack Size: {p.unitsPerCarton || 12} Units
                           </p>
+                          {p.createdByAdmin && (
+                            <p className="text-[9px] text-slate-405 font-medium mt-0.5">
+                              Added by: <span className="font-bold text-slate-505">{p.createdByAdmin}</span>
+                            </p>
+                          )}
+                          {p.updatedByAdmin && (
+                            <p className="text-[9px] text-slate-405 font-medium">
+                              Edited by: <span className="font-bold text-slate-550">{p.updatedByAdmin}</span>
+                            </p>
+                          )}
                         </div>
                       </div>
                     </td>

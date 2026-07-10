@@ -23,7 +23,7 @@ export const ChatContext = createContext({
 });
 
 export const ChatProvider = ({ children }) => {
-  const { user } = useContext(AuthContext);
+  const { user, isAdmin } = useContext(AuthContext);
   const [rooms, setRooms] = useState([]);
   const [activeRoom, setActiveRoom] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -106,7 +106,7 @@ export const ChatProvider = ({ children }) => {
 
     setLoading(true);
 
-    if (user.role === "admin") {
+    if (isAdmin) {
       // Admin: subscribe to ALL chat rooms in real-time (sidebar list)
       const unsub = dbSubscribeToChats((updatedRooms) => {
         setRooms(updatedRooms);
@@ -176,8 +176,6 @@ export const ChatProvider = ({ children }) => {
    */
   const sendMessage = async (roomId, messageText, options = {}) => {
     if (!user) return;
-
-    const isAdmin = user.role === "admin";
 
     const messageData = {
       senderId: user.uid,
@@ -266,7 +264,7 @@ export const ChatProvider = ({ children }) => {
    */
   const refreshRooms = async () => {
     if (!user) return;
-    if (user.role !== "admin" && user.uid) {
+    if (!isAdmin && user.uid) {
       try {
         const room = await dbGetChatByRoom(user.uid);
         setActiveRoom((prev) => ({

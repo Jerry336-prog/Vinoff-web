@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from "react";
-import { dbGetOrders, dbGetAllUsers } from "../../services/firebase/db";
+import React, { useState, useEffect, useContext } from "react";
+import { dbGetOrders, dbGetAllUsers, dbUpdateUserRole } from "../../services/firebase/db";
 import { collection, getDocs, query, where, orderBy } from "firebase/firestore";
+import { AuthContext } from "../../context/AuthContext";
 import { db } from "../../services/firebase/config";
 import { formatCurrency } from "../../utils/formatCurrency";
 import InvoiceStatusBadge from "../../modules/invoice/components/InvoiceStatusBadge";
@@ -21,8 +22,10 @@ import {
 import Avatar from "../../components/ui/Avatar";
 
 export const Customers = () => {
+  const { isSuperAdmin, user: currentUser } = useContext(AuthContext);
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [updatingRole, setUpdatingRole] = useState(false);
 
   // Profile Drawer States
   const [selectedCustomer, setSelectedCustomer] = useState(null);
@@ -35,11 +38,18 @@ export const Customers = () => {
   const [isViewerOpen, setIsViewerOpen] = useState(false);
 
   useEffect(() => {
+    if (!currentUser) return;
     // Fetch all users and all orders in parallel
     Promise.all([dbGetAllUsers(), dbGetOrders()])
       .then(([usersData, ordersData]) => {
-        // Filter users to only include customers
-        const customerUsers = usersData.filter((u) => u.role === "customer");
+        // Filter users: super_admin gets customers and admins. Standard admin only gets customers.
+        const customerUsers = usersData.filter((u) => {
+          if (u.uid === currentUser?.uid) return false; // exclude self
+          if (isSuperAdmin) {
+            return u.role === "customer" || u.role === "admin" || u.role === "super_admin";
+          }
+          return u.role === "customer";
+        });
 
         // Create a map of order aggregates by customerId
         const orderStatsMap = {};
@@ -65,13 +75,14 @@ export const Customers = () => {
           };
           return {
             id: u.uid,
-            name: u.name || "Retail Buyer",
-            businessName: u.businessName || "Wholesale Storefront",
+            name: u.name || (u.role === "admin" ? "Admin User" : u.role === "super_admin" ? "Super Admin" : "Retail Buyer"),
+            businessName: u.businessName || (u.role === "admin" ? "Vinoff Team" : u.role === "super_admin" ? "Vinoff Owner" : "Wholesale Storefront"),
             email: u.email || "",
             phone: u.phone || "",
             ordersCount: stats.ordersCount,
             totalSpend: stats.totalSpend,
-            avatarUrl: u.avatarUrl, // include avatarUrl in the customer data
+            avatarUrl: u.avatarUrl,
+            role: u.role || "customer",
           };
         });
 
@@ -81,7 +92,7 @@ export const Customers = () => {
         console.error("Error loading registry:", err);
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [currentUser, isSuperAdmin]);
 
   // Fetch invoices for a selected customer
   const handleCustomerClick = async (customer) => {
@@ -110,6 +121,64 @@ export const Customers = () => {
       setCustomerInvoices([]);
     } finally {
       setLoadingInvoices(false);
+    }
+  };
+
+  const handleUpdateRole = async (uid, newRole) => {
+    setUpdatingRole(true);
+    try {
+      await dbUpdateUserRole(uid, newRole);
+      // Fetch fresh data
+      const [usersData, ordersData] = await Promise.all([dbGetAllUsers(), dbGetOrders()]);
+      
+      const customerUsers = usersData.filter((u) => {
+        if (u.uid === currentUser?.uid) return false;
+        if (isSuperAdmin) {
+          return u.role === "customer" || u.role === "admin" || u.role === "super_admin";
+        }
+        return u.role === "customer";
+      });
+
+      const orderStatsMap = {};
+      ordersData.forEach((o) => {
+         if (!o.customerId) return;
+         if (!orderStatsMap[o.customerId]) {
+           orderStatsMap[o.customerId] = { ordersCount: 0, totalSpend: 0 };
+         }
+         orderStatsMap[o.customerId].ordersCount += 1;
+         if (o.status !== "Cancelled" && o.status !== "Pending Payment") {
+           orderStatsMap[o.customerId].totalSpend += Number(o.total) || 0;
+         }
+      });
+
+      const customersList = customerUsers.map((u) => {
+        const stats = orderStatsMap[u.uid] || { ordersCount: 0, totalSpend: 0 };
+        return {
+          id: u.uid,
+          name: u.name || (u.role === "admin" ? "Admin User" : u.role === "super_admin" ? "Super Admin" : "Retail Buyer"),
+          businessName: u.businessName || (u.role === "admin" ? "Vinoff Team" : u.role === "super_admin" ? "Vinoff Owner" : "Wholesale Storefront"),
+          email: u.email || "",
+          phone: u.phone || "",
+          ordersCount: stats.ordersCount,
+          totalSpend: stats.totalSpend,
+          avatarUrl: u.avatarUrl,
+          role: u.role || "customer",
+        };
+      });
+
+      setCustomers(customersList);
+      
+      const updated = customersList.find((c) => c.id === uid);
+      if (updated) {
+        setSelectedCustomer(updated);
+      } else {
+        setSelectedCustomer(null);
+      }
+    } catch (error) {
+      console.error("Failed to update user role:", error);
+      alert("Error updating user role: " + error.message);
+    } finally {
+      setUpdatingRole(false);
     }
   };
 
@@ -166,8 +235,18 @@ export const Customers = () => {
                             c.name.charAt(0).toUpperCase()
                           )}
                         </div>
-                        <span className="font-extrabold text-slate-900">
+                        <span className="font-extrabold text-slate-900 flex items-center gap-1.5">
                           {c.name}
+                          {c.role === "admin" && (
+                            <span className="bg-amber-100 text-amber-800 text-[9px] font-black px-1.5 py-0.5 rounded-md uppercase tracking-wider">
+                              Admin
+                            </span>
+                          )}
+                          {c.role === "super_admin" && (
+                            <span className="bg-purple-100 text-purple-800 text-[9px] font-black px-1.5 py-0.5 rounded-md uppercase tracking-wider">
+                              Super Admin
+                            </span>
+                          )}
                         </span>
                       </div>
                     </td>
@@ -217,8 +296,18 @@ export const Customers = () => {
                   )}
                 </div>
                 <div>
-                  <h3 className="font-extrabold text-slate-900 text-sm tracking-tight">
+                  <h3 className="font-extrabold text-slate-900 text-sm tracking-tight flex items-center gap-1.5">
                     {selectedCustomer.name}
+                    {selectedCustomer.role === "admin" && (
+                      <span className="bg-amber-100 text-amber-800 text-[9px] font-black px-1.5 py-0.5 rounded-md uppercase tracking-wider">
+                        Admin
+                      </span>
+                    )}
+                    {selectedCustomer.role === "super_admin" && (
+                      <span className="bg-purple-100 text-purple-800 text-[9px] font-black px-1.5 py-0.5 rounded-md uppercase tracking-wider">
+                        Super Admin
+                      </span>
+                    )}
                   </h3>
                   <p className="text-[10px] text-slate-450 uppercase font-bold tracking-wide mt-0.5">
                     {selectedCustomer.businessName}
@@ -376,7 +465,7 @@ export const Customers = () => {
                     Storefront Registry Metadata
                   </h4>
                   <p>
-                    Customer UID:{" "}
+                    Account UID:{" "}
                     <span className="font-mono font-bold text-slate-600 block mt-1">
                       {selectedCustomer.id}
                     </span>
@@ -394,11 +483,44 @@ export const Customers = () => {
                     </span>
                   </p>
                   <p>
+                    Account Role:{" "}
+                    <span className="text-slate-805 font-bold uppercase block mt-1">
+                      {selectedCustomer.role || "customer"}
+                    </span>
+                  </p>
+                  <p>
                     Account Clearance:{" "}
                     <span className="text-emerald-700 font-black block mt-1">
                       APPROVED BULK MERCHANT
                     </span>
                   </p>
+
+                  {isSuperAdmin && selectedCustomer.role !== "super_admin" && (
+                    <div className="pt-4 border-t border-slate-200 space-y-2">
+                      <span className="block text-[10px] text-slate-450 font-extrabold uppercase">
+                        Administrative Action
+                      </span>
+                      <div className="flex items-center gap-2">
+                        {selectedCustomer.role === "admin" ? (
+                          <button
+                            disabled={updatingRole}
+                            onClick={() => handleUpdateRole(selectedCustomer.id, "customer")}
+                            className="w-full bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 py-2.5 px-4 rounded-xl font-bold transition flex items-center justify-center gap-1 disabled:opacity-50"
+                          >
+                            {updatingRole ? "Updating..." : "Demote to Customer"}
+                          </button>
+                        ) : (
+                          <button
+                            disabled={updatingRole}
+                            onClick={() => handleUpdateRole(selectedCustomer.id, "admin")}
+                            className="w-full bg-brand-green-700 hover:bg-brand-green-800 text-white py-2.5 px-4 rounded-xl font-bold transition flex items-center justify-center gap-1 disabled:opacity-50"
+                          >
+                            {updatingRole ? "Updating..." : "Promote to Admin"}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

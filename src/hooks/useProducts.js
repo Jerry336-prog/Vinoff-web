@@ -23,10 +23,10 @@ export const useProducts = () => {
     fetchProducts();
   }, [fetchProducts]);
 
-  const addProduct = async (productData) => {
+  const addProduct = async (productData, adminName) => {
     setError(null);
     try {
-      const newProduct = await dbAddProduct(productData);
+      const newProduct = await dbAddProduct(productData, adminName);
       setProducts(prev => [...prev, newProduct]);
       return newProduct;
     } catch (err) {
@@ -35,10 +35,10 @@ export const useProducts = () => {
     }
   };
 
-  const updateProduct = async (id, updatedFields) => {
+  const updateProduct = async (id, updatedFields, adminName) => {
     setError(null);
     try {
-      const updated = await dbUpdateProduct(id, updatedFields);
+      const updated = await dbUpdateProduct(id, updatedFields, adminName);
       setProducts(prev => prev.map(p => (p.id === id ? updated : p)));
       return updated;
     } catch (err) {

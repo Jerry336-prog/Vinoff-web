@@ -158,6 +158,12 @@ export const InvoiceDetails = () => {
               <span className="text-slate-400 font-bold flex items-center gap-1"><User className="w-3.5 h-3.5" /> Created By:</span>
               <span className="text-slate-800 font-bold">{invoice.createdBy || 'Admin'}</span>
             </div>
+            {invoice.updatedByAdmin && (
+              <div className="flex justify-between md:justify-end gap-3">
+                <span className="text-slate-400 font-bold flex items-center gap-1"><User className="w-3.5 h-3.5" /> Last Edited By:</span>
+                <span className="text-brand-green-700 font-bold">{invoice.updatedByAdmin}</span>
+              </div>
+            )}
           </div>
         </div>
 
