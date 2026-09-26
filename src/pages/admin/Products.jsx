@@ -76,30 +76,36 @@ export const Products = () => {
   const handleSave = async (e) => {
     e.preventDefault();
     const payload = {
-      name,
-      category,
-      cartonPrice: Number(cartonPrice),
-      unitPrice: Number(unitPrice),
-      unitsPerCarton: Number(unitsPerCarton),
-      stock: Number(stock),
-      unitStock: Number(unitStock),
-      description,
-      image,
+      name: name.trim(),
+      category: category.trim(),
+      price: Number(unitPrice) || Number(cartonPrice),
+      wholesalePrice: Number(cartonPrice) || Number(unitPrice),
+      minimumQuantity: 1,
+      stock: Number(stock) || 0,
+      unitStock: Number(unitStock) || 0,
+      unit: "carton",
+      description: description.trim(),
+      images: [
+        {
+          url: image || "https://res.cloudinary.com/demo/image/upload/sample.jpg",
+          publicId: `prod_${Date.now()}`,
+        },
+      ],
+      status: "active",
     };
-
-    const adminName = user ? `${user.name || 'Admin'} (${user.role === 'super_admin' ? 'Super Admin' : 'Admin'})` : 'Admin';
 
     try {
       if (editingId) {
-        await updateProduct(editingId, payload, adminName);
+        await updateProduct(editingId, payload);
       } else {
-        await addProduct(payload, adminName);
+        await addProduct(payload);
       }
       setDrawerOpen(false);
     } catch (err) {
       await showModal({
         title: "Save Error",
-        message: "Error saving: " + err.message,
+        message: "Error saving product: " + (err.message || err),
+        tone: "danger",
       });
     }
   };

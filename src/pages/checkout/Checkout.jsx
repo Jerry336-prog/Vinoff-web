@@ -1,10 +1,8 @@
-import { useContext, useState, useEffect } from "react";
+import React, { useContext, useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { CartContext } from "../../context/CartContext";
 import { AuthContext } from "../../context/AuthContext";
-import { calculateInvoice } from "../../services/invoice/invoiceEngine";
-import { uploadMedia } from "../../services/cloudinary/upload";
-import { dbCreateOrder } from "../../services/firebase/db";
+import api from "../../services/api";
 import { formatCurrency } from "../../utils/formatCurrency";
 import {
   FileText,
@@ -13,360 +11,339 @@ import {
   CheckCircle2,
   MessageSquare,
   Loader2,
+  ArrowRight,
+  ShieldAlert,
+  MapPin,
+  Clock,
+  Package,
 } from "lucide-react";
 import Button from "../../components/ui/Button";
 import Card from "../../components/ui/Card";
-import { showModal } from "../../services/ui/modal";
 
 export const Checkout = () => {
-  const { cartItems, clearCart } = useContext(CartContext);
+  const { cartItems, clearCart, subtotal } = useContext(CartContext);
   const { user } = useContext(AuthContext);
   const navigate = useNavigate();
 
-  const [screenshot, setScreenshot] = useState(null);
-  const [screenshotUrl, setScreenshotUrl] = useState("");
-  const [uploading, setUploading] = useState(false);
+  const [screenshotFile, setScreenshotFile] = useState(null);
+  const [screenshotPreview, setScreenshotPreview] = useState("");
+  const [deliveryAddress, setDeliveryAddress] = useState("");
+  const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
   const [orderConfirmed, setOrderConfirmed] = useState(null);
 
-  // Derived state calculations to avoid state duplication in useEffect (Vite React 19 CAS)
-  const invoice =
-    cartItems.length > 0 ? calculateInvoice(cartItems, 0.075, 15.0) : null;
+  useEffect(() => {
+    if (user?.profile?.address) {
+      const addr = [
+        user.profile.address,
+        user.profile.city,
+        user.profile.state,
+      ]
+        .filter(Boolean)
+        .join(", ");
+      setDeliveryAddress(addr);
+    }
+  }, [user]);
 
-  // Redirection handling
+  // If cart is empty and order is not confirmed, redirect
   useEffect(() => {
     if (cartItems.length === 0 && !orderConfirmed) {
       navigate("/cart");
     }
   }, [cartItems.length, navigate, orderConfirmed]);
 
-  const handleScreenshotChange = async (e) => {
+  const deliveryFee = 5000;
+  const estimatedTotal = subtotal + deliveryFee;
+
+  const handleScreenshotSelect = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    setScreenshot(file);
-    setUploading(true);
-    try {
-      const url = await uploadMedia(file);
-      setScreenshotUrl(url);
-    } catch (err) {
-      console.error(err);
-      await showModal({
-        title: "Upload Failed",
-        message: "Failed to upload screenshot. Please try again.",
-      });
-    } finally {
-      setUploading(false);
-    }
+    setScreenshotFile(file);
+    setScreenshotPreview(URL.createObjectURL(file));
   };
 
-  const handleSubmitOrder = async () => {
-    if (!invoice || !user) return;
+  const handleSubmitOrder = async (e) => {
+    e.preventDefault();
+    if (cartItems.length === 0) return;
 
     setSubmitting(true);
+    setErrorMsg("");
+
     try {
-      const orderPayload = {
-        customerId: user.uid,
-        customerName: user.name,
-        businessName: user.businessName,
-        items: invoice.items.map((item) => ({
-          id: item.id,
-          name: item.name,
-          quantity: item.quantity,
-          isCarton: item.isCarton,
-          unitsPerCarton: item.unitsPerCarton,
-          price: item.price,
-          total: item.total,
-        })),
-        subtotal: invoice.subtotal,
-        vat: invoice.vatAmount,
-        shipping: invoice.shipping,
-        total: invoice.grandTotal,
-        invoiceNumber: invoice.invoiceNumber,
-        paymentScreenshot: screenshotUrl || null,
+      // 1. Prepare items payload for Express API with explicit Carton vs Pieces mode
+      const items = cartItems.map((item) => ({
+        product: item.id || item._id,
+        quantity: Number(item.quantity) || 1,
+        isCarton: item.isCarton !== false,
+        unitType: item.isCarton !== false ? "cartons" : "pieces",
+        price: item.isCarton !== false ? (item.cartonPrice || item.price) : (item.unitPrice || item.price),
+        name: item.name,
+      }));
+
+      const payload = {
+        items,
+        deliveryAddress: deliveryAddress || user?.profile?.address || "Warehouse Pickup",
+        notes: notes.trim(),
       };
 
-      const createdOrder = await dbCreateOrder(orderPayload);
-      setOrderConfirmed(createdOrder);
+      // 2. Post order
+      const res = await api.post("/api/orders", payload);
+      const createdOrder = res.data?.order || res.data;
+
+      // 3. If customer attached a payment screenshot, upload it now
+      if (screenshotFile && createdOrder?._id) {
+        try {
+          const formData = new FormData();
+          formData.append("screenshot", screenshotFile);
+          const paymentRes = await api.post(
+            `/api/orders/${createdOrder._id}/payment`,
+            formData
+          );
+          setOrderConfirmed(paymentRes.data?.order || paymentRes.data || createdOrder);
+        } catch (payErr) {
+          console.warn("Screenshot upload error:", payErr);
+          setOrderConfirmed(createdOrder);
+        }
+      } else {
+        setOrderConfirmed(createdOrder);
+      }
+
       clearCart();
     } catch (err) {
-      console.error(err);
-      await showModal({
-        title: "Submit Failed",
-        message: "Error submitting order: " + err.message,
-      });
+      console.error("Order submission failed:", err);
+      setErrorMsg(err.message || "Failed to place order. Please verify quantities and try again.");
     } finally {
       setSubmitting(false);
     }
   };
 
   if (orderConfirmed) {
-    return (
-      <div className="max-w-md mx-auto text-center py-16 px-6 bg-white border border-slate-200 rounded-3xl shadow-sm space-y-6">
-        <div className="w-16 h-16 rounded-full bg-brand-green-100 text-brand-green-700 flex items-center justify-center mx-auto">
-          <CheckCircle2 className="w-9 h-9" />
-        </div>
-        <div className="space-y-2">
-          <h3 className="font-extrabold text-slate-800 text-xl tracking-tight">
-            Order Placed Successfully!
-          </h3>
-          <p className="text-xs text-brand-yellow-800 bg-brand-yellow-50 px-3 py-1 rounded-full font-bold inline-block">
-            Order Ref: {orderConfirmed.id}
-          </p>
-          <p className="text-xs text-slate-500 leading-relaxed max-w-sm mx-auto pt-2">
-            Your wholesale request has been submitted. We've notified support in
-            your live chat room. Once our team approves the transfer, shipment
-            will begin.
-          </p>
-        </div>
+    const isAwaitingConfirmation =
+      orderConfirmed.status === "Awaiting Confirmation" ||
+      orderConfirmed.paymentStatus === "Submitted";
 
-        <div className="pt-4 flex flex-col gap-2">
-          <Link to="/chat">
+    return (
+      <div className="max-w-xl mx-auto py-12 px-6">
+        <div className="bg-white border border-slate-200 rounded-3xl p-8 text-center shadow-sm space-y-6">
+          <div className="w-16 h-16 rounded-2xl bg-brand-green-100 text-brand-green-700 flex items-center justify-center mx-auto shadow-sm">
+            <CheckCircle2 className="w-9 h-9" />
+          </div>
+
+          <div className="space-y-2">
+            <h2 className="font-extrabold text-slate-900 text-2xl tracking-tight">
+              Order Placed Successfully!
+            </h2>
+            <p className="text-xs font-mono font-bold text-brand-green-800 bg-brand-green-50 px-3.5 py-1.5 rounded-full inline-block">
+              Order #{orderConfirmed.orderNumber || orderConfirmed._id}
+            </p>
+            <div className="pt-2">
+              <span className={`inline-flex items-center gap-1 text-xs font-bold px-3 py-1 rounded-full ${
+                isAwaitingConfirmation
+                  ? "bg-amber-100 text-amber-800"
+                  : "bg-blue-100 text-blue-800"
+              }`}>
+                ● Status: {orderConfirmed.status || "Pending Payment"}
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 leading-relaxed max-w-md mx-auto pt-2">
+              {isAwaitingConfirmation
+                ? "Your payment screenshot has been uploaded. Our accounting admin will confirm the transaction shortly."
+                : "Your order is currently in 'Pending Payment' status. Please upload your transfer screenshot to initiate packaging."}
+            </p>
+          </div>
+
+          <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-3">
             <Button
               variant="primary"
-              className="w-full rounded-xl"
+              className="w-full sm:w-auto px-6 py-3.5 text-sm font-bold rounded-2xl shadow-sm"
+              onClick={() => navigate(`/orders/${orderConfirmed._id || orderConfirmed.id}`)}
+              icon={Package}
+            >
+              View Order Details
+            </Button>
+            <Button
+              variant="outline"
+              className="w-full sm:w-auto px-6 py-3.5 text-sm font-bold rounded-2xl text-slate-700 border-slate-200"
+              onClick={() => navigate("/chat")}
               icon={MessageSquare}
             >
-              Go to Support Chat
+              Support Chat
             </Button>
-          </Link>
-          <Link to="/shop">
-            <Button variant="outline" className="w-full rounded-xl">
-              Return to Catalog
-            </Button>
-          </Link>
+          </div>
         </div>
       </div>
     );
   }
 
-  if (!invoice) return null;
-
   return (
-    <div className="max-w-4xl mx-auto space-y-8">
+    <div className="max-w-5xl mx-auto space-y-6">
       <div>
-        <h2 className="text-2xl font-black text-slate-800 tracking-tight">
-          Wholesale Settlement
-        </h2>
-        <p className="text-xs text-slate-500 font-medium">
-          Verify your items invoice and submit wire transfer receipt.
+        <h1 className="text-2xl font-black text-slate-800 tracking-tight">
+          Checkout & Order Confirmation
+        </h1>
+        <p className="text-xs text-slate-500 font-medium mt-0.5">
+          Review your wholesale carton selection, specify logistics instructions, and confirm your order.
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-8 items-start">
-        {/* Invoice View Sheet */}
-        <div className="md:col-span-3 bg-white border border-slate-200 rounded-3xl p-6 md:p-8 shadow-sm space-y-6">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-            <div>
-              <h3 className="font-bold text-slate-800 text-sm">
-                PROFORMA INVOICE
-              </h3>
-              <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-0.5">
-                No: {invoice.invoiceNumber}
-              </p>
-            </div>
-            <div className="text-right">
-              <span className="text-xs bg-amber-50 text-amber-800 border border-amber-200 px-2.5 py-1 rounded-full font-bold">
-                Awaiting Wire
-              </span>
-            </div>
-          </div>
+      {errorMsg && (
+        <div className="bg-red-50 border border-red-200 text-red-700 text-xs font-bold p-4 rounded-2xl flex items-center gap-2.5">
+          <ShieldAlert className="w-5 h-5 shrink-0 text-red-600" />
+          <span>{errorMsg}</span>
+        </div>
+      )}
 
-          {/* Issuer details */}
-          <div className="grid grid-cols-2 gap-4 text-xs">
-            <div>
-              <p className="font-bold text-slate-500 uppercase text-[9px] tracking-wider">
-                Supplier
-              </p>
-              <p className="font-extrabold text-slate-800">
-                Vinoff Wholesales Ltd
-              </p>
-              <p className="text-slate-500 mt-0.5">
-                Warehouse Unit A, Industrial Estate
-              </p>
-            </div>
-            <div>
-              <p className="font-bold text-slate-500 uppercase text-[9px] tracking-wider">
-                Buyer Outlet
-              </p>
-              <p className="font-extrabold text-slate-800">{user?.name}</p>
-              <p className="text-slate-500 mt-0.5 truncate">
-                {user?.businessName}
-              </p>
-            </div>
-          </div>
+      <form onSubmit={handleSubmitOrder} className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left 2 Cols: Items & Logistics */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Items Summary Card */}
+          <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-4">
+            <h3 className="text-xs font-black uppercase tracking-wider text-slate-400 border-b border-slate-100 pb-3 flex items-center justify-between">
+              <span>Order Items ({cartItems.length})</span>
+              <Link to="/cart" className="text-brand-green-700 font-bold hover:underline normal-case">
+                Edit Cart
+              </Link>
+            </h3>
 
-          {/* Date lines */}
-          <div className="grid grid-cols-2 gap-4 text-[10px] bg-slate-50 rounded-xl p-3 border border-slate-100">
-            <div>
-              <span className="text-slate-400 font-semibold">Date issued:</span>
-              <span className="font-bold text-slate-700 ml-1">
-                {invoice.dateIssued}
-              </span>
-            </div>
-            <div>
-              <span className="text-slate-400 font-semibold">Due Terms:</span>
-              <span className="font-bold text-slate-700 ml-1">
-                {invoice.dueDate} (5 days)
-              </span>
-            </div>
-          </div>
-
-          {/* Items Table */}
-          <div className="space-y-3">
-            <h4 className="font-bold text-slate-800 text-xs uppercase tracking-wide">
-              Ordered Items
-            </h4>
-            <div className="divide-y divide-slate-100 border-t border-b border-slate-100">
-              {invoice.items.map((item) => (
-                <div
-                  key={item.id}
-                  className="py-2.5 flex items-center justify-between text-xs"
-                >
-                  <div>
-                    <p className="font-bold text-slate-800 truncate max-w-[200px] sm:max-w-xs">
-                      {item.name}
-                    </p>
-                    <p className="text-[10px] text-slate-500 mt-0.5">
-                      {item.quantity} x {item.isCarton ? "Carton" : "Unit"} @{" "}
-                      {formatCurrency(item.price)}
+            <div className="divide-y divide-slate-100 max-h-72 overflow-y-auto pr-1">
+              {cartItems.map((item, idx) => {
+                const itemPrice = item.isCarton ? (item.cartonPrice || item.price) : (item.unitPrice || item.price);
+                const lineTotal = itemPrice * item.quantity;
+                return (
+                  <div key={idx} className="py-3 flex items-center justify-between gap-4">
+                    <div>
+                      <h4 className="text-xs sm:text-sm font-bold text-slate-800">{item.name}</h4>
+                      <p className="text-[11px] text-slate-400">
+                        {item.quantity} &times; {formatCurrency(itemPrice)}{" "}
+                        {item.isCarton ? `(Carton of ${item.unitsPerCarton || 1})` : "(Individual Unit)"}
+                      </p>
+                    </div>
+                    <p className="text-xs sm:text-sm font-black text-slate-900 shrink-0">
+                      {formatCurrency(lineTotal)}
                     </p>
                   </div>
-                  <span className="font-bold text-slate-900">
-                    {formatCurrency(item.total)}
-                  </span>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 
-          {/* Subtotal blocks */}
-          <div className="space-y-1.5 text-xs text-slate-500 text-right max-w-xs ml-auto">
-            <div className="flex justify-between">
-              <span>Subtotal</span>
-              <span className="font-bold text-slate-800">
-                {formatCurrency(invoice.subtotal)}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span>VAT (7.5%)</span>
-              <span className="font-bold text-slate-800">
-                {formatCurrency(0)}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span>Estimated Freight</span>
-              <span className="font-bold text-slate-800">
-                {formatCurrency(invoice.shipping)}
-              </span>
-            </div>
-            <div className="flex justify-between text-sm font-black text-slate-900 border-t border-slate-100 pt-2">
-              <span>Invoice Total</span>
-              <span className="text-brand-green-700">
-                {formatCurrency(invoice.grandTotal)}
-              </span>
+          {/* Delivery & Logistics Details */}
+          <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-4">
+            <h3 className="text-xs font-black uppercase tracking-wider text-slate-400 border-b border-slate-100 pb-3 flex items-center gap-2">
+              <MapPin className="w-4 h-4 text-brand-green-600" />
+              Delivery & Destination Details
+            </h3>
+
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-extrabold uppercase text-slate-500 tracking-wider">
+                  Destination Address *
+                </label>
+                <input
+                  type="text"
+                  value={deliveryAddress}
+                  onChange={(e) => setDeliveryAddress(e.target.value)}
+                  placeholder="Street Address, City, State"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3.5 text-xs font-semibold focus:bg-white focus:ring-2 focus:ring-brand-green-500 outline-none"
+                  required
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-extrabold uppercase text-slate-500 tracking-wider">
+                  Order Delivery Notes / Truck Offloading Instructions
+                </label>
+                <textarea
+                  rows={2}
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="e.g. Offload at main warehouse bay 2 between 9am and 3pm"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-xs font-semibold focus:bg-white focus:ring-2 focus:ring-brand-green-500 outline-none resize-none"
+                />
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Bank & Attachment uploads */}
-        <div className="md:col-span-2 space-y-6">
-          {/* Wire accounts */}
-          <Card title="Wire Details" className="border-brand-green-200">
-            <div className="space-y-4">
-              <div className="flex gap-2.5 items-start">
-                <Landmark className="w-5.5 h-5.5 text-brand-green-700 mt-0.5 flex-shrink-0" />
-                <div className="text-xs">
-                  <p className="font-extrabold text-slate-800">
-                    {invoice.paymentInstructions.bankName}
-                  </p>
-                  <p className="text-slate-500 mt-0.5">
-                    Account Name:{" "}
-                    <strong>{invoice.paymentInstructions.accountName}</strong>
-                  </p>
-                  <div className="flex items-center gap-1.5 mt-2 bg-slate-100 border border-slate-200 rounded-lg px-2.5 py-1.5 max-w-[200px]">
-                    <span className="font-mono font-bold text-slate-800">
-                      {invoice.paymentInstructions.accountNumber}
-                    </span>
-                  </div>
-                </div>
-              </div>
-              <p className="text-[10px] text-slate-500 leading-relaxed border-t border-slate-100 pt-3">
-                Send exact invoice amount{" "}
-                <strong>{formatCurrency(invoice.grandTotal)}</strong>. Submit
-                transfer slip snapshot below to activate order verification.
-              </p>
-            </div>
-          </Card>
+        {/* Right Column: Bank Info & Payment Proof */}
+        <div className="space-y-6">
+          {/* Payment & Wire Details */}
+          <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-4">
+            <h3 className="text-xs font-black uppercase tracking-wider text-slate-400 border-b border-slate-100 pb-3 flex items-center gap-2">
+              <Landmark className="w-4 h-4 text-brand-yellow-600" />
+              Bank Transfer Information
+            </h3>
 
-          {/* Screenshot submit card */}
-          <Card title="Payment slip upload">
-            <div className="space-y-4 text-center">
-              {screenshotUrl ? (
-                <div className="space-y-3">
-                  <div className="relative rounded-xl overflow-hidden border border-slate-200 max-h-36">
-                    <img
-                      src={screenshotUrl}
-                      alt="Slip"
-                      className="w-full object-cover"
-                    />
-                  </div>
-                  <button
-                    onClick={() => {
-                      setScreenshot(null);
-                      setScreenshotUrl("");
-                    }}
-                    className="text-[10px] font-bold text-red-500 hover:underline"
-                  >
-                    Delete & Re-upload
-                  </button>
-                </div>
-              ) : (
-                <div className="border-2 border-dashed border-slate-200 hover:border-brand-green-400 rounded-2xl p-5 transition cursor-pointer relative group">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleScreenshotChange}
-                    className="absolute inset-0 opacity-0 cursor-pointer"
-                    disabled={uploading}
-                  />
-                  <div className="space-y-2">
-                    <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center mx-auto text-slate-400 group-hover:text-brand-green-600 transition">
-                      {uploading ? (
-                        <Loader2 className="w-5 h-5 animate-spin" />
-                      ) : (
-                        <Upload className="w-5 h-5" />
-                      )}
-                    </div>
-                    <p className="text-xs font-bold text-slate-700">
-                      {uploading
-                        ? "Uploading receipt slip..."
-                        : "Upload Transfer slip"}
-                    </p>
-                    <p className="text-[10px] text-slate-400">
-                      PNG, JPG up to 5MB
-                    </p>
-                  </div>
+            <div className="bg-brand-green-50/70 border border-brand-green-100 rounded-2xl p-4 text-xs space-y-1.5">
+              <p className="font-extrabold text-brand-green-950">Guaranty Trust Bank (GTB)</p>
+              <div className="flex justify-between text-brand-green-900">
+                <span>Account Name:</span>
+                <strong className="font-mono">Vinoff Wholesales Ltd</strong>
+              </div>
+              <div className="flex justify-between text-brand-green-900">
+                <span>Account Number:</span>
+                <strong className="font-mono text-sm font-black">0123456789</strong>
+              </div>
+            </div>
+
+            {/* Optional screenshot upload during checkout */}
+            <div className="space-y-2 pt-1">
+              <label className="text-[10px] font-extrabold uppercase text-slate-500 tracking-wider block">
+                Attach Payment Screenshot (Optional now, or upload later)
+              </label>
+              <div className="border-2 border-dashed border-slate-200 hover:border-brand-green-500 rounded-2xl p-3 text-center transition bg-slate-50">
+                <input
+                  type="file"
+                  id="checkout-screenshot"
+                  accept="image/*"
+                  onChange={handleScreenshotSelect}
+                  className="hidden"
+                />
+                <label htmlFor="checkout-screenshot" className="cursor-pointer block text-center">
+                  <Upload className="w-5 h-5 text-slate-400 mx-auto mb-1" />
+                  <span className="text-xs font-bold text-slate-700 block truncate">
+                    {screenshotFile ? screenshotFile.name : "Select Screenshot"}
+                  </span>
+                </label>
+              </div>
+
+              {screenshotPreview && (
+                <div className="rounded-xl overflow-hidden border border-slate-200 max-h-24">
+                  <img src={screenshotPreview} alt="Screenshot preview" className="w-full h-full object-cover" />
                 </div>
               )}
-
-              <Button
-                variant="primary"
-                onClick={handleSubmitOrder}
-                isLoading={submitting}
-                className="w-full py-3 rounded-xl mt-4"
-              >
-                Confirm Wire Settlement
-              </Button>
-
-              <p className="text-[9px] text-slate-400 leading-relaxed">
-                * You can also skip upload and message the screenshot in the
-                Support Chat later.
-              </p>
             </div>
-          </Card>
+
+            {/* Order Price Summary */}
+            <div className="border-t border-slate-100 pt-4 space-y-2 text-xs">
+              <div className="flex justify-between text-slate-500">
+                <span>Cart Subtotal</span>
+                <span className="font-bold text-slate-800">{formatCurrency(subtotal)}</span>
+              </div>
+              <div className="flex justify-between text-slate-500">
+                <span>Estimated Delivery</span>
+                <span className="font-bold text-slate-800">{formatCurrency(deliveryFee)}</span>
+              </div>
+              <div className="flex justify-between text-sm font-black text-slate-900 pt-2 border-t border-slate-100">
+                <span>Grand Total</span>
+                <span className="text-brand-green-950">{formatCurrency(estimatedTotal)}</span>
+              </div>
+            </div>
+
+            <Button
+              type="submit"
+              variant="primary"
+              size="lg"
+              isLoading={submitting}
+              className="w-full rounded-2xl mt-2"
+              icon={ArrowRight}
+            >
+              Confirm Wholesale Order
+            </Button>
+          </div>
         </div>
-      </div>
+      </form>
     </div>
   );
 };

@@ -1,15 +1,16 @@
-import React, { createContext, useState, useEffect, useContext, useRef, useCallback } from "react";
-import {
-  dbGetChatByRoom,
-  dbSendChatMessage,
-  dbClearChatUnread,
-  dbUpdateChatRoomStatus,
-  dbSubscribeToChats,
-  dbSubscribeToChatMessages,
-  dbSubscribeToChatRoom,
-  dbUpdateTypingState,
-} from "../services/firebase/db";
+import React, {
+  createContext,
+  useState,
+  useEffect,
+  useContext,
+  useRef,
+  useCallback,
+} from "react";
+import api from "../services/api";
 import { AuthContext } from "./AuthContext";
+import { unwrapApiList, unwrapApiRecord } from "../utils/apiResponse";
+import { getAvatarUrl } from "../utils/avatar";
+import { formatChatStatus, toChatStatusValue } from "../utils/chat";
 
 export const ChatContext = createContext({
   rooms: [],
@@ -18,9 +19,237 @@ export const ChatContext = createContext({
   selectRoom: async () => {},
   sendMessage: async () => {},
   updateRoomStatus: async () => {},
+  deleteRoom: async () => {},
   refreshRooms: async () => {},
   setTypingState: async () => {},
+  createOrGetCustomerRoom: async () => {},
 });
+
+const getEntityId = (entity) => {
+  if (!entity) return null;
+  if (typeof entity === "string") return entity;
+  return entity._id || entity.id || entity.uid || null;
+};
+
+const sameId = (left, right) => {
+  if (!left || !right) return false;
+  return String(left) === String(right);
+};
+
+const normalizeAttachments = (attachments = []) => {
+  const list = Array.isArray(attachments) ? attachments : [attachments];
+
+  return list
+    .filter(Boolean)
+    .map((attachment) => {
+      if (typeof attachment === "string") {
+        return { url: attachment, type: "image" };
+      }
+
+      return {
+        ...attachment,
+        url:
+          attachment.url ||
+          attachment.secure_url ||
+          attachment.image ||
+          attachment.src ||
+          attachment.path ||
+          "",
+        type: attachment.type || attachment.resourceType || "file",
+        name: attachment.name || attachment.filename || "",
+      };
+    })
+    .filter((attachment) => attachment.url);
+};
+
+const isImageAttachment = (attachment) => {
+  const type = String(attachment?.type || "");
+  const url = String(attachment?.url || "");
+
+  if (type.includes("pdf") || /\.pdf(\?.*)?$/i.test(url)) return false;
+
+  return (
+    type.startsWith("image") ||
+    /\.(avif|gif|jpe?g|png|webp|svg)(\?.*)?$/i.test(url)
+  );
+};
+
+const getMessageImage = (message, attachments = normalizeAttachments(message?.attachments)) => {
+  const imageAttachment = attachments.find(isImageAttachment);
+
+  return (
+    message?.image ||
+    message?.imageUrl ||
+    message?.attachmentUrl ||
+    imageAttachment?.url ||
+    null
+  );
+};
+
+const normalizeMessage = (message, currentUserId) => {
+  if (!message || typeof message !== "object") return null;
+
+  const sender = typeof message.sender === "object" ? message.sender : null;
+  const senderId =
+    getEntityId(sender) ||
+    message.senderId ||
+    message.userId ||
+    (typeof message.sender === "string" ? message.sender : null);
+  const senderRole =
+    message.senderRole ||
+    message.role ||
+    sender?.role ||
+    (message.isSystem ? "system" : "customer");
+  const text =
+    message.content ||
+    message.text ||
+    message.message ||
+    message.body ||
+    message.caption ||
+    "";
+  const attachments = normalizeAttachments(message.attachments);
+  const createdAt =
+    message.createdAt ||
+    message.timestamp ||
+    message.sentAt ||
+    message.updatedAt ||
+    new Date().toISOString();
+  const senderName =
+    message.senderName ||
+    (sender?.firstName
+      ? `${sender.firstName} ${sender.lastName || ""}`.trim()
+      : sender?.name) ||
+    (senderRole === "admin" || senderRole === "subAdmin" ? "Support Admin" : "Customer");
+
+  return {
+    ...message,
+    id: message._id || message.id || `${senderId || "msg"}-${createdAt}`,
+    _id: message._id || message.id,
+    text,
+    content: text,
+    senderId,
+    senderRole,
+    senderName,
+    senderAvatar: getAvatarUrl(sender) || getAvatarUrl(message) || null,
+    type:
+      message.type ||
+      (message.isSystem || senderRole === "system" ? "system" : "text"),
+    timestamp: createdAt,
+    createdAt,
+    attachments,
+    image: getMessageImage(message, attachments),
+    invoiceRef: message.invoiceRef || message.invoiceId || message.invoice?._id || message.invoice?.id,
+    invoicePdfUrl: message.invoicePdfUrl || message.invoice?.pdfUrl,
+    orderRef: message.orderRef || message.orderId || message.order?._id || message.order?.id,
+    isSelf: Boolean(senderId && currentUserId && sameId(senderId, currentUserId)),
+  };
+};
+
+const normalizeLastMessage = (chat, currentUserId) => {
+  const last = chat.lastMessage || chat.latestMessage || chat.last_message;
+
+  if (!last) return null;
+
+  if (typeof last === "string") {
+    return normalizeMessage(
+      {
+        text: last,
+        createdAt: chat.lastMessageAt || chat.updatedAt || chat.createdAt,
+        senderRole: chat.lastMessageSenderRole,
+      },
+      currentUserId,
+    );
+  }
+
+  return normalizeMessage(last, currentUserId);
+};
+
+const normalizeRoom = (chat, isAdmin, currentUserId) => {
+  if (!chat || typeof chat !== "object") return null;
+  const customer =
+    typeof chat.customer === "object"
+      ? chat.customer
+      : typeof chat.user === "object"
+        ? chat.user
+        : typeof chat.buyer === "object"
+          ? chat.buyer
+          : null;
+  const roomId = chat.roomId || chat._id || chat.id || chat.chatId || getEntityId(customer);
+  const customerName =
+    chat.customerName ||
+    chat.name ||
+    (customer?.firstName
+      ? `${customer.firstName} ${customer.lastName || ""}`.trim()
+      : customer?.name) ||
+    customer?.email ||
+    chat.title ||
+    "Customer";
+  const businessName =
+    chat.businessName ||
+    customer?.profile?.companyName ||
+    customer?.companyName ||
+    customer?.businessName ||
+    chat.companyName ||
+    chat.title ||
+    customerName;
+  const messages = unwrapApiList({ messages: chat.messages })
+    .map((message) => normalizeMessage(message, currentUserId))
+    .filter(Boolean);
+  const lastMessage = normalizeLastMessage(chat, currentUserId) || messages[messages.length - 1] || null;
+  const unreadCount = isAdmin
+    ? chat.unreadForAdmin ?? chat.unreadCount?.admin ?? chat.unreadCount ?? 0
+    : chat.unreadForCustomer ?? chat.unreadCount?.customer ?? chat.unreadCount ?? 0;
+
+  return {
+    ...chat,
+    id: roomId,
+    roomId,
+    customerId:
+      chat.customerId ||
+      getEntityId(customer) ||
+      (typeof chat.customer === "string" ? chat.customer : null),
+    customer,
+    customerName,
+    businessName,
+    avatarUrl: getAvatarUrl(customer) || getAvatarUrl(chat),
+    unreadCount: Number(unreadCount) || 0,
+    lastMessage,
+    status: toChatStatusValue(chat.status || "open"),
+    statusLabel: formatChatStatus(chat.status || "open"),
+    messages,
+  };
+};
+
+const mergeMessages = (serverMessages = [], localMessages = []) => {
+  if (!serverMessages || serverMessages.length === 0) {
+    return localMessages || [];
+  }
+  if (!localMessages || localMessages.length === 0) {
+    return serverMessages || [];
+  }
+
+  const byId = new Map();
+  localMessages.forEach((message) => {
+    if (message?.id) byId.set(String(message.id), message);
+  });
+
+  serverMessages.forEach((message) => {
+    if (message?.id) byId.set(String(message.id), message);
+  });
+
+  return Array.from(byId.values()).sort(
+    (a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0),
+  );
+};
+
+const roomSnapshot = (room) =>
+  [
+    room?.roomId,
+    room?.status,
+    room?.unreadCount,
+    room?.lastMessage?.text || room?.lastMessage?.content || "",
+    (room?.messages || []).map((message) => message._id || message.id || message.timestamp).join(","),
+  ].join("|");
 
 export const ChatProvider = ({ children }) => {
   const { user, isAdmin } = useContext(AuthContext);
@@ -28,277 +257,442 @@ export const ChatProvider = ({ children }) => {
   const [activeRoom, setActiveRoom] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  // Refs to hold active Firestore unsubscribe functions
-  const roomsUnsubRef = useRef(null);
-  const messagesUnsubRef = useRef(null);
-  const activeRoomUnsubRef = useRef(null);
+  const activeRoomRef = useRef(activeRoom);
+  const currentUserId = user?._id || user?.id || user?.uid;
 
-  /**
-   * Subscribe to real-time messages for a specific room.
-   * Automatically tears down the previous subscription first.
-   */
-  const subscribeToRoomMessages = useCallback((roomId) => {
-    // Tear down any existing message subscription
-    if (messagesUnsubRef.current) {
-      messagesUnsubRef.current();
-      messagesUnsubRef.current = null;
-    }
-
-    const unsub = dbSubscribeToChatMessages(roomId, (messages) => {
-      setActiveRoom((prev) => {
-        if (!prev || prev.roomId !== roomId) return prev;
-        return { ...prev, messages };
-      });
-    });
-
-    messagesUnsubRef.current = unsub;
-  }, []);
-
-  /**
-   * Subscribe to real-time metadata (typing states, room status, etc.) for a specific room.
-   * Automatically tears down the previous subscription first.
-   */
-  const subscribeToActiveRoomMetadata = useCallback((roomId) => {
-    // Tear down any existing active room metadata subscription
-    if (activeRoomUnsubRef.current) {
-      activeRoomUnsubRef.current();
-      activeRoomUnsubRef.current = null;
-    }
-
-    const unsub = dbSubscribeToChatRoom(roomId, (roomData) => {
-      setActiveRoom((prev) => {
-        if (!prev || prev.roomId !== roomId) {
-          return { ...roomData, messages: [] };
-        }
-        return { ...prev, ...roomData };
-      });
-    });
-
-    activeRoomUnsubRef.current = unsub;
-  }, []);
-
-  /**
-   * Tear down all active subscriptions cleanly.
-   */
-  const tearDownAll = useCallback(() => {
-    if (roomsUnsubRef.current) {
-      roomsUnsubRef.current();
-      roomsUnsubRef.current = null;
-    }
-    if (messagesUnsubRef.current) {
-      messagesUnsubRef.current();
-      messagesUnsubRef.current = null;
-    }
-    if (activeRoomUnsubRef.current) {
-      activeRoomUnsubRef.current();
-      activeRoomUnsubRef.current = null;
-    }
-  }, []);
-
-  // Main effect: sets up the right subscriptions based on user role
   useEffect(() => {
+    activeRoomRef.current = activeRoom;
+  }, [activeRoom]);
+
+  const refreshRooms = useCallback(async () => {
     if (!user) {
       setRooms([]);
-      setActiveRoom(null);
-      tearDownAll();
-      return;
+      return [];
     }
+    try {
+      const res = await api.get("/api/chats?limit=100");
+      const list = unwrapApiList(res);
+      const normalized = (Array.isArray(list) ? list : [])
+        .map((chat) => normalizeRoom(chat, isAdmin, currentUserId))
+        .filter(Boolean);
 
-    setLoading(true);
-
-    if (isAdmin) {
-      // Admin: subscribe to ALL chat rooms in real-time (sidebar list)
-      const unsub = dbSubscribeToChats((updatedRooms) => {
-        setRooms(updatedRooms);
-        setLoading(false);
+      // Deduplicate by customer ID so each customer only appears ONCE
+      const customerMap = new Map();
+      normalized.forEach((room) => {
+        const custKey = room.customerId || room.customer?._id || room.customer?.id || room.roomId;
+        if (!custKey || !customerMap.has(custKey)) {
+          customerMap.set(custKey, room);
+        }
       });
-      roomsUnsubRef.current = unsub;
-    } else {
-      // Customer: get/create their dedicated room, then subscribe to its messages
-      dbGetChatByRoom(user.uid, {
-        name: user.name,
-        businessName: user.businessName,
-      })
-        .then((room) => {
-          setActiveRoom(room);
-          setRooms([room]);
-          // Subscribe to real-time metadata and messages for this customer's room
-          subscribeToActiveRoomMetadata(user.uid);
-          subscribeToRoomMessages(user.uid);
-        })
-        .catch((err) => console.error("Failed to load customer chat room:", err))
-        .finally(() => setLoading(false));
-    }
+      const deduplicated = Array.from(customerMap.values());
 
-    return () => tearDownAll();
-  }, [user?.uid, user?.role]);
+      setRooms((prev) => {
+        const prevKeys = prev.map((r) => `${r.roomId}:${r.unreadCount}:${r.lastMessage?.text}`).join("|");
+        const nextKeys = deduplicated.map((r) => `${r.roomId}:${r.unreadCount}:${r.lastMessage?.text}`).join("|");
+        if (prevKeys === nextKeys) return prev;
+        return deduplicated;
+      });
 
-  /**
-   * Admin selects a customer's chat room.
-   * Fetches the room metadata once, clears unread, then subscribes to
-   * that room's messages in real-time — isolated to only that customer.
-   */
-  const selectRoom = async (roomId) => {
-    if (!roomId) {
-      setActiveRoom(null);
-      if (messagesUnsubRef.current) {
-        messagesUnsubRef.current();
-        messagesUnsubRef.current = null;
-      }
-      if (activeRoomUnsubRef.current) {
-        activeRoomUnsubRef.current();
-        activeRoomUnsubRef.current = null;
-      }
-      return;
-    }
-    setLoading(true);
-    try {
-      const room = await dbGetChatByRoom(roomId);
-      setActiveRoom(room);
-      await dbClearChatUnread(roomId);
-      // Subscribe to live metadata and messages for the selected room
-      subscribeToActiveRoomMetadata(roomId);
-      subscribeToRoomMessages(roomId);
-    } catch (error) {
-      console.error("Error selecting chat room:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  /**
-   * Send a message to a specific room (by roomId).
-   * Messages are written to /chats/{roomId}/messages — completely isolated
-   * to that user. No other user will see this message.
-   *
-   * The senderRole field tells the DB layer whether to increment unread count
-   * (only increments for customer messages, not admin or system).
-   */
-  const sendMessage = async (roomId, messageText, options = {}) => {
-    if (!user) return;
-
-    const messageData = {
-      senderId: user.uid,
-      senderName: user.name || (isAdmin ? "Vinoff Admin" : "Customer"),
-      senderRole: isAdmin ? "admin" : "customer",
-      text: messageText,
-      image: options.image || null,
-      type: options.type || "text",
-      invoiceRef: options.invoiceRef || null,
-      orderRef: options.orderRef || null,
-      invoicePdfUrl: options.invoicePdfUrl || null,
-    };
-
-    try {
-      const msg = await dbSendChatMessage(roomId, messageData);
-
-      // Trigger auto-reply only for customer messages (not system/admin)
-      if (!isAdmin && options.type !== "system") {
-        setTimeout(() => {
-          simulateSupportReply(roomId, messageText);
-        }, 3000);
+      if (activeRoomRef.current) {
+        const found = deduplicated.find(
+          (room) =>
+            room.roomId === activeRoomRef.current.roomId ||
+            (room.customerId && room.customerId === activeRoomRef.current.customerId),
+        );
+        if (found) {
+          setActiveRoom((prev) => {
+            if (!prev) return prev;
+            const mergedMessages = mergeMessages(found.messages || [], prev.messages || []);
+            const next = {
+              ...prev,
+              ...found,
+              unreadCount: 0,
+              messages: mergedMessages,
+            };
+            if (roomSnapshot(prev) === roomSnapshot(next)) return prev;
+            return next;
+          });
+        }
       }
 
-      return msg;
-    } catch (error) {
-      console.error("Failed to send message:", error);
+      return deduplicated;
+    } catch (err) {
+      console.warn("Failed to fetch chats:", err.message);
+      return [];
     }
-  };
+  }, [user, isAdmin, currentUserId]);
 
-  /**
-   * Automated support reply — simulates a response from Vinoff Support.
-   * Sends with senderRole: "admin" so it does NOT increment unread count
-   * and is not attributed to the customer.
-   */
-  const simulateSupportReply = async (roomId, clientMessage) => {
-    let replyText =
-      "Thank you for contacting Vinoff Wholesales! An administrator has been notified and will reply shortly.";
-    const textLower = clientMessage.toLowerCase();
-
-    if (
-      textLower.includes("payment") ||
-      textLower.includes("transfer") ||
-      textLower.includes("screenshot")
-    ) {
-      replyText =
-        "Thank you for submitting details. Our finance team will review the transaction screenshot and change your order status to 'Paid' inside 24 hours.";
-    } else if (textLower.includes("invoice") || textLower.includes("bill")) {
-      replyText =
-        "We can arrange customized invoices for bulk purchases. Please list the quantities needed here so our team can draft an invoice.";
-    } else if (
-      textLower.includes("discount") ||
-      textLower.includes("carton")
-    ) {
-      replyText =
-        "Yes! We offer bulk carton discounts: buying full cartons reduces the per-unit cost automatically. You can check discounts on the Shop shelf.";
-    }
-
-    const messageData = {
-      senderId: "admin-system",
-      senderName: "Vinoff Support",
-      senderRole: "admin", // ensures unread count is NOT incremented
-      text: replyText,
-      type: "text",
-    };
-
-    try {
-      await dbSendChatMessage(roomId, messageData);
-      await dbUpdateChatRoomStatus(roomId, "Open");
-    } catch (e) {
-      console.error("Auto-reply failed:", e);
-    }
-  };
-
-  const updateRoomStatus = async (roomId, status) => {
-    try {
-      await dbUpdateChatRoomStatus(roomId, status);
-    } catch (error) {
-      console.error("Error updating room status:", error);
-    }
-  };
-
-  /**
-   * Manual refresh helper — still used by some admin invoice actions.
-   * For admins the live subscription handles it automatically, but this
-   * allows explicit refresh triggers from other components.
-   */
-  const refreshRooms = async () => {
-    if (!user) return;
-    if (!isAdmin && user.uid) {
+  const fetchMessagesForRoom = useCallback(
+    async (roomId, silent = false) => {
+      if (!roomId) return [];
       try {
-        const room = await dbGetChatByRoom(user.uid);
-        setActiveRoom((prev) => ({
-          ...prev,
-          ...room,
-          messages: prev?.messages || room.messages,
-        }));
-        setRooms([room]);
-      } catch (err) {
-        console.error("refreshRooms error:", err);
-      }
-    }
-    // For admin, the onSnapshot subscription already keeps rooms current
-  };
+        const res = await api.get(`/api/chats/${roomId}/messages?limit=200`);
+        const rawMessages = unwrapApiList(res);
+        const normalizedMessages = (Array.isArray(rawMessages) ? rawMessages : [])
+          .map((message) => normalizeMessage(message, currentUserId))
+          .filter(Boolean);
 
-  const setTypingState = async (isTyping) => {
-    if (!user || !activeRoom) return;
+        setActiveRoom((prev) => {
+          if (!prev || prev.roomId !== roomId) return prev;
+          const merged = mergeMessages(normalizedMessages, prev.messages || []);
+          const prevIds = (prev.messages || []).map((message) => message.id).join("|");
+          const nextIds = merged.map((message) => message.id).join("|");
+          if (prevIds === nextIds) return prev;
+          return { ...prev, messages: merged };
+        });
+
+        return normalizedMessages;
+      } catch (err) {
+        if (!silent) {
+          console.warn("Failed to fetch messages for room:", err.message);
+        }
+        return [];
+      }
+    },
+    [currentUserId],
+  );
+
+  useEffect(() => {
+    refreshRooms();
+  }, [refreshRooms]);
+
+  useEffect(() => {
+    if (!user) return undefined;
+
+    const interval = setInterval(() => {
+      if (activeRoomRef.current?.roomId) {
+        fetchMessagesForRoom(activeRoomRef.current.roomId, true);
+      }
+      refreshRooms();
+    }, 4000);
+
+    return () => clearInterval(interval);
+  }, [user, fetchMessagesForRoom, refreshRooms]);
+
+  const selectRoom = useCallback(
+    async (roomIdOrObj) => {
+      const roomId =
+        typeof roomIdOrObj === "object"
+          ? roomIdOrObj?.roomId || roomIdOrObj?._id || roomIdOrObj?.id
+          : roomIdOrObj;
+      if (!roomId) return null;
+
+      const isAlreadyActive = activeRoomRef.current?.roomId === roomId;
+      if (!isAlreadyActive) {
+        setLoading(true);
+        const preview =
+          typeof roomIdOrObj === "object"
+            ? normalizeRoom(roomIdOrObj, isAdmin, currentUserId)
+            : rooms.find((room) => room.roomId === roomId);
+        if (preview) {
+          const clearedPreview = { ...preview, unreadCount: 0 };
+          setActiveRoom(clearedPreview);
+        }
+      } else {
+        setActiveRoom((prev) => (prev ? { ...prev, unreadCount: 0 } : prev));
+      }
+
+      setRooms((prev) =>
+        prev.map((r) => (r.roomId === roomId ? { ...r, unreadCount: 0 } : r)),
+      );
+
+      try {
+        const chatRes = await api.get(`/api/chats/${roomId}`);
+        const chat = normalizeRoom(unwrapApiRecord(chatRes), isAdmin, currentUserId);
+        if (!chat) return null;
+
+        const chatWithZeroUnread = { ...chat, unreadCount: 0 };
+
+        setActiveRoom((prev) => ({
+          ...chatWithZeroUnread,
+          messages: prev?.roomId === roomId ? prev.messages || [] : chat.messages || [],
+        }));
+
+        await fetchMessagesForRoom(roomId);
+        await api.patch(`/api/chats/${roomId}/read`).catch(() => {});
+        await refreshRooms();
+        return chatWithZeroUnread;
+      } catch (err) {
+        console.error("Failed to select room:", err);
+        return null;
+      } finally {
+        if (!isAlreadyActive) {
+          setLoading(false);
+        }
+      }
+    },
+    [isAdmin, currentUserId, fetchMessagesForRoom, refreshRooms, rooms],
+  );
+
+  const createOrGetCustomerRoom = useCallback(
+    async (orderId = null, customerId = null) => {
+      setLoading(true);
+      try {
+        const payload = {};
+        if (orderId) payload.orderId = orderId;
+        if (customerId) payload.customerId = customerId;
+
+        const res = await api.post("/api/chats", payload);
+        const chat = normalizeRoom(unwrapApiRecord(res), isAdmin, currentUserId);
+        if (!chat) throw new Error("Chat room could not be created");
+        setActiveRoom(chat);
+        await fetchMessagesForRoom(chat.roomId);
+        await refreshRooms();
+        return chat;
+      } catch (err) {
+        console.error("Failed to create/get chat:", err);
+        throw err;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [isAdmin, currentUserId, fetchMessagesForRoom, refreshRooms],
+  );
+
+  const sendMessage = useCallback(
+    async (...args) => {
+      const [first, second, third] = args;
+      const hasExplicitRoom =
+        args.length >= 3 || (args.length >= 2 && typeof second === "string");
+      const roomId = hasExplicitRoom ? first : activeRoomRef.current?.roomId;
+      const text = hasExplicitRoom ? second : first;
+      const attachment = hasExplicitRoom ? third : second;
+      const trimmedText = typeof text === "string" ? text.trim() : "";
+
+      if (!roomId) return;
+      if (!trimmedText && !attachment) return;
+
+      const isFileUpload =
+        attachment &&
+        ((typeof File !== "undefined" && attachment instanceof File) ||
+          (typeof Blob !== "undefined" && attachment instanceof Blob));
+      const isImageFile = isFileUpload && String(attachment.type || "").startsWith("image");
+
+      const optimisticId = `temp-${Date.now()}`;
+      const optimisticImage = isImageFile
+        ? URL.createObjectURL(attachment)
+        : attachment?.image || attachment?.url || null;
+      const optimisticMessage = normalizeMessage(
+        {
+          id: optimisticId,
+          _id: optimisticId,
+          _optimistic: true,
+          text: trimmedText,
+          content: trimmedText,
+          sender: user,
+          senderId: currentUserId,
+          senderRole: isAdmin ? "admin" : "customer",
+          image: optimisticImage,
+          attachments: optimisticImage
+            ? [{ url: optimisticImage, type: attachment?.type || "image", name: attachment?.name }]
+            : [],
+          createdAt: new Date().toISOString(),
+        },
+        currentUserId,
+      );
+
+      if (optimisticMessage) {
+        setActiveRoom((prev) => {
+          if (!prev || prev.roomId !== roomId) return prev;
+          return {
+            ...prev,
+            messages: [...(prev.messages || []), optimisticMessage],
+            lastMessage: optimisticMessage,
+          };
+        });
+      }
+
+      try {
+        let res;
+        if (isFileUpload) {
+          const formData = new FormData();
+          if (trimmedText) {
+            formData.append("content", trimmedText);
+            formData.append("text", trimmedText);
+          }
+          formData.append("attachments", attachment);
+          res = await api.post(`/api/chats/${roomId}/messages`, formData);
+        } else {
+          const imageUrl =
+            attachment?.image ||
+            (attachment?.type?.startsWith("image") ? attachment?.url : null) ||
+            null;
+          const fileUrl = attachment?.url || attachment?.pdfUrl || imageUrl;
+          const payload = {
+            content: trimmedText,
+            text: trimmedText,
+          };
+
+          if (attachment?.invoiceRef || attachment?.invoiceId) {
+            payload.invoiceRef = attachment.invoiceRef || attachment.invoiceId;
+          }
+          if (attachment?.invoicePdfUrl) {
+            payload.invoicePdfUrl = attachment.invoicePdfUrl;
+          }
+
+          if (fileUrl) {
+            if (imageUrl) payload.image = imageUrl;
+            payload.attachments = [
+              {
+                url: fileUrl,
+                type: attachment?.type || (fileUrl.toLowerCase().includes(".pdf") ? "pdf" : "image"),
+                name: attachment?.name || "Attachment",
+              },
+            ];
+          }
+
+          res = await api.post(`/api/chats/${roomId}/messages`, payload);
+        }
+
+        const newMsg = normalizeMessage(unwrapApiRecord(res), currentUserId);
+
+        setActiveRoom((prev) => {
+          if (!prev || prev.roomId !== roomId) return prev;
+          const withoutOptimistic = (prev.messages || []).filter(
+            (message) => message.id !== optimisticId,
+          );
+          const exists = withoutOptimistic.some((message) => message.id === newMsg?.id);
+          return {
+            ...prev,
+            messages: exists
+              ? withoutOptimistic
+              : [...withoutOptimistic, newMsg].filter(Boolean),
+            lastMessage: newMsg || prev.lastMessage,
+          };
+        });
+        if (optimisticImage?.startsWith?.("blob:")) {
+          URL.revokeObjectURL(optimisticImage);
+        }
+
+        await refreshRooms();
+        return newMsg;
+      } catch (err) {
+        setActiveRoom((prev) => {
+          if (!prev || prev.roomId !== roomId) return prev;
+          return {
+            ...prev,
+            messages: (prev.messages || []).filter((message) => message.id !== optimisticId),
+          };
+        });
+        if (optimisticImage?.startsWith?.("blob:")) {
+          URL.revokeObjectURL(optimisticImage);
+        }
+        console.error("Failed to send message:", err);
+        throw err;
+      }
+    },
+    [currentUserId, isAdmin, user, refreshRooms],
+  );
+
+  const updateRoomStatus = useCallback(
+    async (roomId, status) => {
+      if (!roomId || !status) return;
+      const nextStatus = toChatStatusValue(status);
+
+      setRooms((prev) =>
+        prev.map((room) =>
+          room.roomId === roomId
+            ? { ...room, status: nextStatus, statusLabel: formatChatStatus(nextStatus) }
+            : room,
+        ),
+      );
+      setActiveRoom((prev) =>
+        prev?.roomId === roomId
+          ? { ...prev, status: nextStatus, statusLabel: formatChatStatus(nextStatus) }
+          : prev,
+      );
+
+      try {
+        await api.patch(`/api/chats/${roomId}/status`, { status: nextStatus });
+        await refreshRooms();
+      } catch (err) {
+        console.error("Failed to update chat status:", err);
+        await refreshRooms();
+        throw err;
+      }
+    },
+    [refreshRooms],
+  );
+
+  const deleteRoom = useCallback(
+    async (roomId) => {
+      if (!roomId) return;
+      try {
+        await api.delete(`/api/chats/${roomId}`);
+      } catch (err) {
+        console.warn("Delete chat API call failed:", err.message);
+      }
+
+      setRooms((prev) => prev.filter((room) => room.roomId !== roomId));
+      setActiveRoom((prev) => (prev?.roomId === roomId ? null : prev));
+      await refreshRooms();
+    },
+    [refreshRooms],
+  );
+
+  const setTypingState = useCallback(async () => {}, []);
+
+  const [isRefreshingChat, setIsRefreshingChat] = useState(false);
+
+  const refreshChat = useCallback(async () => {
+    setIsRefreshingChat(true);
     try {
-      await dbUpdateTypingState(activeRoom.roomId, isTyping, user.role);
-    } catch (e) {
-      console.error("Failed to update typing state:", e);
+      await refreshRooms();
+      const currentActiveRoom = activeRoomRef.current;
+      if (currentActiveRoom?.roomId) {
+        const roomId = currentActiveRoom.roomId;
+        try {
+          const chatRes = await api.get(`/api/chats/${roomId}`);
+          const updatedRoom = normalizeRoom(unwrapApiRecord(chatRes), isAdmin, currentUserId);
+          if (updatedRoom) {
+            setActiveRoom((prev) => ({
+              ...prev,
+              ...updatedRoom,
+            }));
+          }
+        } catch (e) {
+          console.warn("Failed to refresh chat room info:", e.message);
+        }
+
+        const res = await api.get(`/api/chats/${roomId}/messages?limit=200`);
+        const rawMessages = unwrapApiList(res);
+        const normalizedMessages = (Array.isArray(rawMessages) ? rawMessages : [])
+          .map((message) => normalizeMessage(message, currentUserId))
+          .filter(Boolean);
+
+        setActiveRoom((prev) => {
+          if (!prev || prev.roomId !== roomId) return prev;
+          return {
+            ...prev,
+            messages: normalizedMessages,
+          };
+        });
+      }
+    } catch (err) {
+      console.warn("Failed to refresh chat:", err.message);
+    } finally {
+      setTimeout(() => {
+        setIsRefreshingChat(false);
+      }, 500);
     }
-  };
+  }, [refreshRooms, isAdmin, currentUserId]);
 
   const value = {
     rooms,
     activeRoom,
     loading,
+    isRefreshingChat,
     selectRoom,
     sendMessage,
     updateRoomStatus,
+    deleteRoom,
     refreshRooms,
+    refreshChat,
     setTypingState,
+    createOrGetCustomerRoom,
   };
 
   return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;
 };
+
+export default ChatContext;

@@ -4,7 +4,7 @@ import MessageBubble from "./MessageBubble";
 import ChatInput from "./ChatInput";
 import { AuthContext } from "../../context/AuthContext";
 import { ChatContext } from "../../context/ChatContext";
-import { MessageSquareOff } from "lucide-react";
+import { MessageSquareOff, Shield } from "lucide-react";
 
 export const ChatWindow = ({
   room,
@@ -20,11 +20,14 @@ export const ChatWindow = ({
   const chatEndRef = useRef(null);
 
   const isOtherTyping = isAdmin ? room?.typingCustomer === true : room?.typingAdmin === true;
+  const lastMsgId = room?.messages?.[room?.messages?.length - 1]?.id;
 
-  // Auto Scroll to bottom on new messages or typing state change
+  // Auto Scroll to bottom only when the latest message ID changes or typing indicator changes
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [room?.messages?.length, isOtherTyping]);
+    if (lastMsgId) {
+      chatEndRef.current?.scrollIntoView({ behavior: "auto" });
+    }
+  }, [lastMsgId, isOtherTyping]);
 
   if (!room) {
     return (
@@ -39,8 +42,6 @@ export const ChatWindow = ({
       </div>
     );
   }
-
-  const customerId = room.customerId || room.roomId;
 
   return (
     <div className="flex flex-col h-full bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-sm">
@@ -70,22 +71,53 @@ export const ChatWindow = ({
       {/* Messages Scroll Area */}
       <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-50/50 space-y-1">
         {room.messages && room.messages.length > 0 ? (
-          room.messages.map((msg) => {
-            // Determine if this message should be rendered as 'self' (right side)
-            let isSelf;
-            if (isAdmin) {
-              // Admin view: messages sent by the admin account itself should appear on the right.
-              // Consider real admin uid or legacy 'admin-...' senders as admin messages.
-              const sender = String(msg.senderId || "");
-              isSelf =
-                sender === String(user?.uid) || sender.startsWith("admin");
-            } else {
-              // Customer view: only the logged-in customer's own messages are 'self'
-              isSelf = msg.senderId === user?.uid;
-            }
+          (() => {
+            let lastAdminSenderId = null;
+            return room.messages.map((msg) => {
+              const currentId = user?._id || user?.id || user?.uid;
+              const isAdminRole = msg.senderRole === "admin" || msg.senderRole === "subAdmin" || msg.senderRole === "superadmin";
 
-            return <MessageBubble key={msg.id} message={msg} isSelf={isSelf} onViewInvoice={onViewInvoice} />;
-          })
+              let isSelf;
+              if (isAdmin) {
+                const sender = String(msg.senderId || msg.sender?._id || "");
+                isSelf =
+                  msg.isSelf ||
+                  (currentId && String(msg.sender?._id || "") === String(currentId)) ||
+                  sender === String(currentId || "");
+              } else {
+                isSelf = msg.isSelf || String(msg.senderId || msg.sender?._id || "") === String(currentId || "");
+              }
+
+              let adminSwitchBanner = null;
+              if (isAdminRole) {
+                const currentAdminId = String(msg.sender?._id || msg.senderId || msg.senderFirstName || msg.senderName || "admin");
+                if (lastAdminSenderId && lastAdminSenderId !== currentAdminId) {
+                  const adminName = msg.sender?.firstName || msg.senderFirstName || "Support Admin";
+                  adminSwitchBanner = (
+                    <div key={`switch-${msg.id}`} className="flex justify-center my-3">
+                      <div className="inline-flex items-center gap-1.5 bg-brand-green-50 border border-brand-green-200/80 text-brand-green-900 text-[10px] font-bold px-3 py-1 rounded-full shadow-2xs">
+                        <Shield className="w-3 h-3 text-brand-green-600 shrink-0" />
+                        <span>Admin {adminName} is now responding in this chat</span>
+                      </div>
+                    </div>
+                  );
+                }
+                lastAdminSenderId = currentAdminId;
+              }
+
+              return (
+                <React.Fragment key={msg.id}>
+                  {adminSwitchBanner}
+                  <MessageBubble
+                    message={msg}
+                    isSelf={isSelf}
+                    onViewInvoice={onViewInvoice}
+                    room={room}
+                  />
+                </React.Fragment>
+              );
+            });
+          })()
         ) : (
           <p className="text-center text-xs text-slate-400 py-10">
             No messages yet.

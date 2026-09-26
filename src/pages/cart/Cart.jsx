@@ -67,8 +67,7 @@ export const Cart = () => {
         </div>
         <h3 className="font-bold text-slate-800 text-lg">Your Cart is Empty</h3>
         <p className="text-slate-500 text-xs mt-1.5 max-w-xs mx-auto">
-          Add bulk household toiletries or liquid sanitizers to meet the
-          wholesale threshold.
+          Add bulk household toiletries or liquid sanitizers to your cart.
         </p>
         <Link to="/shop" className="mt-6 inline-block">
           <Button variant="primary" className="rounded-xl p-3">
@@ -86,35 +85,9 @@ export const Cart = () => {
           Wholesale Cart
         </h2>
         <p className="text-xs text-slate-500 font-medium">
-          Verify your items, purchase modes, and thresholds below.
+          Verify your items and purchase modes below.
         </p>
       </div>
-
-      {/* Threshold Warning Banner */}
-      {!meetsMinThreshold && (
-        <div className="bg-amber-50 border border-amber-200 text-amber-800 rounded-2xl p-4 flex items-start gap-3 shadow-xs">
-          <AlertTriangle className="w-5.5 h-5.5 text-amber-500 flex-shrink-0 mt-0.5" />
-          <div>
-            <h4 className="font-bold text-xs tracking-tight uppercase">
-              Minimum Wholesale Order Threshold Not Met
-            </h4>
-            <p className="text-xs text-amber-700 mt-1 leading-relaxed">
-              Your subtotal is <strong>{formatCurrency(subtotal)}</strong>. A
-              minimum value of{" "}
-              <strong>{formatCurrency(MIN_ORDER_THRESHOLD)}</strong> is required
-              to check out. Add{" "}
-              <strong>{formatCurrency(MIN_ORDER_THRESHOLD - subtotal)}</strong>{" "}
-              worth of items.
-            </p>
-            <Link
-              to="/shop"
-              className="mt-2.5 inline-block text-xs font-bold text-amber-900 underline hover:text-amber-950"
-            >
-              Go back to shop shelf &rarr;
-            </Link>
-          </div>
-        </div>
-      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Cart Items List */}

@@ -1,9 +1,7 @@
-import React, { useState, useContext, useEffect } from "react";
-import Badge from "../ui/Badge";
-import { Search, User2, MessageSquare } from "lucide-react";
-import { AuthContext } from "../../context/AuthContext";
+import React, { useState } from "react";
+import { Search, MessageSquare } from "lucide-react";
 import Avatar from "../ui/Avatar";
-import { getUserProfile } from "../../services/firebase/auth";
+import { getAvatarUrl, getInitials } from "../../utils/avatar";
 
 const formatTimestamp = (timestamp) => {
   if (!timestamp) return "";
@@ -25,7 +23,6 @@ export const ChatSidebar = ({
   onSelectRoom,
 }) => {
   const [searchTerm, setSearchTerm] = useState("");
-  const { currentUser } = useContext(AuthContext);
 
   const filteredRooms = rooms.filter(
     (room) =>
@@ -40,9 +37,9 @@ export const ChatSidebar = ({
   return (
     <div className="flex flex-col h-full bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-sm">
       {/* Search Header */}
-      <div className="p-4 border-b border-slate-100 bg-slate-50/50">
-        <h3 className="font-bold text-slate-800 text-sm tracking-wide mb-3 flex items-center gap-1.5">
-          <MessageSquare className="w-4 h-4 text-brand-green-600" />
+      <div className="p-3 sm:p-3.5 border-b border-slate-100 bg-slate-50/50">
+        <h3 className="font-extrabold text-slate-800 text-xs tracking-wider mb-2 flex items-center gap-1.5 uppercase">
+          <MessageSquare className="w-3.5 h-3.5 text-brand-green-600" />
           ACTIVE CHAT ROOMS
         </h3>
         <div className="relative">
@@ -51,14 +48,14 @@ export const ChatSidebar = ({
             placeholder="Search buyer or store..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-white border border-slate-200 rounded-xl py-2 pl-9 pr-4 text-xs font-medium focus:ring-2 focus:ring-brand-green-500 focus:border-brand-green-500 transition-all outline-none"
+            className="w-full bg-white border border-slate-200 rounded-xl py-1.5 pl-8 pr-3 text-[11px] font-medium focus:ring-2 focus:ring-brand-green-500 focus:border-brand-green-500 transition-all outline-none"
           />
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2" />
         </div>
       </div>
 
       {/* Rooms List */}
-      <div className="flex-grow overflow-y-auto p-3 space-y-1.5">
+      <div className="flex-grow overflow-y-auto p-2 space-y-1">
         {filteredRooms.length > 0 ? (
           filteredRooms.map((room) => {
             const isActive = activeRoom?.roomId === room.roomId;
@@ -68,84 +65,60 @@ export const ChatSidebar = ({
               (room.messages && room.messages.length > 0
                 ? room.messages[room.messages.length - 1]
                 : null);
-            const [fetchedAvatar, setFetchedAvatar] = useState(null);
-
-            useEffect(() => {
-              let cancelled = false;
-              const ensure = async () => {
-                if (room.avatarUrl) return;
-                try {
-                  const p = await getUserProfile(
-                    room.customerId || room.roomId,
-                  );
-                  if (!cancelled) setFetchedAvatar(p?.avatarUrl || null);
-                } catch (e) {
-                  // ignore
-                }
-              };
-              ensure();
-              return () => {
-                cancelled = true;
-              };
-            }, [room]);
-
-            const avatarSrc = room.avatarUrl || fetchedAvatar || null;
+            const avatarSrc = room.avatarUrl || getAvatarUrl(room.customer) || getAvatarUrl(room);
 
             return (
               <button
                 key={room.roomId}
                 onClick={() => onSelectRoom(room.roomId)}
-                className={`w-full text-left p-3 transition-all flex items-start gap-3 rounded-2xl outline-none border ${
+                className={`w-full text-left p-2.5 transition-all flex items-start gap-2.5 rounded-2xl outline-none border ${
                   isActive
-                    ? "bg-gradient-to-r from-brand-green-50/60 to-white border-brand-green-200/60 shadow-xs"
-                    : "bg-transparent border-transparent hover:bg-slate-50/70 hover:border-slate-100"
+                    ? "bg-gradient-to-r from-brand-green-50/70 to-white border-brand-green-200/70 shadow-xs"
+                    : "bg-transparent border-transparent hover:bg-slate-50/80 hover:border-slate-100"
                 }`}
               >
                 {/* User Avatar */}
                 <div
-                  className={`w-10 h-10 rounded-xl overflow-hidden border flex-shrink-0 transition-colors ${isActive ? "bg-brand-green-100 border-brand-green-200/50" : "bg-slate-100 border-slate-200/50"}`}
+                  className={`w-9 h-9 rounded-xl overflow-hidden border flex-shrink-0 transition-colors ${isActive ? "bg-brand-green-100 border-brand-green-200/50" : "bg-slate-100 border-slate-200/50"}`}
                 >
                   <Avatar
                     src={avatarSrc}
                     alt={room.customerName || "avatar"}
-                    size={40}
+                    size={36}
+                    fallback={getInitials(room.customer || room, "C")}
                   />
                 </div>
 
                 {/* Message Meta Info */}
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-2">
-                    <h4 className="font-extrabold text-slate-800 text-xs truncate">
+                  <div className="flex items-center justify-between gap-1">
+                    <h4 className="font-extrabold text-slate-800 text-[11px] truncate">
                       {room.customerName}
                     </h4>
-                    <span className="text-[9px] text-slate-400 font-medium">
+                    <span className="text-[8px] text-slate-400 font-medium shrink-0">
                       {lastMessage
                         ? formatTimestamp(lastMessage.timestamp)
                         : ""}
                     </span>
                   </div>
 
-                  <p className="text-[9px] text-slate-400 font-extrabold uppercase tracking-widest truncate mt-0.5">
+                  <p className="text-[8px] text-slate-400 font-extrabold uppercase tracking-wider truncate mt-0.5">
                     {room.businessName}
                   </p>
 
-                  <div className="flex items-center justify-between mt-2.5 gap-2">
+                  <div className="flex items-center justify-between mt-1.5 gap-1.5">
                     <p
-                      className={`text-xs truncate ${isUnread ? "text-slate-900 font-bold" : "text-slate-500 font-medium"}`}
+                      className={`text-[10px] truncate ${isUnread ? "text-slate-900 font-bold" : "text-slate-500 font-medium"}`}
                     >
                       {lastMessage?.type === "system"
-                        ? "📢 Notice update"
+                        ? "Notice update"
                         : lastMessage?.text || "No messages yet"}
                     </p>
 
-                    <div className="flex items-center gap-1.5 flex-shrink-0">
-                      <Badge
-                        status={room.status}
-                        className="text-[8px] px-1.5 py-0.5"
-                      />
+                    <div className="flex items-center gap-1 flex-shrink-0">
                       {isUnread && (
                         <span
-                          className="flex items-center justify-center bg-brand-yellow-400 text-slate-900 rounded-full text-[10px] font-black min-w-[20px] h-5 px-1.5 shadow-sm shadow-brand-yellow-200"
+                          className="flex items-center justify-center bg-brand-yellow-400 text-slate-900 rounded-full text-[9px] font-black min-w-[18px] h-4 px-1 shadow-xs"
                           title={`${room.unreadCount} unread messages`}
                         >
                           {room.unreadCount > 99 ? '99+' : room.unreadCount}
@@ -158,7 +131,7 @@ export const ChatSidebar = ({
             );
           })
         ) : (
-          <div className="text-center py-10 text-slate-400 text-xs">
+          <div className="text-center py-8 text-slate-400 text-xs">
             No active conversations.
           </div>
         )}

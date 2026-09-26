@@ -22,6 +22,8 @@ export const getStatusColors = (status) => {
     case 'pending':
     case 'pending payment':
     case 'awaiting confirmation':
+    case 'awaiting payment confirmation':
+    case 'awaiting_payment':
     case 'unpaid':
       return {
         bg: 'bg-amber-50 dark:bg-amber-950/30',
@@ -30,6 +32,7 @@ export const getStatusColors = (status) => {
       };
       
     case 'awaiting invoice':
+    case 'awaiting_invoice':
     case 'invoice draft':
       return {
         bg: 'bg-blue-50 dark:bg-blue-950/30',

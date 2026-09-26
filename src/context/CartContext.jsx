@@ -99,9 +99,9 @@ export const CartProvider = ({ children }) => {
     return cartItems.reduce((count, item) => count + item.quantity, 0);
   };
 
-  const MIN_ORDER_THRESHOLD = 150.00; // Wholesale minimum order amount
+  const MIN_ORDER_THRESHOLD = 0; // No minimum order amount
   const subtotal = getSubtotal();
-  const meetsMinThreshold = subtotal >= MIN_ORDER_THRESHOLD;
+  const meetsMinThreshold = true;
 
   const value = {
     cartItems,

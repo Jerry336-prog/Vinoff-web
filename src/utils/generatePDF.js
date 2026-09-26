@@ -1,6 +1,482 @@
-import html2canvas from 'html2canvas';
-import jsPDF from 'jspdf';
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
+import api from "../services/api";
+import { formatCurrency } from "./formatCurrency";
+import { toast } from "../context/ToastContext";
+import { unwrapApiRecord } from "./apiResponse";
 
+/**
+ * Helper to build standard Vinoff Commercial Invoice HTML for canvas rendering
+ */
+const buildInvoiceHTML = ({
+  invoiceNumber,
+  issuedDate,
+  dueDate,
+  issuedBy,
+  status,
+  statusBg,
+  statusColor,
+  statusBorder,
+  customerName,
+  customerCompany,
+  customerEmail,
+  customerPhone,
+  customerAddress,
+  orderRef,
+  items,
+  subtotal,
+  discount,
+  deliveryFee,
+  total,
+  notes,
+}) => `
+  <div style="position: relative; overflow: hidden; background-color: #ffffff;">
+    <!-- Overlay Watermark -->
+    <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column; align-items: center; justify-content: space-around; pointer-events: none; opacity: 0.11; transform: rotate(-22deg); z-index: 10; text-align: center; padding: 100px 0;">
+      <div style="margin: 40px 0;">
+        <div style="font-size: 46px; font-weight: 900; color: #047857; letter-spacing: 3px; text-transform: uppercase; white-space: nowrap; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">VINOFF &amp; CO.NIG.LTD</div>
+        <div style="font-size: 38px; font-weight: 900; color: #047857; letter-spacing: 3px; text-transform: uppercase; white-space: nowrap; margin-top: 10px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">VINOFF &amp; CO.NIG.LTD</div>
+      </div>
+      <div style="margin: 40px 0;">
+        <div style="font-size: 46px; font-weight: 900; color: #047857; letter-spacing: 3px; text-transform: uppercase; white-space: nowrap; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">VINOFF &amp; CO.NIG.LTD</div>
+        <div style="font-size: 38px; font-weight: 900; color: #047857; letter-spacing: 3px; text-transform: uppercase; white-space: nowrap; margin-top: 10px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">VINOFF &amp; CO.NIG.LTD</div>
+      </div>
+      <div style="margin: 40px 0;">
+        <div style="font-size: 46px; font-weight: 900; color: #047857; letter-spacing: 3px; text-transform: uppercase; white-space: nowrap; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">VINOFF &amp; CO.NIG.LTD</div>
+        <div style="font-size: 38px; font-weight: 900; color: #047857; letter-spacing: 3px; text-transform: uppercase; white-space: nowrap; margin-top: 10px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">VINOFF &amp; CO.NIG.LTD</div>
+      </div>
+    </div>
+
+    <!-- Foreground Content -->
+    <div style="position: relative; z-index: 1;">
+      <div style="border-bottom: 3px solid #064e3b; padding-bottom: 20px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: flex-start; box-sizing: border-box;">
+        <div>
+          <div style="display: flex; align-items: center; gap: 14px;">
+            <img src="/VinoffLogo.png" alt="Vinoff Logo" style="width: 56px; height: 56px; object-fit: contain;" />
+            <div style="font-size: 22px; font-weight: 900; color: #064e3b; letter-spacing: -0.5px;">
+              VINOFF <span style="color: #047857;">WHOLESALE</span>
+            </div>
+          </div>
+          <div style="font-size: 11px; color: #64748b; font-weight: 500; margin-top: 6px;">
+            Commercial Toiletries, Sanitizers & Industrial Detergents
+          </div>
+          <div style="font-size: 11px; color: #94a3b8; margin-top: 2px;">
+            Email: sales@vinoff.com &bull; Tel: +234 80 1234 5678
+          </div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; align-items: flex-end; text-align: right; box-sizing: border-box;">
+          <div style="font-size: 22px; font-weight: 900; color: #0f172a; letter-spacing: -0.5px; line-height: 1.2;">
+            COMMERCIAL INVOICE
+          </div>
+          <div style="font-family: monospace; font-size: 14px; font-weight: 800; color: #047857; margin-top: 3px;">
+            #${invoiceNumber}
+          </div>
+          <div style="margin-top: 6px; margin-bottom: 6px; display: flex; justify-content: flex-end; width: 100%;">
+            <span style="display: inline-flex; align-items: center; justify-content: center; padding: 4px 14px; border-radius: 9999px; font-size: 10px; font-weight: 800; text-transform: uppercase; background-color: ${statusBg}; color: ${statusColor}; border: 1px solid ${statusBorder}; line-height: 1.2; box-sizing: border-box; white-space: nowrap;">
+              ${status}
+            </span>
+          </div>
+          <div style="font-size: 11px; color: #64748b; margin-top: 2px;">
+            Issued: <strong style="color: #334155;">${issuedDate}</strong>
+          </div>
+          <div style="font-size: 11px; color: #64748b; margin-top: 2px;">
+            Due Date: <strong style="color: #334155;">${dueDate}</strong>
+          </div>
+          ${
+            issuedBy
+              ? `<div style="font-size: 11px; color: #047857; font-weight: 800; margin-top: 3px;">
+                  Issued by: ${issuedBy}
+                </div>`
+              : `<div style="font-size: 11px; color: #64748b; font-weight: 600; margin-top: 3px;">
+                  Issued by: <span style="display: inline-block; width: 140px; border-bottom: 1px dashed #cbd5e1; margin-left: 4px;">&nbsp;</span>
+                </div>`
+          }
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 16px; padding: 20px; margin-bottom: 24px; box-sizing: border-box;">
+        <div>
+          <div style="font-size: 9px; font-weight: 900; text-transform: uppercase; color: #94a3b8; letter-spacing: 0.5px; margin-bottom: 4px;">
+            Billed To Customer
+          </div>
+          <div style="font-size: 14px; font-weight: 800; color: #0f172a;">
+            ${customerName}
+          </div>
+          ${customerCompany ? `<div style="font-size: 12px; font-weight: 700; color: #047857; margin-top: 2px;">${customerCompany}</div>` : ""}
+          ${customerEmail ? `<div style="font-size: 11px; color: #64748b; margin-top: 2px;">${customerEmail}</div>` : ""}
+          ${customerPhone ? `<div style="font-size: 11px; color: #64748b; margin-top: 1px;">${customerPhone}</div>` : ""}
+          ${customerAddress ? `<div style="font-size: 11px; color: #64748b; margin-top: 1px;">${customerAddress}</div>` : ""}
+        </div>
+
+        <div style="text-align: right;">
+          <div style="font-size: 9px; font-weight: 900; text-transform: uppercase; color: #94a3b8; letter-spacing: 0.5px; margin-bottom: 4px;">
+            Order Reference
+          </div>
+          <div style="font-size: 13px; font-family: monospace; font-weight: 800; color: #0f172a;">
+            ${orderRef ? `#${orderRef}` : "Direct Wholesale Issuance"}
+          </div>
+          <div style="font-size: 11px; color: #64748b; margin-top: 4px;">
+            Platform: Vinoff Commercial Portal
+          </div>
+        </div>
+      </div>
+
+      <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px; box-sizing: border-box;">
+        <thead>
+          <tr style="border-bottom: 2px solid #cbd5e1; background-color: #f1f5f9; text-align: left;">
+            <th style="padding: 10px 14px; font-size: 10px; font-weight: 800; color: #475569; text-transform: uppercase; letter-spacing: 0.5px;">Description</th>
+            <th style="padding: 10px 14px; font-size: 10px; font-weight: 800; color: #475569; text-transform: uppercase; text-align: center;">Qty</th>
+            <th style="padding: 10px 14px; font-size: 10px; font-weight: 800; color: #475569; text-transform: uppercase; text-align: right;">Unit Price</th>
+            <th style="padding: 10px 14px; font-size: 10px; font-weight: 800; color: #475569; text-transform: uppercase; text-align: right;">Total Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${items
+            .map(
+              (item, idx) => `
+            <tr style="border-bottom: 1px solid #f1f5f9; background-color: ${idx % 2 === 0 ? "#ffffff" : "#fcfdfd"};">
+              <td style="padding: 12px 14px; font-size: 12px; font-weight: 600; color: #1e293b;">
+                ${item.description || item.name || "Commercial Product"}
+              </td>
+              <td style="padding: 12px 14px; font-size: 12px; font-weight: 600; color: #475569; text-align: center;">
+                ${item.quantity || 1}
+              </td>
+              <td style="padding: 12px 14px; font-size: 12px; font-weight: 600; color: #475569; text-align: right;">
+                ₦${Number(item.unitPrice || 0).toLocaleString()}
+              </td>
+              <td style="padding: 12px 14px; font-size: 12px; font-weight: 800; color: #0f172a; text-align: right;">
+                ₦${Number(item.total || (item.quantity * item.unitPrice) || 0).toLocaleString()}
+              </td>
+            </tr>
+          `
+            )
+            .join("")}
+        </tbody>
+      </table>
+
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; padding-top: 16px; border-top: 1px solid #e2e8f0; margin-bottom: 28px; box-sizing: border-box;">
+        <div style="max-width: 320px;">
+          <div style="font-size: 10px; font-weight: 900; text-transform: uppercase; color: #94a3b8; letter-spacing: 0.5px; margin-bottom: 6px;">
+            Payment Instructions (Bank Transfer)
+          </div>
+          <div style="font-size: 11px; color: #334155; line-height: 1.6;">
+            <div>Bank: <strong>Guaranty Trust Bank (GTB)</strong></div>
+            <div>Account Name: <strong>Vinoff Wholesales Ltd</strong></div>
+            <div>Account Number: <strong style="font-family: monospace; font-size: 12px; color: #047857;">0123456789</strong></div>
+          </div>
+          ${
+            notes
+              ? `<div style="margin-top: 8px; font-size: 11px; color: #64748b; font-style: italic; background-color: #f8fafc; padding: 6px 10px; border-radius: 8px;">
+                  Note: ${notes}
+                </div>`
+              : ""
+          }
+        </div>
+
+        <div style="width: 280px;">
+          <div style="display: flex; justify-content: space-between; font-size: 12px; color: #64748b; padding: 4px 0;">
+            <span>Subtotal:</span>
+            <span style="font-weight: 700; color: #1e293b;">₦${subtotal.toLocaleString()}</span>
+          </div>
+
+          ${
+            discount > 0
+              ? `<div style="display: flex; justify-content: space-between; font-size: 12px; color: #dc2626; padding: 4px 0;">
+                  <span>Discount:</span>
+                  <span style="font-weight: 700;">-₦${discount.toLocaleString()}</span>
+                </div>`
+              : ""
+          }
+
+          <div style="display: flex; justify-content: space-between; font-size: 12px; color: #64748b; padding: 4px 0;">
+            <span>Delivery Fee:</span>
+            <span style="font-weight: 700; color: #1e293b;">₦${deliveryFee.toLocaleString()}</span>
+          </div>
+
+          <div style="display: flex; justify-content: space-between; font-size: 15px; font-weight: 900; color: #064e3b; padding: 12px 0 0 0; margin-top: 6px; border-top: 2px solid #064e3b;">
+            <span>Total Payable:</span>
+            <span>₦${total.toLocaleString()}</span>
+          </div>
+        </div>
+      </div>
+
+      <div style="border-top: 1px solid #f1f5f9; padding-top: 18px; text-align: center; font-size: 10px; color: #94a3b8;">
+        Official Commercial Invoice &bull; Thank you for your partnership with Vinoff Wholesale E-Commerce.
+      </div>
+    </div>
+  </div>
+`;
+
+/**
+ * Adds canvas to jsPDF supporting multiple pages for long documents with high visual quality and minimal file size.
+ * Slices the canvas per A4 page and compresses each page as high-quality JPEG.
+ */
+const appendCanvasToJsPDF = (pdf, canvas) => {
+  const pageWidth = pdf.internal.pageSize.getWidth();   // 210 mm
+  const pageHeight = pdf.internal.pageSize.getHeight(); // 297 mm
+
+  // Calculate canvas pixel height corresponding to one A4 page
+  const pageCanvasHeight = Math.floor((canvas.width * pageHeight) / pageWidth);
+
+  let yOffset = 0;
+  let pageIndex = 0;
+
+  while (yOffset < canvas.height) {
+    const currentSliceHeight = Math.min(pageCanvasHeight, canvas.height - yOffset);
+
+    // Create temporary canvas for current page slice
+    const sliceCanvas = document.createElement("canvas");
+    sliceCanvas.width = canvas.width;
+    sliceCanvas.height = currentSliceHeight;
+
+    const ctx = sliceCanvas.getContext("2d");
+    // Draw solid white background so transparent areas render white in JPEG
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, sliceCanvas.width, sliceCanvas.height);
+
+    // Draw slice of original canvas onto temporary slice canvas
+    ctx.drawImage(
+      canvas,
+      0, yOffset, canvas.width, currentSliceHeight,
+      0, 0, canvas.width, currentSliceHeight
+    );
+
+    const sliceImgData = sliceCanvas.toDataURL("image/jpeg", 0.92);
+    const slicePdfHeight = (currentSliceHeight * pageWidth) / canvas.width;
+
+    if (pageIndex > 0) {
+      pdf.addPage();
+    }
+
+    pdf.addImage(sliceImgData, "JPEG", 0, 0, pageWidth, slicePdfHeight);
+
+    yOffset += pageCanvasHeight;
+    pageIndex++;
+  }
+};
+
+/**
+ * Helper to prepare normalized invoice parameters
+ */
+const extractInvoiceParams = (invData) => {
+  const invoiceNumber = invData.invoiceNumber || "INV-000";
+  const issuedDate = new Date(invData.date || invData.createdAt || Date.now()).toLocaleDateString();
+  const dueDate = invData.dueDate ? new Date(invData.dueDate).toLocaleDateString() : "On Receipt";
+  const status = (invData.status || "Pending").toUpperCase();
+
+  const customerName =
+    invData.customer?.name ||
+    `${invData.customer?.firstName || ""} ${invData.customer?.lastName || ""}`.trim() ||
+    "Commercial Buyer";
+  const customerCompany = invData.customer?.company || invData.customer?.profile?.companyName || "";
+  const customerEmail = invData.customer?.email || "";
+  const customerPhone = invData.customer?.phone || "";
+  const customerAddress =
+    invData.customer?.address ||
+    invData.customer?.profile?.address ||
+    [invData.customer?.profile?.city, invData.customer?.profile?.state].filter(Boolean).join(", ") ||
+    "";
+
+  // Format line items with explicit (CTN) or (Pieces) tag
+  const rawItems = Array.isArray(invData.items) ? invData.items : [];
+  const items = rawItems.map((item) => {
+    let baseName = item.description || item.name || "Commercial Product";
+    baseName = baseName.replace(/\s*\((CTN|Pieces|ctn|pieces|Units|units)\)\s*$/i, "").trim();
+
+    const isPiece =
+      item.isCarton === false ||
+      item.unitType === "pieces" ||
+      item.unitType === "units" ||
+      item.isPieces === true ||
+      item.unit === "pieces" ||
+      item.unit === "units" ||
+      /\(Pieces\)/i.test(item.description || item.name || "");
+
+    const unitTag = isPiece ? "(Pieces)" : "(CTN)";
+    const description = `${baseName} ${unitTag}`;
+    const unitPrice = Number(item.unitPrice || item.price || 0);
+    const quantity = Number(item.quantity || 1);
+    const total = Number(item.total || quantity * unitPrice);
+
+    return {
+      ...item,
+      description,
+      quantity,
+      unitPrice,
+      total,
+    };
+  });
+
+  const subtotal = Number(invData.subtotal || items.reduce((sum, i) => sum + i.total, 0));
+  const discount = Number(invData.discount || 0);
+  const deliveryFee = Number(invData.deliveryFee || 0);
+  const total = Number(invData.total || invData.totalAmount || subtotal - discount + deliveryFee);
+  const notes = invData.notes || "";
+  const orderRef = invData.order?.orderNumber || (typeof invData.order === "string" ? invData.order : null);
+
+  let issuedBy = "";
+  if (invData.createdBy) {
+    if (typeof invData.createdBy === "object") {
+      issuedBy =
+        invData.createdBy.name ||
+        `${invData.createdBy.firstName || ""} ${invData.createdBy.lastName || ""}`.trim();
+    } else if (typeof invData.createdBy === "string") {
+      issuedBy = invData.createdBy;
+    }
+  }
+  if (!issuedBy && invData.issuedBy) {
+    issuedBy = invData.issuedBy;
+  }
+
+  const statusBg = status === "PAID" ? "#ecfdf5" : status === "CANCELLED" ? "#fef2f2" : "#fffbeb";
+  const statusColor = status === "PAID" ? "#047857" : status === "CANCELLED" ? "#b91c1c" : "#b45309";
+  const statusBorder = status === "PAID" ? "#a7f3d0" : status === "CANCELLED" ? "#fecaca" : "#fde68a";
+
+  return {
+    invoiceNumber,
+    issuedDate,
+    dueDate,
+    issuedBy,
+    status,
+    statusBg,
+    statusColor,
+    statusBorder,
+    customerName,
+    customerCompany,
+    customerEmail,
+    customerPhone,
+    customerAddress,
+    orderRef,
+    items,
+    subtotal,
+    discount,
+    deliveryFee,
+    total,
+    notes,
+  };
+};
+
+/**
+ * Downloads a pixel-perfect, custom Vinoff Commercial Invoice PDF directly to the user's computer.
+ * Does not invoke browser print dialogs or popups. Multi-page ready.
+ * @param {string|object} invoiceOrId - The invoice ID string or the full invoice object
+ */
+export const downloadInvoicePDF = async (invoiceOrId) => {
+  let invData = null;
+
+  try {
+    if (typeof invoiceOrId === "string") {
+      try {
+        const res = await api.get(`/api/invoices/${invoiceOrId}/download`);
+        invData = unwrapApiRecord(res);
+      } catch (e) {
+        // Fallback to standard invoice endpoint
+        const res = await api.get(`/api/invoices/${invoiceOrId}`);
+        invData = unwrapApiRecord(res);
+      }
+    } else if (invoiceOrId && typeof invoiceOrId === "object") {
+      invData = invoiceOrId;
+    }
+
+    if (!invData) {
+      throw new Error("Unable to retrieve invoice data for download.");
+    }
+
+    const params = extractInvoiceParams(invData);
+
+    const container = document.createElement("div");
+    container.style.position = "fixed";
+    container.style.left = "-9999px";
+    container.style.top = "0";
+    container.style.width = "800px";
+    container.style.backgroundColor = "#ffffff";
+    container.style.padding = "48px 56px";
+    container.style.fontFamily = 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    container.style.color = "#0f172a";
+    container.style.boxSizing = "border-box";
+    container.style.zIndex = "-1";
+
+    container.innerHTML = buildInvoiceHTML(params);
+    document.body.appendChild(container);
+
+    const canvas = await html2canvas(container, {
+      scale: 2,
+      useCORS: true,
+      backgroundColor: "#ffffff",
+      logging: false,
+    });
+
+    document.body.removeChild(container);
+
+    const pdf = new jsPDF({
+      orientation: "portrait",
+      unit: "mm",
+      format: "a4",
+    });
+
+    appendCanvasToJsPDF(pdf, canvas);
+
+    const filename = `Invoice-${params.invoiceNumber.replace(/[^a-zA-Z0-9-_]/g, "_")}.pdf`;
+    pdf.save(filename);
+
+    toast.success(`Invoice ${params.invoiceNumber} downloaded successfully as PDF`, "Download Complete");
+    return true;
+  } catch (err) {
+    console.error("Failed to generate PDF:", err);
+    toast.error(err.message || "Could not generate invoice PDF", "Download Failed");
+    throw err;
+  }
+};
+
+/**
+ * Generates an invoice PDF File object for uploading or sharing to chat (multi-page support)
+ */
+export const createInvoicePDFFile = async (invoiceOrId) => {
+  let invData = null;
+  if (typeof invoiceOrId === "string") {
+    try {
+      const res = await api.get(`/api/invoices/${invoiceOrId}`);
+      invData = unwrapApiRecord(res);
+    } catch (e) {
+      // ignore
+    }
+  } else if (invoiceOrId && typeof invoiceOrId === "object") {
+    invData = invoiceOrId;
+  }
+
+  if (!invData) throw new Error("Invoice data unavailable");
+
+  const params = extractInvoiceParams(invData);
+
+  const container = document.createElement("div");
+  container.style.position = "fixed";
+  container.style.left = "-9999px";
+  container.style.top = "0";
+  container.style.width = "800px";
+  container.style.backgroundColor = "#ffffff";
+  container.style.padding = "48px 56px";
+  container.style.fontFamily = 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+  container.style.color = "#0f172a";
+  container.style.boxSizing = "border-box";
+
+  container.innerHTML = buildInvoiceHTML(params);
+  document.body.appendChild(container);
+
+  const canvas = await html2canvas(container, { scale: 2, useCORS: true, backgroundColor: "#ffffff", logging: false });
+  document.body.removeChild(container);
+
+  const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  appendCanvasToJsPDF(pdf, canvas);
+
+  const filename = `Invoice-${params.invoiceNumber.replace(/[^a-zA-Z0-9-_]/g, "_")}.pdf`;
+  const pdfBlob = pdf.output("blob");
+  return new File([pdfBlob], filename, { type: "application/pdf" });
+};
+
+/**
+ * Legacy HTML element PDF capture with multi-page support
+ */
 export const generateInvoicePDF = async (elementId, filename) => {
   const element = document.getElementById(elementId);
   if (!element) {
@@ -9,38 +485,35 @@ export const generateInvoicePDF = async (elementId, filename) => {
   }
 
   try {
-    // Temporarily hide elements that shouldn't be printed/downloaded
-    const hiddenElements = element.querySelectorAll('.print\\:hidden');
-    hiddenElements.forEach(el => {
-      el.style.display = 'none';
+    const hiddenElements = element.querySelectorAll(".print\\:hidden");
+    hiddenElements.forEach((el) => {
+      el.style.display = "none";
     });
 
     const canvas = await html2canvas(element, {
-      scale: 2, // High resolution
-      useCORS: true, // Support external images
-      backgroundColor: '#ffffff',
+      scale: 2,
+      useCORS: true,
+      backgroundColor: "#ffffff",
+      logging: false,
     });
 
-    // Restore hidden elements
-    hiddenElements.forEach(el => {
-      el.style.display = '';
+    hiddenElements.forEach((el) => {
+      el.style.display = "";
     });
 
-    const imgData = canvas.toDataURL('image/png');
-    
-    // Create A4 PDF
     const pdf = new jsPDF({
-      orientation: 'portrait',
-      unit: 'mm',
-      format: 'a4'
+      orientation: "portrait",
+      unit: "mm",
+      format: "a4",
     });
 
-    const pdfWidth = pdf.internal.pageSize.getWidth();
-    const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-
-    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-    pdf.save(filename || 'Invoice.pdf');
+    appendCanvasToJsPDF(pdf, canvas);
+    pdf.save(filename || "Invoice.pdf");
+    toast.success("Document downloaded as PDF");
   } catch (error) {
     console.error("Error generating PDF:", error);
+    toast.error(error.message || "Failed to generate PDF");
   }
 };
+
+export default downloadInvoicePDF;

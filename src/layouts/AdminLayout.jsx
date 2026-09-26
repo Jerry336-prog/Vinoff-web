@@ -2,19 +2,36 @@ import React, { useContext, useState, useEffect, useRef } from 'react';
 import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { ChatContext } from '../context/ChatContext';
+import { NotificationContext } from '../context/NotificationContext';
+import Avatar from '../components/ui/Avatar';
+import AnnouncementModal from '../components/ui/AnnouncementModal';
+import { getInitials } from '../utils/avatar';
 import { 
-  LayoutDashboard, ShoppingBag, ClipboardList, MessageSquare, 
-  FileSpreadsheet, Users, Warehouse, LogOut, Bell, Menu, X, ArrowLeft
+  LayoutGrid, ShoppingBag, ClipboardList, MessageSquare, 
+  FileSpreadsheet, Users, Warehouse, History, LogOut, Bell, Menu, X, ArrowLeft, UserCircle2, ChevronDown, Wallet, Megaphone
 } from 'lucide-react';
 
 export const AdminLayout = () => {
   const { user, logout, isAdmin, loading } = useContext(AuthContext);
   const { rooms } = useContext(ChatContext);
+  const { notifications, unreadCount: unreadNotifs, markAllAsRead } = useContext(NotificationContext);
   const navigate = useNavigate();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [showNotifications, setShowNotifications] = useState(false);
   const notifRef = useRef(null);
+
+  const isHistoryActive =
+    location.pathname.startsWith('/admin/history') ||
+    location.pathname === '/admin/inventory-history';
+
+  const [historyDropdownOpen, setHistoryDropdownOpen] = useState(isHistoryActive);
+
+  useEffect(() => {
+    if (isHistoryActive) {
+      setHistoryDropdownOpen(true);
+    }
+  }, [isHistoryActive]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -28,9 +45,7 @@ export const AdminLayout = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [showNotifications]);
 
-  // Security gate: only redirect AFTER Firebase has confirmed the auth state.
-  // Without the loading check, this fires when user is null during initial load
-  // and incorrectly kicks even valid admins back to /shop.
+  // Security gate: only redirect AFTER auth has resolved
   useEffect(() => {
     if (!loading && !isAdmin) {
       navigate('/shop');
@@ -43,19 +58,27 @@ export const AdminLayout = () => {
   };
 
   const menuItems = [
-    { name: 'Dashboard', path: '/admin/dashboard', icon: LayoutDashboard },
+    { name: 'Dashboard', path: '/admin/dashboard', icon: LayoutGrid },
     { name: 'Products', path: '/admin/products', icon: ShoppingBag },
     { name: 'Orders', path: '/admin/orders', icon: ClipboardList },
     { name: 'Chats', path: '/admin/chats', icon: MessageSquare, badge: true },
     { name: 'Invoices', path: '/admin/invoices', icon: FileSpreadsheet },
     { name: 'Customers', path: '/admin/customers', icon: Users },
     { name: 'Inventory', path: '/admin/inventory', icon: Warehouse },
+    { name: 'Inventory History', path: '/admin/inventory-history', icon: History },
+    { name: 'Expense Tracker', path: '/admin/expenses', icon: Wallet },
+    { name: 'Announcements', path: '/admin/announcements', icon: Megaphone },
+    { name: 'Notifications', path: '/admin/notifications', icon: Bell, notifBadge: true },
+    { name: 'Profile', path: '/admin/profile', icon: UserCircle2 },
   ];
 
-  const activeRoomsWithUnread = rooms.filter(r => r.unreadCount > 0);
-  const unreadChatsCount = activeRoomsWithUnread.length;
+  const activeRoomsWithUnread = rooms.filter(r => (r.unreadCount || 0) > 0);
+  const unreadChatRoomsCount = activeRoomsWithUnread.reduce((acc, r) => acc + (r.unreadCount || 0), 0);
+  const unreadSystemNotifs = notifications.filter(n => !(n.isRead || n.read));
+  const unreadNotifsCount = unreadSystemNotifs.length;
+  const unreadTotalCount = unreadChatRoomsCount + unreadNotifsCount;
 
-  // Show spinner while Firebase resolves the session
+  // Show spinner while auth session is loading
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
@@ -87,6 +110,7 @@ export const AdminLayout = () => {
 
   return (
     <div className="flex h-screen bg-slate-100 overflow-hidden text-slate-800 print:h-auto print:overflow-visible print:bg-white">
+      <AnnouncementModal />
       
       {/* Sidebar for Desktop */}
       <aside 
@@ -96,9 +120,9 @@ export const AdminLayout = () => {
       >
         {/* Sidebar Header Logo */}
         <div className="flex items-center justify-between h-16 px-6 bg-slate-950 border-b border-slate-800">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8.5 h-8.5 rounded-lg bg-gradient-to-tr from-brand-yellow-500 to-brand-yellow-400 flex items-center justify-center text-slate-950 font-black text-base shadow">
-              V
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center p-1 shadow-sm shrink-0 ring-2 ring-white/20">
+              <img src="/VinoffLogo.png" alt="Vinoff Logo" className="w-8 h-8 object-contain" />
             </div>
             <div>
               <span className="font-bold text-sm tracking-tight text-white block">
@@ -120,29 +144,87 @@ export const AdminLayout = () => {
         {/* Navigation Sidebar List */}
         <nav className="flex-1 px-4 py-6 space-y-1.5 overflow-y-auto">
           {menuItems.map((item) => {
+            if (item.isDropdown) {
+              const isParentActive = isHistoryActive;
+              return (
+                <div key={item.name} className="space-y-1">
+                  <button
+                    type="button"
+                    onClick={() => setHistoryDropdownOpen(!historyDropdownOpen)}
+                    className={`w-full flex items-center justify-between px-4 py-3 text-sm font-semibold tracking-wide transition-all group ${
+                      isParentActive
+                        ? 'bg-slate-800 text-brand-yellow-400 rounded-xl font-bold'
+                        : 'hover:bg-slate-800/80 hover:text-white text-slate-400 rounded-xl'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3.5">
+                      <item.icon className={`w-5 h-5 transition-colors ${
+                        isParentActive ? 'text-brand-yellow-400' : 'text-slate-500 group-hover:text-brand-yellow-400'
+                      }`} />
+                      <span>{item.name}</span>
+                    </div>
+                    <ChevronDown
+                      className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${
+                        historyDropdownOpen ? 'rotate-180 text-brand-yellow-400' : ''
+                      }`}
+                    />
+                  </button>
+
+                  {historyDropdownOpen && (
+                    <div className="pl-7 pr-2 py-1.5 space-y-1 bg-slate-950/60 rounded-2xl border border-slate-800/50">
+                      {item.subItems.map((sub) => {
+                        const isSubSelected =
+                          location.pathname === sub.path ||
+                          (sub.path === '/admin/history/inventory' && location.pathname === '/admin/inventory-history');
+                        return (
+                          <Link
+                            key={sub.name}
+                            to={sub.path}
+                            className={`block px-3 py-2 text-xs font-semibold rounded-xl transition-all ${
+                              isSubSelected
+                                ? 'bg-brand-green-600 text-white font-bold shadow-xs'
+                                : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
+                            }`}
+                          >
+                            {sub.name}
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            }
+
             const Icon = item.icon;
-            const isSelected = location.pathname === item.path;
-            const isChatBadge = item.badge && unreadChatsCount > 0;
+            const isSelected = location.pathname === item.path || location.pathname.startsWith(item.path + '/');
+            const isChatBadge = item.badge && unreadChatRoomsCount > 0;
+            const isNotifBadge = item.notifBadge && unreadTotalCount > 0;
 
             return (
               <Link
                 key={item.name}
                 to={item.path}
-                className={`flex items-center justify-between px-4 py-3 rounded-xl text-sm font-semibold tracking-wide transition-all group ${
+                className={`flex items-center justify-between px-4 py-3 text-sm font-semibold tracking-wide transition-all group ${
                   isSelected 
-                    ? 'bg-brand-green-600 text-white shadow-md' 
-                    : 'hover:bg-slate-800/80 hover:text-white text-slate-400'
+                    ? 'bg-brand-green-600 text-white shadow-md rounded-2xl font-bold' 
+                    : 'hover:bg-slate-800/80 hover:text-white text-slate-400 rounded-xl'
                 }`}
               >
                 <div className="flex items-center gap-3.5">
                   <Icon className={`w-5 h-5 transition-colors ${
-                    isSelected ? 'text-brand-yellow-300' : 'text-slate-500 group-hover:text-brand-yellow-400'
+                    isSelected ? 'text-white' : 'text-slate-500 group-hover:text-brand-yellow-400'
                   }`} />
                   <span>{item.name}</span>
                 </div>
                 {isChatBadge && (
                   <span className="bg-brand-yellow-400 text-slate-950 text-[10px] font-bold px-2 py-0.5 rounded-full animate-bounce">
-                    {unreadChatsCount}
+                    {unreadChatRoomsCount}
+                  </span>
+                )}
+                {isNotifBadge && (
+                  <span className="bg-emerald-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full animate-pulse">
+                    {unreadTotalCount}
                   </span>
                 )}
               </Link>
@@ -152,10 +234,19 @@ export const AdminLayout = () => {
 
         {/* Sidebar Footer Account Details */}
         <div className="p-4 border-t border-slate-800 bg-slate-950">
-          <div className="flex items-center justify-between">
-            <div className="truncate pr-2">
-              <p className="text-xs font-bold text-white truncate">{user?.name}</p>
-              <p className="text-[10px] text-slate-500 truncate">{user?.email}</p>
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <Avatar
+                src={user?.avatarUrl}
+                alt={user?.name || "Admin"}
+                size={32}
+                fallback={getInitials(user, "AD")}
+                className="rounded-xl bg-brand-green-100 text-brand-green-800 shrink-0"
+              />
+              <div className="truncate">
+                <p className="text-xs font-bold text-white truncate">{user?.name}</p>
+                <p className="text-[10px] text-slate-500 truncate">{user?.email}</p>
+              </div>
             </div>
             <button 
               onClick={handleLogout}
@@ -187,8 +278,9 @@ export const AdminLayout = () => {
             >
               <Menu className="w-5.5 h-5.5" />
             </button>
+            {/* Page Title — shows current section name */}
             <h1 className="text-lg font-bold text-slate-800 tracking-tight">
-              {menuItems.find(item => item.path === location.pathname)?.name || 'Admin Suite'}
+              {menuItems.find(item => location.pathname === item.path || location.pathname.startsWith(item.path + '/'))?.name || 'Admin Suite'}
             </h1>
           </div>
 
@@ -197,11 +289,13 @@ export const AdminLayout = () => {
             {/* Notification Bell Button */}
             <button 
               onClick={() => setShowNotifications(!showNotifications)}
-              className="relative p-2 text-slate-600 hover:bg-slate-100 rounded-xl transition"
+              className="relative p-2 text-slate-600 hover:bg-slate-100 rounded-xl transition cursor-pointer"
             >
               <Bell className="w-5 h-5" />
-              {unreadChatsCount > 0 && (
-                <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-brand-yellow-500 rounded-full animate-ping" />
+              {unreadTotalCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-brand-yellow-500 text-slate-950 text-[10px] font-black min-w-[20px] h-5 px-1 rounded-full flex items-center justify-center border-2 border-white shadow-xs leading-none">
+                  {unreadTotalCount > 9 ? "9+" : unreadTotalCount}
+                </span>
               )}
             </button>
 
@@ -211,20 +305,31 @@ export const AdminLayout = () => {
                 <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/50 px-5 py-4">
                   <div className="flex items-center gap-2">
                     <h3 className="text-sm font-black text-slate-800">System Alerts</h3>
-                    {unreadChatsCount > 0 && (
+                    {unreadTotalCount > 0 && (
                       <span className="bg-brand-green-100 text-brand-green-800 text-[10px] px-2 py-0.5 rounded-full font-bold">
-                        {unreadChatsCount} New
+                        {unreadTotalCount} New
                       </span>
                     )}
                   </div>
-                  <button onClick={() => setShowNotifications(false)} className="text-slate-400 hover:text-slate-700 transition">
-                    <X className="w-4 h-4" />
-                  </button>
+                  <div className="flex items-center gap-2">
+                    {unreadNotifsCount > 0 && (
+                      <button
+                        onClick={() => markAllAsRead()}
+                        className="text-[10px] font-bold text-brand-green-700 hover:underline cursor-pointer"
+                      >
+                        Mark all as read
+                      </button>
+                    )}
+                    <button onClick={() => setShowNotifications(false)} className="text-slate-400 hover:text-slate-700 transition cursor-pointer">
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
                 
                 <div className="max-h-[350px] overflow-y-auto p-2">
-                  {unreadChatsCount > 0 ? (
+                  {unreadTotalCount > 0 ? (
                     <div className="space-y-1">
+                      {/* Unread Chat Rooms */}
                       {activeRoomsWithUnread.map(room => (
                         <Link
                           key={room.roomId}
@@ -232,20 +337,43 @@ export const AdminLayout = () => {
                           onClick={() => setShowNotifications(false)}
                           className="flex items-start gap-3 p-3 hover:bg-slate-50 rounded-2xl transition-colors border border-transparent hover:border-slate-100 group"
                         >
-                          <div className="w-8 h-8 rounded-full bg-brand-yellow-100 text-brand-yellow-800 flex items-center justify-center font-bold text-xs shrink-0 group-hover:scale-105 transition-transform">
-                            {room.businessName?.charAt(0) || "U"}
-                          </div>
+                          <Avatar
+                            src={room.avatarUrl}
+                            alt={room.customerName || room.businessName || "Customer"}
+                            size={32}
+                            fallback={getInitials(room, "C")}
+                            className="bg-brand-yellow-100 text-brand-yellow-800 shrink-0 group-hover:scale-105 transition-transform"
+                          />
                           <div className="flex-1 min-w-0">
                             <p className="text-xs font-bold text-slate-800 truncate">{room.businessName}</p>
                             <p className="text-[11px] text-slate-500 truncate mt-0.5">
                               {room.lastMessage
-                                ? (room.lastMessage.type === "system" ? "📢 Action required on order" : room.lastMessage.text)
+                                ? (room.lastMessage.type === "system" ? "Action required on order" : room.lastMessage.text)
                                 : (room.messages && room.messages.length > 0
-                                  ? (room.messages[room.messages.length - 1]?.type === "system" ? "📢 Action required on order" : room.messages[room.messages.length - 1]?.text)
+                                  ? (room.messages[room.messages.length - 1]?.type === "system" ? "Action required on order" : room.messages[room.messages.length - 1]?.text)
                                   : "You have a new message")}
                             </p>
                           </div>
                           <div className="w-2 h-2 rounded-full bg-brand-green-500 mt-1 shrink-0"></div>
+                        </Link>
+                      ))}
+
+                      {/* Unread System Notifications */}
+                      {unreadSystemNotifs.map((notif) => (
+                        <Link
+                          key={notif._id}
+                          to="/admin/notifications"
+                          onClick={() => setShowNotifications(false)}
+                          className="flex items-start gap-3 p-3 hover:bg-slate-50 rounded-2xl transition-colors border border-transparent hover:border-slate-100 group"
+                        >
+                          <div className="w-8 h-8 rounded-xl bg-brand-green-100 text-brand-green-800 flex items-center justify-center shrink-0 font-bold text-xs mt-0.5">
+                            <Bell className="w-4 h-4" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-bold text-slate-800 truncate">{notif.title}</p>
+                            <p className="text-[11px] text-slate-500 truncate mt-0.5">{notif.message}</p>
+                          </div>
+                          <div className="w-2 h-2 rounded-full bg-emerald-500 mt-1 shrink-0"></div>
                         </Link>
                       ))}
                     </div>
@@ -260,26 +388,43 @@ export const AdminLayout = () => {
                   )}
                 </div>
                 
-                {unreadChatsCount > 0 && (
-                  <div className="border-t border-slate-100 p-2">
+                {unreadTotalCount > 0 && (
+                  <div className="border-t border-slate-100 p-2 flex items-center justify-between">
                     <Link
                       to="/admin/chats"
                       onClick={() => setShowNotifications(false)}
-                      className="block w-full text-center py-2.5 text-xs font-bold text-brand-green-700 hover:bg-brand-green-50 rounded-xl transition-colors"
+                      className="text-center py-2 px-3 text-xs font-bold text-brand-green-700 hover:bg-brand-green-50 rounded-xl transition-colors flex-1"
                     >
                       View All Messages
+                    </Link>
+                    <Link
+                      to="/admin/notifications"
+                      onClick={() => setShowNotifications(false)}
+                      className="text-center py-2 px-3 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors flex-1"
+                    >
+                      All Notifications
                     </Link>
                   </div>
                 )}
               </div>
             )}
 
-            <div className="flex items-center gap-2 pl-3 border-l border-slate-200">
-              <div className="w-8.5 h-8.5 rounded-full bg-brand-green-100 text-brand-green-800 flex items-center justify-center font-bold text-sm">
-                AD
-              </div>
-              <span className="hidden sm:inline text-sm font-semibold text-slate-800">Admin Control</span>
-            </div>
+            <Link
+              to="/admin/profile"
+              className="flex items-center gap-2 pl-3 border-l border-slate-200 group cursor-pointer"
+              title="View Admin Profile"
+            >
+              <Avatar
+                src={user?.avatarUrl}
+                alt={user?.name || "Admin"}
+                size={34}
+                fallback={getInitials(user, "AD")}
+                className="rounded-full bg-brand-green-100 text-brand-green-800 border border-brand-green-100 group-hover:ring-2 group-hover:ring-brand-green-400 transition"
+              />
+              <span className="hidden sm:inline text-sm font-semibold text-slate-800 group-hover:text-brand-green-700 transition">
+                {user?.name || "Admin Control"}
+              </span>
+            </Link>
 
           </div>
         </header>

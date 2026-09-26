@@ -1,341 +1,432 @@
-import React, { useContext, useEffect, useState } from "react";
+import React, { useContext, useEffect, useRef, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { ChatContext } from "../../context/ChatContext";
-import { useInvoice } from "../../modules/invoice/hooks/useInvoice";
-import { dbGetOrdersByCustomer } from "../../services/firebase/db";
+import api from "../../services/api";
 import ChatSidebar from "../../components/chat/ChatSidebar";
 import ChatWindow from "../../components/chat/ChatWindow";
-import InvoiceForm from "../../modules/invoice/components/InvoiceForm";
-import InvoiceViewer from "../../modules/invoice/components/InvoiceViewer";
-import InvoiceStatusBadge from "../../modules/invoice/components/InvoiceStatusBadge";
 import { formatCurrency } from "../../utils/formatCurrency";
-import { FileText, CheckCircle, Edit2, Eye, Sparkles } from "lucide-react";
-import { showModal } from "../../services/ui/modal";
+import Badge from "../../components/ui/Badge";
+import Avatar from "../../components/ui/Avatar";
+import {
+  MessageSquare,
+  Download,
+  Plus,
+  Trash2,
+  X,
+  Image,
+} from "lucide-react";
+import { downloadInvoicePDF } from "../../utils/generatePDF";
+import { unwrapApiList } from "../../utils/apiResponse";
+import { getInitials } from "../../utils/avatar";
+import Button from "../../components/ui/Button";
+import { useToast } from "../../context/ToastContext";
 
 export const Chats = () => {
+  const { toast, showModal } = useToast();
+  const [searchParams] = useSearchParams();
   const {
     rooms,
     activeRoom,
     selectRoom,
     sendMessage,
     updateRoomStatus,
-    refreshRooms,
+    createOrGetCustomerRoom,
+    deleteRoom,
   } = useContext(ChatContext);
-  const { getCustomerInvoices, updateInvoice, createInvoice } = useInvoice();
 
-  // In-chat active invoice states
-  const [activeInvoice, setActiveInvoice] = useState(null);
-  const [isFormOpen, setIsFormOpen] = useState(false);
-  const [isViewerOpen, setIsViewerOpen] = useState(false);
-  const [invoicePrefill, setInvoicePrefill] = useState(null);
+  const [customerOrders, setCustomerOrders] = useState([]);
+  const [customerInvoices, setCustomerInvoices] = useState([]);
+  const [customers, setCustomers] = useState([]);
+  const [loadingContext, setLoadingContext] = useState(false);
+  const [isNewChatOpen, setIsNewChatOpen] = useState(false);
+  const [newChatCustomerId, setNewChatCustomerId] = useState("");
+  const [creatingChat, setCreatingChat] = useState(false);
+  const requestedRoomId = searchParams.get("room");
+  const requestedCustomerId = searchParams.get("customer");
+  const createdForCustomerRef = useRef(null);
 
-  // Sync active invoice when activeRoom changes
+  // Sync customer orders & invoices when active customer changes
+  const activeCustomerId =
+    activeRoom?.customerId ||
+    activeRoom?.customer?._id ||
+    activeRoom?.customer?.id ||
+    (typeof activeRoom?.customer === "string" ? activeRoom.customer : null);
+
+  const moneyValue = (record) =>
+    record?.totalAmount ?? record?.total ?? record?.pricing?.total ?? record?.amountDue ?? 0;
+  const recordId = (record) => record?._id || record?.id;
+  const recordDate = (record) => {
+    const rawDate = record?.createdAt || record?.date || record?.issuedAt;
+    if (!rawDate) return "No date";
+    const date = new Date(rawDate);
+    return Number.isNaN(date.getTime()) ? "No date" : date.toLocaleDateString();
+  };
+
+  const lastFetchedCustomerIdRef = useRef(null);
+
   useEffect(() => {
-    if (activeRoom) {
-      getCustomerInvoices(activeRoom.customerId)
-        .then((list) => {
-          if (list.length > 0) {
-            setActiveInvoice(list[0]); // most recent
-          } else {
-            setActiveInvoice(null);
-          }
+    if (activeCustomerId) {
+      const isNewCustomer = lastFetchedCustomerIdRef.current !== activeCustomerId;
+      if (isNewCustomer) {
+        setLoadingContext(true);
+        lastFetchedCustomerIdRef.current = activeCustomerId;
+      }
+      Promise.all([
+        api.get(`/api/orders?customer=${activeCustomerId}`).catch(() => ({ data: [] })),
+        api.get(`/api/invoices?customer=${activeCustomerId}`).catch(() => ({ data: [] })),
+      ])
+        .then(([ordRes, invRes]) => {
+          const orders = unwrapApiList(ordRes);
+          const invoices = unwrapApiList(invRes);
+          setCustomerOrders(Array.isArray(orders) ? orders : []);
+          setCustomerInvoices(Array.isArray(invoices) ? invoices : []);
         })
-        .catch(console.error);
+        .finally(() => setLoadingContext(false));
     } else {
-      setActiveInvoice(null);
+      lastFetchedCustomerIdRef.current = null;
+      setCustomerOrders([]);
+      setCustomerInvoices([]);
     }
-  }, [activeRoom, getCustomerInvoices]);
+  }, [activeCustomerId]);
 
-  // Hook to check if order page requested a specific chat room on click
   useEffect(() => {
+    api
+      .get("/api/admin/customers?limit=100")
+      .then((res) => setCustomers(unwrapApiList(res)))
+      .catch(() => setCustomers([]));
+  }, []);
+
+  // Support deep link or query param selection
+  useEffect(() => {
+    if (requestedRoomId) {
+      if (activeRoom?.roomId !== requestedRoomId) {
+        selectRoom(requestedRoomId);
+      }
+      return;
+    }
+
+    if (requestedCustomerId) {
+      const matchingRoom = rooms.find(
+        (room) =>
+          String(room.customerId || room.customer?._id || room.customer?.id || "") ===
+          String(requestedCustomerId),
+      );
+
+      if (matchingRoom && activeRoom?.roomId !== matchingRoom.roomId) {
+        selectRoom(matchingRoom.roomId);
+        return;
+      }
+
+      if (!matchingRoom && createdForCustomerRef.current !== requestedCustomerId) {
+        createdForCustomerRef.current = requestedCustomerId;
+        createOrGetCustomerRoom(null, requestedCustomerId);
+      }
+      return;
+    }
+
     const requestedRoom = localStorage.getItem("vinoff_admin_selected_chat");
     if (requestedRoom) {
       selectRoom(requestedRoom);
       localStorage.removeItem("vinoff_admin_selected_chat");
     }
-  }, [selectRoom]);
+  }, [requestedRoomId, requestedCustomerId, rooms, activeRoom?.roomId, selectRoom, createOrGetCustomerRoom]);
 
-  const handleGenerateInvoiceClick = async () => {
-    if (!activeRoom) return;
-
-    // Prefill customer metadata
-    const prefill = {
-      customerId: activeRoom.customerId,
-      customerName: activeRoom.customerName,
-      businessName: activeRoom.businessName,
-      items: [],
-      discount: 0,
-      deposit: 0,
-      status: "Pending",
-      notes: "",
-    };
-
+  const handleStartConversation = async (e) => {
+    e.preventDefault();
+    if (!newChatCustomerId) return;
+    setCreatingChat(true);
     try {
-      // Look for a pending/recent order to prefill items
-      const orders = await dbGetOrdersByCustomer(activeRoom.customerId);
-      const pendingOrder = orders.find(
-        (o) =>
-          o.status === "Pending Payment" ||
-          o.status === "Awaiting Confirmation",
-      );
-      if (pendingOrder) {
-        prefill.orderId = pendingOrder.id;
-
-        // Map order items into invoice item shape expected by invoice engine / form
-        prefill.items = (pendingOrder.items || []).map((item) => {
-          // item.price in orders was the per-selected-package price (cartonPrice if isCarton else unitPrice)
-          const unitsPerCarton = item.unitsPerCarton || 12;
-          let cartonPrice = item.cartonPrice ?? null;
-          let unitPrice = item.unitPrice ?? null;
-
-          if (item.isCarton) {
-            // If the order stored the selected carton price in item.price, use it
-            cartonPrice = cartonPrice || item.price || 0;
-            // derive unit price from cartonPrice if not provided
-            unitPrice = unitPrice || Number(cartonPrice) / unitsPerCarton;
-          } else {
-            // single unit purchased
-            unitPrice = unitPrice || item.price || 0;
-            // derive carton price from unit price if not provided
-            cartonPrice = cartonPrice || Number(unitPrice) * unitsPerCarton;
-          }
-
-          return {
-            id: item.id,
-            name: item.name,
-            quantity: item.quantity,
-            isCarton: !!item.isCarton,
-            cartonPrice: Number(cartonPrice) || 0,
-            unitPrice: Number(unitPrice) || 0,
-            unitsPerCarton: Number(unitsPerCarton) || 12,
-          };
-        });
-
-        prefill.discount = pendingOrder.discount || 0;
-        prefill.deposit = pendingOrder.deposit || 0;
-        prefill.notes = `Prefilled from Order Ref: ${pendingOrder.id}`;
-
-        // Auto-create invoice from order items
-        try {
-          const created = await createInvoice(prefill);
-          setActiveInvoice(created);
-
-          // Post System message in chat indicating invoice created
-          await sendMessage(
-            activeRoom.roomId,
-            `Invoice ${created.invoiceNumber} generated successfully.`,
-            {
-              type: "system",
-              invoiceRef: created.invoiceNumber,
-              orderRef: created.orderId || pendingOrder.id,
-            },
-          );
-
-          // Open viewer for quick inspection
-          setIsViewerOpen(true);
-          return;
-        } catch (err) {
-          console.error("Failed to create invoice automatically:", err);
-          // fallthrough to opening form prefilled
-        }
-      }
+      await createOrGetCustomerRoom(null, newChatCustomerId);
+      setIsNewChatOpen(false);
+      setNewChatCustomerId("");
+      toast.success("Conversation opened for selected customer.", "Chat Ready");
     } catch (err) {
-      console.warn("Failed to prefill order items:", err);
+      toast.error(err.message || "Could not start conversation", "Chat Error");
+    } finally {
+      setCreatingChat(false);
     }
-
-    // If we reach here, open form with prefill (either no pending order or auto-create failed)
-    setInvoicePrefill(prefill);
-    setIsFormOpen(true);
   };
 
-  const handleInvoiceSave = async (savedInvoice) => {
-    // 1. Update local state
-    setActiveInvoice(savedInvoice);
-
-    // 2. Format proper chat system text
-    const isEdit = !!invoicePrefill?.id;
-    const msgText = isEdit
-      ? `Invoice ${savedInvoice.invoiceNumber} updated.`
-      : `Invoice ${savedInvoice.invoiceNumber} generated successfully.`;
-
-    // 3. Post System message in chat
-    await sendMessage(activeRoom.roomId, msgText, {
-      type: "system",
-      invoiceRef: savedInvoice.invoiceNumber,
-      image: savedInvoice.pdfUrl,
-      invoicePdfUrl: savedInvoice.pdfUrl,
-      orderRef: savedInvoice.orderId,
+  const handleDeleteActiveChat = () => {
+    if (!activeRoom?.roomId) return;
+    showModal({
+      title: "Delete Chat History",
+      message: "This will remove the conversation from the admin chat history. You can still start a new conversation with this customer later.",
+      confirmText: "Delete Chat",
+      cancelText: "Cancel",
+      type: "warning",
+      onConfirm: async () => {
+        try {
+          await deleteRoom(activeRoom.roomId);
+          toast.success("Chat removed from history.", "Chat Deleted");
+        } catch (err) {
+          toast.error(err.message || "Could not delete chat", "Delete Failed");
+        }
+      },
     });
   };
 
-  const handleMarkPaid = async () => {
-    if (!activeInvoice) return;
-    try {
-      const updated = await updateInvoice(activeInvoice.id, {
-        status: "Paid",
-        deposit: activeInvoice.total,
-        balance: 0,
-      });
-      setActiveInvoice(updated);
-
-      // Post updated invoice in chat
-      await sendMessage(
-        activeRoom.roomId,
-        `Invoice ${updated.invoiceNumber} updated.`,
-        {
-          type: "system",
-          invoiceRef: updated.invoiceNumber,
-          image: updated.pdfUrl,
-          invoicePdfUrl: updated.pdfUrl,
-          orderRef: updated.orderId,
-        },
-      );
-    } catch (err) {
-      await showModal({
-        title: "Update Failed",
-        message: "Failed to mark invoice as paid: " + err.message,
-        tone: "danger",
-      });
-    }
-  };
-
-  const handleEditInvoiceClick = () => {
-    if (!activeInvoice) return;
-    setInvoicePrefill(activeInvoice);
-    setIsFormOpen(true);
-  };
-
-  const handleViewInvoiceClick = () => {
-    setIsViewerOpen(true);
-  };
-
   return (
-    <div className="h-[calc(100dvh-130px)] md:h-[calc(100vh-120px)] flex flex-col md:flex-row gap-6">
-      {/* Sidebar selection */}
-      <div
-        className={`w-full md:w-80 h-full flex-shrink-0 ${activeRoom ? "hidden md:block" : "block"}`}
-      >
-        <ChatSidebar
-          rooms={rooms}
-          activeRoom={activeRoom}
-          onSelectRoom={selectRoom}
-        />
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-bold text-slate-800 tracking-tight flex items-center gap-2">
+            <MessageSquare className="w-5 h-5 text-brand-green-700" />
+            Customer Communication Hub
+          </h1>
+          <p className="text-xs text-slate-500 font-medium mt-0.5">
+            Review customer inquiries, confirm payment transfers, and dispatch system updates.
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          {activeRoom && (
+            <Button
+              size="sm"
+              variant="outline"
+              icon={Trash2}
+              onClick={handleDeleteActiveChat}
+              className="rounded-xl text-red-600 hover:bg-red-50 border-red-200"
+            >
+              Delete Chat
+            </Button>
+          )}
+          <Button
+            size="sm"
+            variant="primary"
+            icon={Plus}
+            onClick={() => setIsNewChatOpen(true)}
+            className="rounded-xl"
+          >
+            New Conversation
+          </Button>
+        </div>
       </div>
 
-      {/* Main chat window box */}
-      <div
-        className={`flex-grow h-full min-w-0 flex flex-col ${!activeRoom ? "hidden md:flex" : "flex"}`}
-      >
-        {activeRoom ? (
-          <div className="flex-grow h-full flex flex-col relative min-h-0 bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-sm">
-            {/* Active Invoice Quick Control Banner (Top) */}
-            {activeInvoice && (
-              <div className="bg-gradient-to-r from-brand-green-50 to-slate-50 border-b border-slate-200/80 px-6 py-3.5 flex flex-wrap items-center justify-between gap-3 animate-fade-in">
-                <div className="flex items-center gap-2">
-                  <div className="w-7 h-7 rounded-lg bg-brand-green-100 flex items-center justify-center text-brand-green-700">
-                    <Sparkles className="w-3.5 h-3.5" />
-                  </div>
-                  <div className="text-xs">
-                    <p className="font-extrabold text-slate-800">
-                      Active:{" "}
-                      <span className="font-mono text-slate-900">
-                        {activeInvoice.invoiceNumber}
-                      </span>
-                    </p>
-                    <p className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">
-                      Total:{" "}
-                      <span className="font-mono">
-                        {formatCurrency(activeInvoice.total)}
-                      </span>{" "}
-                      | Bal:{" "}
-                      <span className="font-mono">
-                        {formatCurrency(activeInvoice.balance)}
-                      </span>
-                    </p>
-                  </div>
-                  <div className="ml-1">
-                    <InvoiceStatusBadge
-                      status={activeInvoice.status}
-                      className="text-[9px] px-1.5 py-0"
-                    />
-                  </div>
-                </div>
+      {/* Main Chat Interface */}
+      <div className="bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-sm flex flex-col md:flex-row h-[calc(100vh-200px)] min-h-[550px]">
+        {/* Sidebar: Conversation List */}
+        <div className="w-full md:w-64 lg:w-72 border-r border-slate-200 shrink-0 h-full overflow-hidden flex flex-col">
+          <ChatSidebar
+            rooms={rooms}
+            activeRoom={activeRoom}
+            onSelectRoom={selectRoom}
+          />
+        </div>
 
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={handleViewInvoiceClick}
-                    className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-white border border-slate-200 text-[10px] font-bold text-slate-700 rounded-lg hover:border-brand-green-300 transition"
-                    title="View Invoice Sheet"
-                  >
-                    <Eye className="w-3 h-3 text-slate-500" />
-                    Inspect
-                  </button>
-                  <button
-                    onClick={handleEditInvoiceClick}
-                    className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-white border border-slate-200 text-[10px] font-bold text-slate-700 rounded-lg hover:border-brand-green-300 transition"
-                    title="Edit Invoice Details"
-                  >
-                    <Edit2 className="w-3 h-3 text-brand-green-600" />
-                    Adjust
-                  </button>
-                  {activeInvoice.status !== "Paid" && (
-                    <button
-                      onClick={handleMarkPaid}
-                      className="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-700 hover:bg-emerald-900 text-[10px] font-black text-white rounded-lg transition"
-                      title="Quick mark invoice as fully paid"
-                    >
-                      <CheckCircle className="w-3 h-3" />
-                      Mark Paid
-                    </button>
-                  )}
-                </div>
+        {/* Center Panel: Active Chat Window (Dominant Space) */}
+        <div className="flex-1 h-full flex flex-col min-w-0">
+          {activeRoom ? (
+            <ChatWindow
+              room={activeRoom}
+              onSendMessage={sendMessage}
+              onUpdateStatus={updateRoomStatus}
+              isAdmin={true}
+            />
+          ) : (
+            <div className="h-full flex flex-col items-center justify-center p-8 text-center text-slate-400 space-y-2">
+              <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-400">
+                <MessageSquare className="w-6 h-6" />
               </div>
-            )}
-
-            {/* Chat Area Window */}
-            <div className="flex-1 min-h-0">
-              <ChatWindow
-                room={activeRoom}
-                onSendMessage={sendMessage}
-                onUpdateStatus={updateRoomStatus}
-                isAdmin={true}
-                onGenerateInvoice={handleGenerateInvoiceClick}
-                onViewInvoice={() => setIsViewerOpen(true)}
-                onBack={() => selectRoom(null)}
-              />
+              <p className="text-sm font-bold text-slate-700">No Chat Selected</p>
+              <p className="text-xs text-slate-400 max-w-xs">
+                Select a customer conversation from the list to view message history, transaction slips, and reply.
+              </p>
             </div>
-          </div>
-        ) : (
-          <div className="h-full flex flex-col items-center justify-center bg-white border border-slate-200 rounded-3xl p-6 text-center text-slate-400 shadow-sm">
-            <h3 className="font-bold text-slate-800 text-sm">
-              No Active Room Selected
-            </h3>
-            <p className="text-xs text-slate-500 max-w-xs mt-1">
-              Select a customer room from the left sidebar list to respond,
-              negotiate rates, or verify invoices.
-            </p>
+          )}
+        </div>
+
+        {/* Right Panel: Customer & Order Context */}
+        {activeRoom && (
+          <div className="hidden xl:block w-64 lg:w-70 border-l border-slate-200 p-4 overflow-y-auto space-y-4 bg-slate-50/50 shrink-0">
+            <div>
+              <h3 className="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-2">
+                Customer Profile
+              </h3>
+              <div className="bg-white border border-slate-200 rounded-2xl p-3 space-y-2 shadow-xs">
+                <div className="flex items-center gap-2.5">
+                  <Avatar
+                    src={activeRoom.avatarUrl}
+                    alt={activeRoom.customerName}
+                    size={38}
+                    fallback={getInitials(activeRoom.customer || activeRoom, "C")}
+                    className="rounded-xl border border-brand-green-100 shrink-0"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="font-bold text-xs text-slate-900 leading-tight truncate">
+                      {activeRoom.customerName}
+                    </p>
+                    <p className="text-[10px] text-brand-green-700 font-bold truncate">
+                      {activeRoom.businessName}
+                    </p>
+                  </div>
+                </div>
+                <p className="text-[11px] text-slate-500 truncate">
+                  {activeRoom.customer?.email}
+                </p>
+                {activeRoom.customer?.phone && (
+                  <p className="text-[11px] text-slate-500 truncate">
+                    {activeRoom.customer?.phone}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Linked Order or Recent Orders */}
+            <div>
+              <h3 className="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-2 flex items-center justify-between">
+                <span>Recent Orders</span>
+                <span className="text-[10px] font-bold text-slate-400">
+                  ({customerOrders.length})
+                </span>
+              </h3>
+
+              {loadingContext ? (
+                <p className="text-[11px] text-slate-400 animate-pulse">Syncing context...</p>
+              ) : customerOrders.length === 0 ? (
+                <p className="text-[11px] text-slate-400 italic">No orders found for customer.</p>
+              ) : (
+                <div className="space-y-2">
+                  {customerOrders.slice(0, 3).map((ord) => (
+                    <div
+                      key={recordId(ord)}
+                      className="block w-full bg-white border border-slate-200 rounded-2xl p-2.5 text-xs space-y-2 shadow-xs"
+                    >
+                      <div className="flex items-start gap-1.5 justify-between">
+                        <span className="font-mono font-black text-slate-900 text-[11px] leading-snug truncate">
+                          {ord.orderNumber}
+                        </span>
+                        <Badge
+                          status={ord.status}
+                          className="text-[8px] px-1.5 py-0.5 leading-tight text-center justify-center shrink-0"
+                        />
+                      </div>
+                      <div className="flex items-end justify-between gap-2 text-[10px]">
+                        <span className="text-slate-500">{recordDate(ord)}</span>
+                        <strong className="text-slate-900 text-xs tabular-nums text-right font-bold">
+                          {formatCurrency(moneyValue(ord))}
+                        </strong>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                        <Link
+                          to="/admin/orders"
+                          className="inline-flex items-center justify-center rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-[9px] font-bold text-slate-600 hover:bg-slate-100"
+                        >
+                          Open Order
+                        </Link>
+                        {ord.paymentScreenshot?.url && (
+                          <button
+                            type="button"
+                            onClick={() => window.open(ord.paymentScreenshot.url, "_blank")}
+                            className="inline-flex items-center justify-center gap-1 rounded-lg border border-brand-green-200 bg-brand-green-50 px-2 py-1 text-[9px] font-bold text-brand-green-700 hover:bg-brand-green-100"
+                          >
+                            <Image className="w-3 h-3" />
+                            Receipt
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Invoices */}
+            <div>
+              <h3 className="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-2 flex items-center justify-between">
+                <span>Customer Invoices</span>
+                <span className="text-[10px] font-bold text-slate-400">
+                  ({customerInvoices.length})
+                </span>
+              </h3>
+
+              {customerInvoices.length === 0 ? (
+                <p className="text-[11px] text-slate-400 italic">No invoices issued yet.</p>
+              ) : (
+                <div className="space-y-2">
+                  {customerInvoices.slice(0, 3).map((inv) => (
+                    <div
+                      key={recordId(inv)}
+                      className="block w-full bg-white border border-slate-200 rounded-2xl p-2.5 text-xs space-y-2 shadow-xs"
+                    >
+                      <div className="flex items-start gap-1.5 justify-between">
+                        <span className="font-mono font-black text-slate-900 text-[11px] leading-snug truncate">
+                          {inv.invoiceNumber}
+                        </span>
+                        <Badge
+                          status={inv.status}
+                          className="text-[8px] px-1.5 py-0.5 leading-tight text-center justify-center shrink-0"
+                        />
+                      </div>
+                      <div className="flex items-end justify-between gap-2 text-[10px]">
+                        <span className="text-slate-500">{recordDate(inv)}</span>
+                        <strong className="text-brand-green-800 text-xs tabular-nums text-right font-bold">
+                          {formatCurrency(moneyValue(inv))}
+                        </strong>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                        <Link
+                          to={`/admin/invoices/${recordId(inv)}`}
+                          className="inline-flex items-center justify-center rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-[9px] font-bold text-slate-600 hover:bg-slate-100"
+                        >
+                          View Invoice
+                        </Link>
+                        <button
+                          type="button"
+                          onClick={() => downloadInvoicePDF(recordId(inv))}
+                          className="inline-flex items-center justify-center gap-1 rounded-lg border border-brand-green-200 bg-brand-green-50 px-2 py-1 text-[9px] font-bold text-brand-green-700 hover:bg-brand-green-100"
+                          title="Download Invoice PDF"
+                        >
+                          <Download className="w-3 h-3" />
+                          Download
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>
 
-      {/* Invoice Modals */}
-      <InvoiceForm
-        isOpen={isFormOpen}
-        initialData={invoicePrefill}
-        onClose={() => {
-          setIsFormOpen(false);
-          setInvoicePrefill(null);
-        }}
-        onSave={handleInvoiceSave}
-      />
-
-      {activeInvoice && (
-        <InvoiceViewer
-          invoice={activeInvoice}
-          isOpen={isViewerOpen}
-          onClose={() => setIsViewerOpen(false)}
-          onEdit={handleEditInvoiceClick}
-          onSaveSuccess={(updated) => setActiveInvoice(updated)}
-        />
+      {isNewChatOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 space-y-5 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div>
+                <h3 className="font-extrabold text-slate-900 text-sm">Start New Conversation</h3>
+                <p className="text-xs text-slate-500 mt-0.5">Choose a customer to open a fresh chat room.</p>
+              </div>
+              <button onClick={() => setIsNewChatOpen(false)} className="p-1 text-slate-400 hover:text-slate-700">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <form onSubmit={handleStartConversation} className="space-y-4">
+              <select
+                value={newChatCustomerId}
+                onChange={(e) => setNewChatCustomerId(e.target.value)}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3 text-xs font-semibold focus:ring-2 focus:ring-brand-green-500 outline-none"
+                required
+              >
+                <option value="">Select customer...</option>
+                {customers.map((customer) => (
+                  <option key={customer._id || customer.id} value={customer._id || customer.id}>
+                    {customer.firstName} {customer.lastName} - {customer.profile?.companyName || customer.email}
+                  </option>
+                ))}
+              </select>
+              <div className="flex justify-end gap-2 border-t border-slate-100 pt-4">
+                <Button size="sm" variant="outline" onClick={() => setIsNewChatOpen(false)} className="rounded-xl">
+                  Cancel
+                </Button>
+                <Button size="sm" type="submit" isLoading={creatingChat} className="rounded-xl">
+                  Start Chat
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
     </div>
   );

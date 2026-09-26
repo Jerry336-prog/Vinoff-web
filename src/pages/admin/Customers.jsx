@@ -1,544 +1,464 @@
-import React, { useState, useEffect, useContext } from "react";
-import { dbGetOrders, dbGetAllUsers, dbUpdateUserRole } from "../../services/firebase/db";
-import { collection, getDocs, query, where, orderBy } from "firebase/firestore";
-import { AuthContext } from "../../context/AuthContext";
-import { db } from "../../services/firebase/config";
-import { formatCurrency } from "../../utils/formatCurrency";
-import InvoiceStatusBadge from "../../modules/invoice/components/InvoiceStatusBadge";
-import InvoiceViewer from "../../modules/invoice/components/InvoiceViewer";
+import React, { useState, useEffect, useContext, useRef } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import api from "../../services/api";
 import {
   Users,
+  Search,
   Mail,
   Phone,
-  ShoppingCart,
-  X,
+  UserCheck,
+  UserX,
+  ShieldAlert,
+  ShieldCheck,
+  UserPlus,
+  UserMinus,
+  Crown,
+  Shield,
+  Sparkles,
+  MapPin,
+  MoreVertical,
   Eye,
-  Download,
-  FileText,
-  Landmark,
-  Clock,
-  Landmark as DollarIcon,
 } from "lucide-react";
 import Avatar from "../../components/ui/Avatar";
+import Button from "../../components/ui/Button";
+import { useToast } from "../../context/ToastContext";
+import { AuthContext } from "../../context/AuthContext";
+import { unwrapApiList } from "../../utils/apiResponse";
+import { getAvatarUrl, getInitials } from "../../utils/avatar";
 
 export const Customers = () => {
-  const { isSuperAdmin, user: currentUser } = useContext(AuthContext);
-  const [customers, setCustomers] = useState([]);
+  const { toast, showModal } = useToast();
+  const { user: currentUser, isSuperAdmin } = useContext(AuthContext);
+  const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [updatingRole, setUpdatingRole] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [updatingId, setUpdatingId] = useState(null);
+  const [openMenuId, setOpenMenuId] = useState(null);
+  const navigate = useNavigate();
 
-  // Profile Drawer States
-  const [selectedCustomer, setSelectedCustomer] = useState(null);
-  const [customerInvoices, setCustomerInvoices] = useState([]);
-  const [loadingInvoices, setLoadingInvoices] = useState(false);
-  const [activeTab, setActiveTab] = useState("invoices"); // default to invoices tab as requested
-
-  // Viewer Modal State
-  const [selectedInvoice, setSelectedInvoice] = useState(null);
-  const [isViewerOpen, setIsViewerOpen] = useState(false);
+  const fetchUsers = async () => {
+    setLoading(true);
+    try {
+      let res;
+      try {
+        res = await api.get("/api/admin/users?limit=100");
+      } catch (e) {
+        res = await api.get("/api/admin/customers?limit=100");
+      }
+      const list = unwrapApiList(res);
+      setUsers(Array.isArray(list) ? list : []);
+    } catch (err) {
+      console.error("Failed to load users:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    if (!currentUser) return;
-    // Fetch all users and all orders in parallel
-    Promise.all([dbGetAllUsers(), dbGetOrders()])
-      .then(([usersData, ordersData]) => {
-        // Filter users: super_admin gets customers and admins. Standard admin only gets customers.
-        const customerUsers = usersData.filter((u) => {
-          if (u.uid === currentUser?.uid) return false; // exclude self
-          if (isSuperAdmin) {
-            return u.role === "customer" || u.role === "admin" || u.role === "super_admin";
-          }
-          return u.role === "customer";
-        });
+    fetchUsers();
+  }, []);
 
-        // Create a map of order aggregates by customerId
-        const orderStatsMap = {};
-        ordersData.forEach((o) => {
-          if (!o.customerId) return;
-          if (!orderStatsMap[o.customerId]) {
-            orderStatsMap[o.customerId] = {
-              ordersCount: 0,
-              totalSpend: 0,
-            };
-          }
-          orderStatsMap[o.customerId].ordersCount += 1;
-          if (o.status !== "Cancelled" && o.status !== "Pending Payment") {
-            orderStatsMap[o.customerId].totalSpend += Number(o.total) || 0;
-          }
-        });
+  // Close dropdown on click outside
+  useEffect(() => {
+    const handleClickOutside = () => setOpenMenuId(null);
+    window.addEventListener("click", handleClickOutside);
+    return () => window.removeEventListener("click", handleClickOutside);
+  }, []);
 
-        // Map customer users to include their order statistics
-        const customersList = customerUsers.map((u) => {
-          const stats = orderStatsMap[u.uid] || {
-            ordersCount: 0,
-            totalSpend: 0,
-          };
-          return {
-            id: u.uid,
-            name: u.name || (u.role === "admin" ? "Admin User" : u.role === "super_admin" ? "Super Admin" : "Retail Buyer"),
-            businessName: u.businessName || (u.role === "admin" ? "Vinoff Team" : u.role === "super_admin" ? "Vinoff Owner" : "Wholesale Storefront"),
-            email: u.email || "",
-            phone: u.phone || "",
-            ordersCount: stats.ordersCount,
-            totalSpend: stats.totalSpend,
-            avatarUrl: u.avatarUrl,
-            role: u.role || "customer",
-          };
-        });
+  const handleStatusToggle = (e, targetUser) => {
+    if (e) e.stopPropagation();
+    const newStatus = targetUser.accountStatus === "suspended" ? "active" : "suspended";
+    const isSuspending = newStatus === "suspended";
 
-        setCustomers(customersList);
-      })
-      .catch((err) => {
-        console.error("Error loading registry:", err);
-      })
-      .finally(() => setLoading(false));
-  }, [currentUser, isSuperAdmin]);
-
-  // Fetch invoices for a selected customer
-  const handleCustomerClick = async (customer) => {
-    setSelectedCustomer(customer);
-    setActiveTab("invoices");
-    setLoadingInvoices(true);
-
-    try {
-      const q = query(
-        collection(db, "invoices"),
-        where("customerId", "==", customer.id)
-      );
-      const snap = await getDocs(q);
-      const list = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-      
-      // Sort client-side to avoid requiring a composite index in Firestore
-      list.sort((a, b) => {
-        const timeA = a.createdAt?.seconds || 0;
-        const timeB = b.createdAt?.seconds || 0;
-        return timeB - timeA;
-      });
-      
-      setCustomerInvoices(list);
-    } catch (error) {
-      console.error("Error fetching customer invoices:", error);
-      setCustomerInvoices([]);
-    } finally {
-      setLoadingInvoices(false);
-    }
-  };
-
-  const handleUpdateRole = async (uid, newRole) => {
-    setUpdatingRole(true);
-    try {
-      await dbUpdateUserRole(uid, newRole);
-      // Fetch fresh data
-      const [usersData, ordersData] = await Promise.all([dbGetAllUsers(), dbGetOrders()]);
-      
-      const customerUsers = usersData.filter((u) => {
-        if (u.uid === currentUser?.uid) return false;
-        if (isSuperAdmin) {
-          return u.role === "customer" || u.role === "admin" || u.role === "super_admin";
+    showModal({
+      title: isSuspending ? "Suspend User Account" : "Activate User Account",
+      message: `Are you sure you want to change ${targetUser.firstName} ${targetUser.lastName}'s account status to '${newStatus}'? ${
+        isSuspending ? "The user will be restricted from system actions until reactivated." : ""
+      }`,
+      confirmText: isSuspending ? "Yes, Suspend" : "Yes, Activate",
+      cancelText: "Cancel",
+      type: isSuspending ? "warning" : "info",
+      onConfirm: async () => {
+        setUpdatingId(targetUser._id);
+        try {
+          await api.patch(`/api/admin/customers/${targetUser._id}/status`, {
+            status: newStatus,
+          });
+          setUsers((prev) =>
+            prev.map((u) =>
+              u._id === targetUser._id ? { ...u, accountStatus: newStatus } : u
+            )
+          );
+          toast.success(
+            `Account status for ${targetUser.firstName} updated to '${newStatus}'`,
+            "Status Updated"
+          );
+        } catch (err) {
+          toast.error(err.message || "Failed to update user status", "Update Failed");
+        } finally {
+          setUpdatingId(null);
         }
-        return u.role === "customer";
-      });
-
-      const orderStatsMap = {};
-      ordersData.forEach((o) => {
-         if (!o.customerId) return;
-         if (!orderStatsMap[o.customerId]) {
-           orderStatsMap[o.customerId] = { ordersCount: 0, totalSpend: 0 };
-         }
-         orderStatsMap[o.customerId].ordersCount += 1;
-         if (o.status !== "Cancelled" && o.status !== "Pending Payment") {
-           orderStatsMap[o.customerId].totalSpend += Number(o.total) || 0;
-         }
-      });
-
-      const customersList = customerUsers.map((u) => {
-        const stats = orderStatsMap[u.uid] || { ordersCount: 0, totalSpend: 0 };
-        return {
-          id: u.uid,
-          name: u.name || (u.role === "admin" ? "Admin User" : u.role === "super_admin" ? "Super Admin" : "Retail Buyer"),
-          businessName: u.businessName || (u.role === "admin" ? "Vinoff Team" : u.role === "super_admin" ? "Vinoff Owner" : "Wholesale Storefront"),
-          email: u.email || "",
-          phone: u.phone || "",
-          ordersCount: stats.ordersCount,
-          totalSpend: stats.totalSpend,
-          avatarUrl: u.avatarUrl,
-          role: u.role || "customer",
-        };
-      });
-
-      setCustomers(customersList);
-      
-      const updated = customersList.find((c) => c.id === uid);
-      if (updated) {
-        setSelectedCustomer(updated);
-      } else {
-        setSelectedCustomer(null);
-      }
-    } catch (error) {
-      console.error("Failed to update user role:", error);
-      alert("Error updating user role: " + error.message);
-    } finally {
-      setUpdatingRole(false);
-    }
+      },
+    });
   };
 
-  const handleViewInvoice = (invoice) => {
-    setSelectedInvoice(invoice);
-    setIsViewerOpen(true);
+  const handleRoleChange = (e, targetUser, newRole) => {
+    if (e) e.stopPropagation();
+    const isPromoting = newRole === "admin";
+
+    showModal({
+      title: isPromoting ? "Promote User to Admin" : "Dismiss Admin to Customer",
+      message: isPromoting
+        ? `Are you sure you want to promote ${targetUser.firstName} ${targetUser.lastName} (${targetUser.email}) to an Admin? They will have full administrative access.`
+        : `Are you sure you want to dismiss ${targetUser.firstName} ${targetUser.lastName} (${targetUser.email}) from Admin back to a regular Customer?`,
+      confirmText: isPromoting ? "Yes, Make Admin" : "Yes, Dismiss Admin",
+      cancelText: "Cancel",
+      type: isPromoting ? "info" : "warning",
+      onConfirm: async () => {
+        setUpdatingId(targetUser._id);
+        try {
+          await api.patch(`/api/admin/users/${targetUser._id}/role`, {
+            role: newRole,
+          });
+          setUsers((prev) =>
+            prev.map((u) =>
+              u._id === targetUser._id ? { ...u, role: newRole } : u
+            )
+          );
+          toast.success(
+            `${targetUser.firstName} ${targetUser.lastName} role updated to '${newRole}'`,
+            "Role Updated"
+          );
+        } catch (err) {
+          toast.error(err.message || "Failed to update user role", "Role Update Failed");
+        } finally {
+          setUpdatingId(null);
+        }
+      },
+    });
   };
+
+  const filtered = users.filter((u) => {
+    const fullName = `${u.firstName || ""} ${u.lastName || ""}`.toLowerCase();
+    const company = (u.profile?.companyName || u.companyName || "").toLowerCase();
+    const email = (u.email || "").toLowerCase();
+    const term = searchTerm.toLowerCase();
+
+    const matchesSearch =
+      fullName.includes(term) || company.includes(term) || email.includes(term);
+
+    const matchesStatus =
+      statusFilter === "all" ||
+      (statusFilter === "admins" && (u.role === "admin" || u.role === "subAdmin" || u.role === "superadmin")) ||
+      (statusFilter === "customers" && u.role === "customer") ||
+      (statusFilter === "active" && u.accountStatus !== "suspended") ||
+      (statusFilter === "suspended" && u.accountStatus === "suspended") ||
+      (statusFilter === "updated" && u.profileUpdatedAt);
+
+    return matchesSearch && matchesStatus;
+  });
 
   return (
-    <div className="space-y-6 relative">
-      {/* Title */}
-      <div>
-        <h2 className="text-xl font-bold text-slate-800 tracking-tight flex items-center gap-2">
-          <Users className="w-5 h-5 text-brand-green-700" />
-          Wholesale Customers Registry
-        </h2>
-        <p className="text-xs text-slate-500 font-medium">
-          Verify buyer business credentials, contact phone listings, and total
-          client expenditure statistics.
-        </p>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white border border-slate-200 rounded-3xl p-6 shadow-xs">
+        <div>
+          <h1 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
+            <Users className="w-5 h-5 text-brand-green-700" />
+            User & Account Registry
+          </h1>
+          <p className="text-xs text-slate-500 font-medium mt-0.5">
+            Manage buyer outlets & admin accounts, promote staff, and enforce system security controls.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <div className="relative w-full sm:w-72">
+            <input
+              type="text"
+              placeholder="Search by name, store, or email..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 pl-9 pr-4 text-xs font-semibold focus:bg-white focus:ring-2 focus:ring-brand-green-500 outline-none"
+            />
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+          </div>
+        </div>
       </div>
 
+      {/* Filter Tabs */}
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          onClick={() => setStatusFilter("all")}
+          className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition ${
+            statusFilter === "all"
+              ? "bg-brand-green-600 text-white shadow-sm"
+              : "bg-white text-slate-600 hover:bg-slate-50 border border-slate-200"
+          }`}
+        >
+          All Accounts ({users.length})
+        </button>
+        <button
+          onClick={() => setStatusFilter("admins")}
+          className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+            statusFilter === "admins"
+              ? "bg-purple-700 text-white shadow-sm"
+              : "bg-white text-purple-900 hover:bg-purple-50 border border-purple-200"
+          }`}
+        >
+          <Shield className="w-3.5 h-3.5 text-purple-600" />
+          <span>Admins</span>
+          <span className="text-[10px] px-2 py-0.2 bg-purple-100 text-purple-900 rounded-full font-extrabold">
+            {users.filter((u) => u.role === "admin" || u.role === "subAdmin" || u.role === "superadmin").length}
+          </span>
+        </button>
+        <button
+          onClick={() => setStatusFilter("customers")}
+          className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition ${
+            statusFilter === "customers"
+              ? "bg-brand-green-600 text-white shadow-sm"
+              : "bg-white text-slate-600 hover:bg-slate-50 border border-slate-200"
+          }`}
+        >
+          Buyers & Outlets ({users.filter((u) => u.role === "customer").length})
+        </button>
+        <button
+          onClick={() => setStatusFilter("updated")}
+          className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+            statusFilter === "updated"
+              ? "bg-emerald-600 text-white shadow-sm"
+              : "bg-white text-emerald-900 hover:bg-emerald-50 border border-emerald-200"
+          }`}
+        >
+          <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+          <span>Profile Updated</span>
+          <span className="text-[10px] px-2 py-0.2 bg-emerald-100 text-emerald-900 rounded-full font-extrabold">
+            {users.filter((u) => u.profileUpdatedAt).length}
+          </span>
+        </button>
+        <button
+          onClick={() => setStatusFilter("suspended")}
+          className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition ${
+            statusFilter === "suspended"
+              ? "bg-red-600 text-white shadow-sm"
+              : "bg-white text-slate-600 hover:bg-slate-50 border border-slate-200"
+          }`}
+        >
+          Suspended
+        </button>
+      </div>
+
+      {/* Users Table Container */}
       {loading ? (
-        <p className="text-slate-500 animate-pulse text-xs font-semibold">
-          Syncing customers list...
-        </p>
+        <div className="p-12 text-center bg-white border border-slate-200 rounded-3xl animate-pulse text-xs text-slate-400">
+          Syncing user accounts...
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="bg-white border border-slate-200 rounded-3xl p-12 text-center shadow-sm">
+          <Users className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+          <p className="text-sm font-bold text-slate-700">No Users Found</p>
+          <p className="text-xs text-slate-400 mt-1">No user accounts matched your search criteria.</p>
+        </div>
       ) : (
         <div className="bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-sm">
-          <div className="overflow-x-auto">
+          <div className="w-full">
             <table className="w-full text-left text-xs">
               <thead>
-                <tr className="text-slate-400 font-extrabold border-b border-slate-100 bg-slate-50">
-                  <th className="py-3.5 px-4">Representative</th>
-                  <th className="py-3.5 px-4">Business Outlet</th>
-                  <th className="py-3.5 px-4">Email</th>
-                  <th className="py-3.5 px-4">Contact Phone</th>
-                  <th className="py-3.5 px-4 text-center">Orders Count</th>
-                  <th className="py-3.5 px-4 text-right">Aggregated Spend</th>
+                <tr className="text-slate-400 font-extrabold border-b border-slate-100 bg-slate-50/80 uppercase tracking-wider text-[10px]">
+                  <th className="py-4 px-5">User / Outlet Name</th>
+                  <th className="py-4 px-4">System Role</th>
+                  <th className="py-4 px-4">Contact Info</th>
+                  <th className="py-4 px-4">Location</th>
+                  <th className="py-4 px-4 text-center">Status</th>
+                  <th className="py-4 px-5 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 font-semibold text-slate-700">
-                {customers.map((c) => (
-                  <tr
-                    key={c.id}
-                    onClick={() => handleCustomerClick(c)}
-                    className="hover:bg-slate-50/50 cursor-pointer transition"
-                  >
-                    <td className="py-4 px-4">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-550 font-bold border border-slate-200">
-                          {c.avatarUrl ? (
-                            <Avatar src={c.avatarUrl} alt={c.name} size={32} />
-                          ) : (
-                            c.name.charAt(0).toUpperCase()
+                {filtered.map((u) => {
+                  const isSuspended = u.accountStatus === "suspended";
+                  const hasProfileUpdate = Boolean(u.profileUpdatedAt);
+                  const isSuperadminRole = u.role === "superadmin" || u.role === "super_admin";
+                  const isAdminRole = u.role === "admin" || u.role === "subAdmin";
+
+                  return (
+                    <tr
+                      key={u._id}
+                      onClick={() => navigate(`/admin/customers/${u._id}`)}
+                      className="hover:bg-slate-50/80 transition cursor-pointer"
+                    >
+                      <td className="py-4 px-5">
+                        <div className="flex items-center gap-3">
+                          <Avatar
+                            src={getAvatarUrl(u)}
+                            alt={`${u.firstName || "User"} ${u.lastName || ""}`.trim()}
+                            size={42}
+                            fallback={getInitials(u, "U")}
+                            className="rounded-xl bg-brand-green-100 text-brand-green-900 shrink-0 border border-brand-green-200"
+                          />
+                          <div className="space-y-0.5">
+                            <div className="flex items-center gap-2">
+                              <p className="font-extrabold text-slate-900 leading-tight">
+                                {u.firstName} {u.lastName}
+                              </p>
+                              {hasProfileUpdate && (
+                                <span className="inline-flex items-center gap-1 text-[9px] font-extrabold bg-emerald-100 text-emerald-900 px-2 py-0.5 rounded-full">
+                                  <Sparkles className="w-3 h-3 text-emerald-600" /> Updated
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-[11px] text-slate-400 font-bold uppercase tracking-tight">
+                              {u.profile?.companyName || "Independent Outlet"}
+                            </p>
+                          </div>
+                        </div>
+                      </td>
+
+                      <td className="py-4 px-4 whitespace-nowrap">
+                        {isSuperadminRole ? (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-black bg-amber-100 text-amber-900 border border-amber-300 px-2.5 py-0.5 rounded-full">
+                            <Crown className="w-3 h-3 text-amber-600 fill-amber-500" />
+                            SUPERADMIN
+                          </span>
+                        ) : isAdminRole ? (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-purple-100 text-purple-900 border border-purple-200 px-2.5 py-0.5 rounded-full">
+                            <Shield className="w-3 h-3 text-purple-600" />
+                            ADMIN
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center text-[10px] font-semibold bg-slate-100 text-slate-600 border border-slate-200 px-2.5 py-0.5 rounded-full">
+                            CUSTOMER
+                          </span>
+                        )}
+                      </td>
+
+                      <td className="py-4 px-4 space-y-0.5 whitespace-nowrap">
+                        <p className="text-slate-800 text-xs font-semibold flex items-center gap-1.5">
+                          <Mail className="w-3.5 h-3.5 text-slate-400" />
+                          {u.email}
+                        </p>
+                        {u.phone && (
+                          <p className="text-slate-500 text-[11px] flex items-center gap-1.5">
+                            <Phone className="w-3.5 h-3.5 text-slate-400" />
+                            {u.phone}
+                          </p>
+                        )}
+                      </td>
+
+                      <td className="py-4 px-4 text-slate-600 text-xs font-semibold whitespace-nowrap">
+                        <span className="flex items-center gap-1">
+                          <MapPin className="w-3.5 h-3.5 text-slate-400" />
+                          {u.profile?.city || u.profile?.state
+                            ? `${u.profile.city || ""}, ${u.profile.state || ""}`
+                            : "Nigeria"}
+                        </span>
+                      </td>
+
+                      <td className="py-4 px-4 text-center whitespace-nowrap">
+                        <span
+                          className={`inline-flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-1 rounded-full ${
+                            isSuspended
+                              ? "bg-red-100 text-red-800 border border-red-200"
+                              : "bg-emerald-100 text-emerald-800 border border-emerald-200"
+                          }`}
+                        >
+                          <span
+                            className={`w-1.5 h-1.5 rounded-full ${
+                              isSuspended ? "bg-red-600" : "bg-emerald-600"
+                            }`}
+                          />
+                          {isSuspended ? "Suspended" : "Active"}
+                        </span>
+                      </td>
+
+                      <td className="py-4 px-5 text-right whitespace-nowrap relative">
+                        <div
+                          className="relative inline-block text-left"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setOpenMenuId(openMenuId === u._id ? null : u._id);
+                            }}
+                            className="p-2 rounded-xl text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition focus:outline-none"
+                            title="Actions menu"
+                          >
+                            <MoreVertical className="w-4 h-4" />
+                          </button>
+
+                          {openMenuId === u._id && (
+                            <div className="absolute right-0 mt-1 w-48 bg-white rounded-2xl shadow-xl border border-slate-200 py-1.5 z-40 animate-fadeIn text-left">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setOpenMenuId(null);
+                                  navigate(`/admin/customers/${u._id}`);
+                                }}
+                                className="w-full text-left px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2"
+                              >
+                                <Eye className="w-4 h-4 text-brand-green-600" /> View Details
+                              </button>
+
+                              {isSuperAdmin && !isSuperadminRole && u._id !== currentUser?._id && (
+                                <>
+                                  {u.role === "customer" ? (
+                                    <button
+                                      onClick={(e) => {
+                                        setOpenMenuId(null);
+                                        handleRoleChange(e, u, "admin");
+                                      }}
+                                      className="w-full text-left px-4 py-2 text-xs font-bold text-purple-700 hover:bg-purple-50 flex items-center gap-2"
+                                    >
+                                      <UserPlus className="w-4 h-4 text-purple-600" /> Make Admin
+                                    </button>
+                                  ) : (
+                                    <button
+                                      onClick={(e) => {
+                                        setOpenMenuId(null);
+                                        handleRoleChange(e, u, "customer");
+                                      }}
+                                      className="w-full text-left px-4 py-2 text-xs font-bold text-amber-800 hover:bg-amber-50 flex items-center gap-2"
+                                    >
+                                      <UserMinus className="w-4 h-4 text-amber-600" /> Dismiss Admin
+                                    </button>
+                                  )}
+                                </>
+                              )}
+
+                              <button
+                                onClick={(e) => {
+                                  setOpenMenuId(null);
+                                  handleStatusToggle(e, u);
+                                }}
+                                className={`w-full text-left px-4 py-2 text-xs font-bold flex items-center gap-2 border-t border-slate-100 ${
+                                  isSuspended
+                                    ? "text-emerald-700 hover:bg-emerald-50"
+                                    : "text-red-600 hover:bg-red-50"
+                                }`}
+                              >
+                                {isSuspended ? (
+                                  <>
+                                    <UserCheck className="w-4 h-4 text-emerald-600" /> Activate Account
+                                  </>
+                                ) : (
+                                  <>
+                                    <UserX className="w-4 h-4 text-red-600" /> Suspend Account
+                                  </>
+                                )}
+                              </button>
+                            </div>
                           )}
                         </div>
-                        <span className="font-extrabold text-slate-900 flex items-center gap-1.5">
-                          {c.name}
-                          {c.role === "admin" && (
-                            <span className="bg-amber-100 text-amber-800 text-[9px] font-black px-1.5 py-0.5 rounded-md uppercase tracking-wider">
-                              Admin
-                            </span>
-                          )}
-                          {c.role === "super_admin" && (
-                            <span className="bg-purple-100 text-purple-800 text-[9px] font-black px-1.5 py-0.5 rounded-md uppercase tracking-wider">
-                              Super Admin
-                            </span>
-                          )}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="py-4 px-4 font-bold text-brand-green-800 uppercase tracking-wide">
-                      {c.businessName}
-                    </td>
-                    <td className="py-4 px-4 text-slate-500 flex items-center gap-1 font-medium">
-                      <Mail className="w-3.5 h-3.5 text-slate-400" />
-                      {c.email}
-                    </td>
-                    <td className="py-4 px-4 text-slate-500">
-                      <span className="flex items-center gap-1 font-medium">
-                        <Phone className="w-3.5 h-3.5 text-slate-400" />
-                        {c.phone}
-                      </span>
-                    </td>
-                    <td className="py-4 px-4 text-center text-slate-900 font-bold">
-                      {c.ordersCount} requests
-                    </td>
-                    <td className="py-4 px-4 text-right text-brand-green-700 font-black font-mono">
-                      {formatCurrency(c.totalSpend)}
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
         </div>
-      )}
-
-      {/* CUSTOMER DETAILED PROFILE SLIDING DRAWER OVERLAY */}
-      {selectedCustomer && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex justify-end z-45 animate-fade-in">
-          <div className="bg-white border-l border-slate-200 w-full max-w-xl h-full flex flex-col shadow-2xl animate-slide-left p-6 space-y-6">
-            {/* Drawer Header */}
-            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 font-bold border border-slate-200">
-                  {selectedCustomer?.avatarUrl ? (
-                    <Avatar
-                      src={selectedCustomer.avatarUrl}
-                      alt={selectedCustomer.name}
-                      size={36}
-                    />
-                  ) : (
-                    selectedCustomer.name.charAt(0).toUpperCase()
-                  )}
-                </div>
-                <div>
-                  <h3 className="font-extrabold text-slate-900 text-sm tracking-tight flex items-center gap-1.5">
-                    {selectedCustomer.name}
-                    {selectedCustomer.role === "admin" && (
-                      <span className="bg-amber-100 text-amber-800 text-[9px] font-black px-1.5 py-0.5 rounded-md uppercase tracking-wider">
-                        Admin
-                      </span>
-                    )}
-                    {selectedCustomer.role === "super_admin" && (
-                      <span className="bg-purple-100 text-purple-800 text-[9px] font-black px-1.5 py-0.5 rounded-md uppercase tracking-wider">
-                        Super Admin
-                      </span>
-                    )}
-                  </h3>
-                  <p className="text-[10px] text-slate-450 uppercase font-bold tracking-wide mt-0.5">
-                    {selectedCustomer.businessName}
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => setSelectedCustomer(null)}
-                className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl border border-slate-200/80 transition"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* Quick stats grid */}
-            <div className="grid grid-cols-2 gap-4 bg-slate-50 border border-slate-200/50 p-4 rounded-2xl text-xs font-semibold text-slate-750">
-              <div className="space-y-1">
-                <span className="block text-[9px] text-slate-400 font-extrabold uppercase">
-                  Contact Details
-                </span>
-                <p className="flex items-center gap-1.5">
-                  <Mail className="w-3.5 h-3.5 text-slate-400" />{" "}
-                  {selectedCustomer.email}
-                </p>
-                <p className="flex items-center gap-1.5">
-                  <Phone className="w-3.5 h-3.5 text-slate-400" />{" "}
-                  {selectedCustomer.phone}
-                </p>
-              </div>
-              <div className="space-y-1 text-right">
-                <span className="block text-[9px] text-slate-400 font-extrabold uppercase">
-                  Total Spend
-                </span>
-                <p className="text-sm font-black text-brand-green-700 font-mono">
-                  {formatCurrency(selectedCustomer.totalSpend)}
-                </p>
-                <p className="text-[10px] text-slate-500 font-medium">
-                  From {selectedCustomer.ordersCount} requests
-                </p>
-              </div>
-            </div>
-
-            {/* Tabs Selector */}
-            <div className="flex border-b border-slate-150 gap-4">
-              <button
-                onClick={() => setActiveTab("invoices")}
-                className={`pb-2 text-xs font-extrabold uppercase border-b-2 transition ${
-                  activeTab === "invoices"
-                    ? "border-brand-green-600 text-brand-green-700"
-                    : "border-transparent text-slate-400 hover:text-slate-600"
-                }`}
-              >
-                Invoices Ledger
-              </button>
-              <button
-                onClick={() => setActiveTab("details")}
-                className={`pb-2 text-xs font-extrabold uppercase border-b-2 transition ${
-                  activeTab === "details"
-                    ? "border-brand-green-600 text-brand-green-700"
-                    : "border-transparent text-slate-400 hover:text-slate-600"
-                }`}
-              >
-                Outlet Details
-              </button>
-            </div>
-
-            {/* Drawer Tab Content */}
-            <div className="flex-1 overflow-y-auto min-h-0">
-              {activeTab === "invoices" ? (
-                loadingInvoices ? (
-                  <p className="text-slate-500 animate-pulse text-xs font-semibold p-4">
-                    Syncing customer ledgers...
-                  </p>
-                ) : customerInvoices.length === 0 ? (
-                  <div className="text-center p-8 border border-dashed border-slate-200 rounded-2xl">
-                    <p className="text-slate-400 text-xs italic">
-                      No invoices issued for this buyer outlet yet.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {customerInvoices.map((inv) => {
-                      const date = inv.createdAt?.seconds
-                        ? new Date(
-                            inv.createdAt.seconds * 1000,
-                          ).toLocaleDateString()
-                        : new Date().toLocaleDateString();
-
-                      return (
-                        <div
-                          key={inv.id}
-                          className="border border-slate-200/80 rounded-2xl p-4 bg-white hover:border-brand-green-300 transition flex items-center justify-between text-xs"
-                        >
-                          <div className="space-y-1">
-                            <p className="font-bold text-slate-800 flex items-center gap-1.5">
-                              <FileText className="w-3.5 h-3.5 text-slate-450" />
-                              {inv.invoiceNumber}
-                            </p>
-                            <p className="text-[10px] text-slate-400 font-semibold flex items-center gap-1">
-                              <Clock className="w-3 h-3" /> Issued: {date}
-                            </p>
-                            <div className="pt-1">
-                              <InvoiceStatusBadge
-                                status={inv.status}
-                                className="text-[8px] py-0 px-1.5"
-                              />
-                            </div>
-                          </div>
-
-                          <div className="text-right space-y-1.5">
-                            <div>
-                              <p className="font-extrabold text-slate-500 text-[10px]">
-                                Total:{" "}
-                                <span className="font-mono text-slate-805">
-                                  {formatCurrency(inv.total)}
-                                </span>
-                              </p>
-                              <p className="font-black text-slate-800 text-[10px]">
-                                Bal:{" "}
-                                <span className="font-mono text-emerald-650">
-                                  {formatCurrency(inv.balance)}
-                                </span>
-                              </p>
-                            </div>
-
-                            <div className="flex justify-end gap-1.5">
-                              <button
-                                onClick={() => handleViewInvoice(inv)}
-                                className="p-1 hover:bg-slate-100 text-slate-500 hover:text-brand-green-700 rounded-lg transition border border-slate-200/60"
-                                title="Inspect Invoice Details"
-                              >
-                                <Eye className="w-3 h-3" />
-                              </button>
-                              {inv.pdfUrl && (
-                                <a
-                                  href={inv.pdfUrl}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="p-1 hover:bg-slate-100 text-slate-500 hover:text-brand-green-700 rounded-lg transition border border-slate-200/60"
-                                  title="Download PDF link"
-                                >
-                                  <Download className="w-3 h-3" />
-                                </a>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )
-              ) : (
-                <div className="bg-slate-50 border border-slate-200/50 p-5 rounded-2xl space-y-4 text-xs font-semibold text-slate-750">
-                  <h4 className="font-extrabold text-slate-900 border-b border-slate-200 pb-1.5">
-                    Storefront Registry Metadata
-                  </h4>
-                  <p>
-                    Account UID:{" "}
-                    <span className="font-mono font-bold text-slate-600 block mt-1">
-                      {selectedCustomer.id}
-                    </span>
-                  </p>
-                  <p>
-                    Rep Name:{" "}
-                    <span className="text-slate-800 font-bold block mt-1">
-                      {selectedCustomer.name}
-                    </span>
-                  </p>
-                  <p>
-                    Registered Company:{" "}
-                    <span className="text-slate-800 font-bold block mt-1">
-                      {selectedCustomer.businessName}
-                    </span>
-                  </p>
-                  <p>
-                    Account Role:{" "}
-                    <span className="text-slate-805 font-bold uppercase block mt-1">
-                      {selectedCustomer.role || "customer"}
-                    </span>
-                  </p>
-                  <p>
-                    Account Clearance:{" "}
-                    <span className="text-emerald-700 font-black block mt-1">
-                      APPROVED BULK MERCHANT
-                    </span>
-                  </p>
-
-                  {isSuperAdmin && selectedCustomer.role !== "super_admin" && (
-                    <div className="pt-4 border-t border-slate-200 space-y-2">
-                      <span className="block text-[10px] text-slate-450 font-extrabold uppercase">
-                        Administrative Action
-                      </span>
-                      <div className="flex items-center gap-2">
-                        {selectedCustomer.role === "admin" ? (
-                          <button
-                            disabled={updatingRole}
-                            onClick={() => handleUpdateRole(selectedCustomer.id, "customer")}
-                            className="w-full bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 py-2.5 px-4 rounded-xl font-bold transition flex items-center justify-center gap-1 disabled:opacity-50"
-                          >
-                            {updatingRole ? "Updating..." : "Demote to Customer"}
-                          </button>
-                        ) : (
-                          <button
-                            disabled={updatingRole}
-                            onClick={() => handleUpdateRole(selectedCustomer.id, "admin")}
-                            className="w-full bg-brand-green-700 hover:bg-brand-green-800 text-white py-2.5 px-4 rounded-xl font-bold transition flex items-center justify-center gap-1 disabled:opacity-50"
-                          >
-                            {updatingRole ? "Updating..." : "Promote to Admin"}
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Invoice Viewer Modal */}
-      {selectedInvoice && (
-        <InvoiceViewer
-          invoice={selectedInvoice}
-          isOpen={isViewerOpen}
-          onClose={() => {
-            setIsViewerOpen(false);
-            setSelectedInvoice(null);
-          }}
-          onSaveSuccess={() => handleCustomerClick(selectedCustomer)}
-        />
       )}
     </div>
   );

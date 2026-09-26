@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Download, X, Smartphone, Zap, ShieldCheck } from 'lucide-react';
 import Button from './Button';
+import { useToast } from '../../context/ToastContext';
 
 export const InstallPrompt = () => {
+  const { showModal } = useToast();
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [showPrompt, setShowPrompt] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
@@ -58,13 +60,16 @@ export const InstallPrompt = () => {
       }
       setDeferredPrompt(null);
     } else {
-      // If deferredPrompt is missing (e.g. iOS Safari), show manual instructions
+      // If deferredPrompt is missing (e.g. iOS Safari), show manual instructions in a clean pop-up
       const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-      if (isIOS) {
-        alert("To install: Tap the Share button at the bottom of Safari, then select 'Add to Home Screen'.");
-      } else {
-        alert("To install: Open your browser menu and select 'Add to Home Screen' or 'Install App'.");
-      }
+      showModal({
+        title: isIOS ? "Install on iOS Safari" : "Install Web Application",
+        message: isIOS
+          ? "To install Vinoff: Tap the Share icon (square with arrow) at the bottom of Safari, scroll down, and select 'Add to Home Screen'."
+          : "To install Vinoff: Open your browser settings menu (⋮) and select 'Add to Home Screen' or 'Install App'.",
+        confirmText: "Got it",
+        type: "info",
+      });
     }
   };
 

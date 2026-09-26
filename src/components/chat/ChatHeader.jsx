@@ -1,9 +1,10 @@
-import React, { useState, useContext, useEffect } from "react";
+import React, { useState, useContext } from "react";
 import Badge from "../ui/Badge";
-import { RefreshCw, ChevronDown, FileText, ArrowLeft } from "lucide-react";
+import { ChevronDown, FileText, ArrowLeft, RefreshCw } from "lucide-react";
 import Avatar from "../ui/Avatar";
-import { AuthContext } from "../../context/AuthContext";
-import { getUserProfile } from "../../services/firebase/auth";
+import { getAvatarUrl, getInitials } from "../../utils/avatar";
+import { CHAT_STATUS_OPTIONS, formatChatStatus } from "../../utils/chat";
+import { ChatContext } from "../../context/ChatContext";
 
 export const ChatHeader = ({
   room,
@@ -13,60 +14,14 @@ export const ChatHeader = ({
   onBack,
 }) => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const { user: currentUser } = useContext(AuthContext);
-  const [fetchedAvatar, setFetchedAvatar] = useState(null);
-
-  const getAvatarUrl = () => {
-    return (
-      room?.avatarUrl ||
-      room?.customerAvatar ||
-      room?.photoURL ||
-      room?.profileImage ||
-      room?.image ||
-      currentUser?.photoURL ||
-      null
-    );
-  };
-
-  const statuses = [
-    "Open",
-    "Awaiting Invoice",
-    "Awaiting Payment Confirmation",
-    "Resolved",
-  ];
+  const { refreshChat, isRefreshingChat } = useContext(ChatContext);
 
   const handleStatusChange = (status) => {
-    onUpdateStatus(status);
+    if (onUpdateStatus) onUpdateStatus(status);
     setDropdownOpen(false);
   };
 
-  useEffect(() => {
-    let cancelled = false;
-    const ensureAvatar = async () => {
-      const existing = getAvatarUrl();
-      if (existing) {
-        setFetchedAvatar(null);
-        return;
-      }
-      const uid = room?.customerId || room?.roomId;
-      if (!uid) return;
-      try {
-        const profile = await getUserProfile(uid);
-        if (!cancelled) setFetchedAvatar(profile?.avatarUrl || null);
-      } catch (e) {
-        console.warn(
-          "Failed to fetch user profile for avatar:",
-          e.message || e,
-        );
-      }
-    };
-    ensureAvatar();
-    return () => {
-      cancelled = true;
-    };
-  }, [room]);
-
-  const effectiveAvatar = getAvatarUrl() || fetchedAvatar || null;
+  const effectiveAvatar = getAvatarUrl(room?.customer) || getAvatarUrl(room);
 
   return (
     <div className="px-4 py-3 sm:px-6 sm:py-4.5 bg-white border-b border-slate-200 flex items-center justify-between shadow-sm">
@@ -86,6 +41,7 @@ export const ChatHeader = ({
             src={effectiveAvatar}
             alt={room?.customerName || "avatar"}
             size={40}
+            fallback={getInitials(room?.customer || room, "C")}
           />
         </div>
         <div className="min-w-0">
@@ -110,6 +66,20 @@ export const ChatHeader = ({
             <span className="hidden sm:inline">Generate Invoice</span>
           </button>
         )}
+
+        {/* Refresh button */}
+        <button
+          type="button"
+          onClick={refreshChat}
+          disabled={isRefreshingChat}
+          title="Refresh chat"
+          className="p-1.5 rounded-xl bg-slate-50 hover:bg-brand-green-50 text-slate-400 hover:text-brand-green-700 border border-slate-200 hover:border-brand-green-200 transition-all disabled:opacity-50 shrink-0"
+        >
+          <RefreshCw
+            className={`w-3.5 h-3.5 transition-transform duration-500 ${isRefreshingChat ? "animate-spin" : ""}`}
+          />
+        </button>
+
         <div className="flex items-center gap-1.5">
           <span className="text-xs text-slate-400 font-medium hidden sm:inline">Status:</span>
           {isAdmin ? (
@@ -118,30 +88,32 @@ export const ChatHeader = ({
                 onClick={() => setDropdownOpen(!dropdownOpen)}
                 className="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-xs font-semibold rounded-xl text-slate-700 transition"
               >
-                <Badge status={room.status} className="border-0 px-0 py-0" />
+                <Badge status={room.status} className="border-0 px-0 py-0">
+                  {formatChatStatus(room.status)}
+                </Badge>
                 <ChevronDown className="w-3.5 h-3.5" />
               </button>
 
               {dropdownOpen && (
                 <div className="absolute right-0 top-9 w-52 bg-white border border-slate-200 rounded-xl shadow-xl z-30 p-1.5">
-                  {statuses.map((st) => (
+                  {CHAT_STATUS_OPTIONS.map((st) => (
                     <button
-                      key={st}
-                      onClick={() => handleStatusChange(st)}
+                      key={st.value}
+                      onClick={() => handleStatusChange(st.value)}
                       className={`w-full text-left px-3 py-2 rounded-lg text-xs font-semibold transition ${
-                        room.status === st
+                        room.status === st.value
                           ? "bg-brand-green-50 text-brand-green-700"
                           : "hover:bg-slate-50 text-slate-600"
                       }`}
                     >
-                      {st}
+                      {st.label}
                     </button>
                   ))}
                 </div>
               )}
             </div>
           ) : (
-            <Badge status={room.status} />
+            <Badge status={room.status}>{formatChatStatus(room.status)}</Badge>
           )}
         </div>
       </div>

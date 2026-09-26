@@ -13,7 +13,10 @@ export default defineConfig({
         type: 'module'
       },
       workbox: {
-        maximumFileSizeToCacheInBytes: 4000000 // 4MB
+        maximumFileSizeToCacheInBytes: 4000000, // 4MB
+        navigateFallback: '/index.html',
+        navigateFallbackAllowlist: [/^\/.*$/],
+        navigateFallbackDenylist: [/^\/api/],
       },
       manifest: {
         name: 'Vinoff Web App',

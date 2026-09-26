@@ -1,6 +1,7 @@
-import { useState, useContext } from "react";
+import { useState, useContext, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import useProducts from "../../hooks/useProducts";
+import api from "../../services/api";
 import { CartContext } from "../../context/CartContext";
 import { formatCurrency } from "../../utils/formatCurrency";
 import { ArrowLeft, ShoppingCart, Sparkles } from "lucide-react";
@@ -14,10 +15,29 @@ export const ProductDetails = () => {
 
   const [isCarton, setIsCarton] = useState(true);
   const [quantity, setQuantity] = useState(1);
+  const [fetchedProduct, setFetchedProduct] = useState(null);
 
-  const product = products.find((p) => p.id === id);
+  useEffect(() => {
+    if (id && (!products || products.length === 0)) {
+      api.get(`/api/products/${id}`)
+        .then((res) => {
+          const p = res.data;
+          setFetchedProduct({
+            ...p,
+            id: p._id || p.id,
+            image: p.images?.[0]?.url || p.image || 'https://res.cloudinary.com/demo/image/upload/sample.jpg',
+            cartonPrice: p.wholesalePrice || p.price,
+            unitPrice: p.price,
+            unitsPerCarton: p.minimumQuantity || 1,
+          });
+        })
+        .catch(console.error);
+    }
+  }, [id, products]);
 
-  if (loading) {
+  const product = products.find((p) => p.id === id || p._id === id) || fetchedProduct;
+
+  if (loading && !product) {
     return (
       <div className="animate-pulse space-y-6">
         <div className="h-6 bg-slate-200 w-24 rounded" />
@@ -80,12 +100,6 @@ export const ProductDetails = () => {
             alt={product.name}
             className="absolute inset-0 w-full h-full object-cover"
           />
-          {saving > 0 && (
-            <span className="absolute top-6 right-6 bg-brand-yellow-400 text-brand-yellow-950 text-xs font-extrabold px-3 py-1.5 rounded-full uppercase tracking-wider shadow-md flex items-center gap-1">
-              <Sparkles className="w-3.5 h-3.5 fill-current" />
-              Save {savingPercent}% on Cartons
-            </span>
-          )}
         </div>
 
         {/* Product Details Actions */}

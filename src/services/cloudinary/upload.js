@@ -103,7 +103,10 @@ export const uploadToCloudinary = async (file, folder = "") => {
     );
   }
 
-  const url = `https://api.cloudinary.com/v1_1/${cloudName}/upload`;
+  const isPdf =
+    String(file.type || "").toLowerCase() === "application/pdf" ||
+    String(file.name || "").toLowerCase().endsWith(".pdf");
+  const url = `https://api.cloudinary.com/v1_1/${cloudName}/${isPdf ? "raw" : "image"}/upload`;
   const form = new FormData();
   form.append("file", file);
   form.append("upload_preset", preset);

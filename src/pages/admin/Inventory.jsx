@@ -1,5 +1,5 @@
 import { useState, useEffect, useContext } from 'react';
-import { dbGetProducts, dbUpdateProduct } from '../../services/firebase/db';
+import api from '../../services/api';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { AlertTriangle, ArrowUp, Search } from 'lucide-react';
 import { showModal, showPrompt } from '../../services/ui/modal';
@@ -13,8 +13,16 @@ export const Inventory = () => {
 
   const fetchInventory = async () => {
     try {
-      const data = await dbGetProducts();
-      setProducts(data);
+      const res = await api.get('/api/products');
+      const items = res.data?.items || res.data || [];
+      const normalized = (Array.isArray(items) ? items : []).map(p => ({
+        ...p,
+        id: p._id || p.id,
+        cartonPrice: p.wholesalePrice || p.price || 0,
+        stock: p.stock ?? p.inventoryCount ?? 0,
+        unitStock: p.unitStock ?? 0
+      }));
+      setProducts(normalized);
     } catch (e) {
       console.error(e);
     } finally {
@@ -45,17 +53,42 @@ export const Inventory = () => {
     if (amount === null) return;
 
     const parsedAmount = Number(amount);
-    const adminName = user ? `${user.name || 'Admin'} (${user.role === 'super_admin' ? 'Super Admin' : 'Admin'})` : 'Admin';
+    const newCount = (Number(product[field]) || 0) + parsedAmount;
 
     try {
-      await dbUpdateProduct(product.id, {
-        [field]: (Number(product[field]) || 0) + parsedAmount,
-      }, adminName);
+      await api.patch(`/api/products/${product.id || product._id}`, {
+        [field]: newCount,
+      });
+
+      // Record explicit restock movement in localStorage for Inventory History
+      try {
+        const existingRestocks = JSON.parse(localStorage.getItem('vinoff_restock_history') || '[]');
+        const newLogItem = {
+          id: `restock-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+          timestamp: new Date().toISOString(),
+          productName: product.name,
+          category: product.category || 'General',
+          type: 'restock',
+          change: parsedAmount, // Exact amount added (e.g. 70)
+          unitType: label === 'cartons' || field === 'stock' ? 'cartons' : 'loose units',
+          actorName: user?.name || 'System Administrator',
+          orderRef: 'N/A (Stock Restock)',
+          orderId: null,
+          notes: `Restocked +${parsedAmount} ${label} (was ${Number(product[field]) || 0}, now ${newCount})`,
+          previousStock: Number(product[field]) || 0,
+          newStock: newCount
+        };
+        existingRestocks.unshift(newLogItem);
+        localStorage.setItem('vinoff_restock_history', JSON.stringify(existingRestocks));
+      } catch (err) {
+        console.error('Failed to record restock log:', err);
+      }
+
       await fetchInventory();
     } catch (err) {
       await showModal({
         title: "Restock Error",
-        message: "Restock error: " + err.message,
+        message: "Restock error: " + (err.response?.data?.message || err.message),
         tone: "danger",
       });
     }
