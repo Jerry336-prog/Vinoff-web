@@ -137,9 +137,9 @@ export const CustomerDetail = () => {
   const isSuspended = customer.accountStatus === "suspended";
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto">
-      {/* Back Button */}
-      <div className="flex items-center justify-between">
+    <div className="space-y-5 sm:space-y-6 max-w-5xl mx-auto px-1 sm:px-0">
+      {/* Back Button & Header Actions */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <Link
           to="/admin/customers"
           className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-brand-green-700 transition"
@@ -148,13 +148,13 @@ export const CustomerDetail = () => {
           Back to Customer Registry
         </Link>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 w-full sm:w-auto">
           <Button
             size="sm"
             variant={isSuspended ? "primary" : "outline"}
             onClick={handleStatusToggle}
             isLoading={statusUpdating}
-            className={`rounded-xl text-xs ${
+            className={`flex-1 sm:flex-initial justify-center rounded-xl text-xs py-2 ${
               isSuspended ? "bg-emerald-600 hover:bg-emerald-700 text-white" : "text-red-600 hover:bg-red-50 border-red-200"
             }`}
           >
@@ -171,7 +171,7 @@ export const CustomerDetail = () => {
 
           <Link
             to={`/admin/chats?customer=${customer._id}`}
-            className="px-3 py-1.5 bg-brand-green-600 hover:bg-brand-green-700 text-white text-xs font-bold rounded-xl transition shadow-sm flex items-center gap-1.5"
+            className="flex-1 sm:flex-initial justify-center px-3.5 py-2 bg-brand-green-600 hover:bg-brand-green-700 text-white text-xs font-bold rounded-xl transition shadow-xs flex items-center gap-1.5"
           >
             <MessageSquare className="w-4 h-4" /> Open Chat
           </Link>
@@ -179,24 +179,24 @@ export const CustomerDetail = () => {
       </div>
 
       {/* Customer Header Banner */}
-      <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-sm">
-        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-6">
-          <div className="flex items-start gap-4">
+      <div className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-3xl p-4 sm:p-8 shadow-xs">
+        <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-5">
+          <div className="flex items-start gap-3.5 sm:gap-4">
             <Avatar
               src={getAvatarUrl(customer)}
               alt={`${customer.firstName || "Customer"} ${customer.lastName || ""}`.trim()}
-              size={64}
+              size={56}
               fallback={getInitials(customer, "C")}
-              className="rounded-2xl bg-brand-green-100 text-brand-green-900 border-2 border-brand-green-200 shadow-sm text-lg"
+              className="rounded-2xl bg-brand-green-100 text-brand-green-900 border-2 border-brand-green-200 shadow-xs text-base shrink-0"
             />
 
-            <div className="space-y-1">
-              <div className="flex flex-wrap items-center gap-2.5">
-                <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+            <div className="space-y-1 min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="text-lg sm:text-2xl font-black text-slate-900 tracking-tight leading-tight">
                   {customer.firstName} {customer.lastName}
                 </h1>
                 {hasProfileUpdate && (
-                  <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-emerald-100 text-emerald-900 px-2.5 py-0.5 rounded-full shadow-xs">
+                  <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-emerald-100/80 text-emerald-900 px-2.5 py-0.5 rounded-full border border-emerald-200/50">
                     <Sparkles className="w-3 h-3 text-emerald-600" /> Profile Updated
                   </span>
                 )}
@@ -212,7 +212,7 @@ export const CustomerDetail = () => {
                 </span>
               </div>
 
-              <p className="text-xs font-bold text-brand-green-700">
+              <p className="text-xs font-bold text-brand-green-700 truncate">
                 {customer.profile?.companyName || "Commercial Wholesale Account"}
               </p>
               <p className="text-[11px] text-slate-400">
@@ -222,7 +222,7 @@ export const CustomerDetail = () => {
           </div>
 
           {hasProfileUpdate && (
-            <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-3 text-xs text-emerald-900 space-y-1">
+            <div className="bg-emerald-50 border border-emerald-200/80 rounded-2xl p-3 text-xs text-emerald-900 space-y-1 shrink-0">
               <p className="font-extrabold flex items-center gap-1 text-emerald-800">
                 <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Recent Profile Update
               </p>
@@ -234,7 +234,7 @@ export const CustomerDetail = () => {
         </div>
 
         {/* Navigation Tabs */}
-        <div className="flex items-center gap-1 border-t border-slate-100 pt-5 mt-6 overflow-x-auto">
+        <div className="flex items-center gap-1.5 border-t border-slate-100 pt-4 mt-5 overflow-x-auto scrollbar-none flex-nowrap">
           {[
             { id: "overview", label: "Overview", icon: Users },
             { id: "orders", label: `Orders (${orders.length})`, icon: Package },
@@ -250,10 +250,10 @@ export const CustomerDetail = () => {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 outline-none ${
+                className={`px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap shrink-0 outline-none ${
                   active
-                    ? "bg-brand-green-600 text-white shadow-sm"
-                    : "text-slate-600 hover:bg-slate-50"
+                    ? "bg-brand-green-600 text-white shadow-xs"
+                    : "text-slate-600 hover:bg-slate-50 border border-transparent"
                 }`}
               >
                 <Icon className="w-4 h-4" />
@@ -266,22 +266,22 @@ export const CustomerDetail = () => {
 
       {/* Tab Contents */}
       {activeTab === "overview" && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+          <div className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-xs space-y-4">
             <h3 className="text-xs font-black uppercase tracking-wider text-slate-400 border-b border-slate-100 pb-2.5">
               Contact & Authentication Details
             </h3>
             <div className="space-y-3 text-xs">
               <div>
                 <span className="text-[10px] text-slate-400 uppercase font-bold block">Email Address</span>
-                <span className="font-semibold text-slate-800 flex items-center gap-1.5 mt-0.5">
-                  <Mail className="w-3.5 h-3.5 text-slate-400" /> {customer.email}
+                <span className="font-semibold text-slate-800 flex items-center gap-1.5 mt-0.5 break-all">
+                  <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" /> {customer.email}
                 </span>
               </div>
               <div>
                 <span className="text-[10px] text-slate-400 uppercase font-bold block">Telephone</span>
                 <span className="font-semibold text-slate-800 flex items-center gap-1.5 mt-0.5">
-                  <Phone className="w-3.5 h-3.5 text-slate-400" /> {customer.phone || "Not specified"}
+                  <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" /> {customer.phone || "Not specified"}
                 </span>
               </div>
               <div>
@@ -291,7 +291,7 @@ export const CustomerDetail = () => {
             </div>
           </div>
 
-          <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-4">
+          <div className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-xs space-y-4">
             <h3 className="text-xs font-black uppercase tracking-wider text-slate-400 border-b border-slate-100 pb-2.5">
               Business & Logistics Destination
             </h3>
@@ -299,7 +299,7 @@ export const CustomerDetail = () => {
               <div>
                 <span className="text-[10px] text-slate-400 uppercase font-bold block">Company / Store Name</span>
                 <span className="font-semibold text-slate-800 flex items-center gap-1.5 mt-0.5">
-                  <Building className="w-3.5 h-3.5 text-slate-400" />
+                  <Building className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                   {customer.profile?.companyName || "N/A"}
                 </span>
               </div>
@@ -310,7 +310,7 @@ export const CustomerDetail = () => {
               <div>
                 <span className="text-[10px] text-slate-400 uppercase font-bold block">Delivery Address</span>
                 <span className="font-semibold text-slate-800 flex items-center gap-1.5 mt-0.5">
-                  <MapPin className="w-3.5 h-3.5 text-slate-400" />
+                  <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                   {customer.profile?.address || "Warehouse pickup"}
                 </span>
               </div>
@@ -326,7 +326,7 @@ export const CustomerDetail = () => {
       )}
 
       {activeTab === "orders" && (
-        <div className="bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-sm">
+        <div className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-3xl overflow-hidden shadow-xs">
           {orders.length === 0 ? (
             <div className="p-8 text-center text-xs text-slate-400">
               No orders placed by this customer yet.
@@ -334,7 +334,7 @@ export const CustomerDetail = () => {
           ) : (
             <div className="divide-y divide-slate-100">
               {orders.map((ord) => (
-                <div key={ord._id} className="p-4 flex items-center justify-between text-xs hover:bg-slate-50 transition">
+                <div key={ord._id} className="p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-4 text-xs hover:bg-slate-50 transition">
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
                       <span className="font-mono font-bold text-slate-900">{ord.orderNumber}</span>
@@ -344,9 +344,12 @@ export const CustomerDetail = () => {
                       {new Date(ord.createdAt).toLocaleDateString()} &bull; {ord.items?.length || 0} item(s)
                     </p>
                   </div>
-                  <div className="text-right">
-                    <p className="font-black text-slate-900">{formatCurrency(ord.totalAmount)}</p>
-                    <p className="text-[10px] text-slate-400">{ord.paymentStatus}</p>
+                  <div className="flex items-center justify-between sm:justify-end gap-3 border-t sm:border-t-0 border-slate-100/60 pt-2 sm:pt-0">
+                    <span className="text-[10px] sm:hidden text-slate-400 font-semibold uppercase">Total:</span>
+                    <div className="text-right">
+                      <p className="font-black text-slate-900">{formatCurrency(ord.totalAmount)}</p>
+                      <p className="text-[10px] text-slate-400">{ord.paymentStatus}</p>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -356,7 +359,7 @@ export const CustomerDetail = () => {
       )}
 
       {activeTab === "invoices" && (
-        <div className="bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-sm">
+        <div className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-3xl overflow-hidden shadow-xs">
           {invoices.length === 0 ? (
             <div className="p-8 text-center text-xs text-slate-400">
               No invoices issued for this customer yet.
@@ -364,7 +367,7 @@ export const CustomerDetail = () => {
           ) : (
             <div className="divide-y divide-slate-100">
               {invoices.map((inv) => (
-                <div key={inv._id} className="p-4 flex items-center justify-between text-xs hover:bg-slate-50 transition">
+                <div key={inv._id} className="p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-4 text-xs hover:bg-slate-50 transition">
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
                       <span className="font-mono font-bold text-slate-900">{inv.invoiceNumber}</span>
@@ -374,18 +377,21 @@ export const CustomerDetail = () => {
                       Issued {new Date(inv.createdAt).toLocaleDateString()}
                     </p>
                   </div>
-                  <div className="flex items-center gap-3 text-right">
-                    <div>
-                      <p className="font-black text-brand-green-800">{formatCurrency(inv.total || inv.totalAmount)}</p>
-                      <p className="text-[10px] text-slate-400">{inv.status}</p>
+                  <div className="flex items-center justify-between sm:justify-end gap-3 border-t sm:border-t-0 border-slate-100/60 pt-2 sm:pt-0">
+                    <span className="text-[10px] sm:hidden text-slate-400 font-semibold uppercase">Invoice Amount:</span>
+                    <div className="flex items-center gap-3 text-right">
+                      <div>
+                        <p className="font-black text-brand-green-800">{formatCurrency(inv.total || inv.totalAmount)}</p>
+                        <p className="text-[10px] text-slate-400">{inv.status}</p>
+                      </div>
+                      <button
+                        onClick={() => downloadInvoicePDF(inv._id)}
+                        className="p-1.5 hover:bg-slate-100 text-slate-400 hover:text-brand-green-700 rounded-lg transition"
+                        title="Download Invoice PDF"
+                      >
+                        <Download className="w-4 h-4" />
+                      </button>
                     </div>
-                    <button
-                      onClick={() => downloadInvoicePDF(inv._id)}
-                      className="p-1.5 hover:bg-slate-100 text-slate-400 hover:text-brand-green-700 rounded-lg transition"
-                      title="Download Invoice PDF"
-                    >
-                      <Download className="w-4 h-4" />
-                    </button>
                   </div>
                 </div>
               ))}

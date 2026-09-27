@@ -114,7 +114,7 @@ export const Invoices = () => {
   const handleAddItem = () => {
     setCreateForm((prev) => ({
       ...prev,
-      items: [...prev.items, { description: "", quantity: 1, unitPrice: 0, total: 0 }],
+      items: [...prev.items, { productId: "", unitType: "carton", description: "", quantity: 1, unitPrice: 0, total: 0 }],
     }));
   };
 
@@ -123,6 +123,44 @@ export const Invoices = () => {
       ...prev,
       items: prev.items.filter((_, i) => i !== index),
     }));
+  };
+
+  const handleProductSelect = (index, selectedId, selectedUnitType = "carton") => {
+    const product = products.find((p) => (p.id || p._id) === selectedId);
+    setCreateForm((prev) => {
+      const updated = [...prev.items];
+      if (!product) {
+        updated[index] = {
+          ...updated[index],
+          productId: "",
+          unitType: selectedUnitType,
+        };
+        return { ...prev, items: updated };
+      }
+
+      const ctnPrice = Number(product.cartonPrice || product.wholesalePrice || product.price) || 0;
+      const pcsPrice =
+        Number(product.unitPrice) ||
+        (product.unitsPerCarton ? Math.round(ctnPrice / Number(product.unitsPerCarton)) : Math.round(ctnPrice / 12));
+
+      const isPieces = selectedUnitType === "pieces" || selectedUnitType === "pcs";
+      const unitPrice = isPieces ? pcsPrice : ctnPrice;
+      const unitLabel = isPieces ? "(Pieces)" : "(CTN)";
+      const description = `${product.name} ${unitLabel}`;
+      const qty = Number(updated[index].quantity) || 1;
+
+      updated[index] = {
+        ...updated[index],
+        productId: product.id || product._id,
+        unitType: isPieces ? "pieces" : "carton",
+        description,
+        unitPrice,
+        quantity: qty,
+        total: qty * unitPrice,
+      };
+
+      return { ...prev, items: updated };
+    });
   };
 
   const handleItemChange = (index, field, value) => {
@@ -439,42 +477,112 @@ export const Invoices = () => {
                 </div>
 
                 {createForm.items.map((item, idx) => (
-                  <div key={idx} className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      placeholder="Item description (e.g. Vinoff Disinfectant 5L Carton)"
-                      value={item.description}
-                      onChange={(e) => handleItemChange(idx, "description", e.target.value)}
-                      className="flex-1 bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-xs font-semibold focus:ring-2 focus:ring-brand-green-500 outline-none"
-                      required
-                    />
-                    <input
-                      type="number"
-                      placeholder="Qty"
-                      min="1"
-                      value={item.quantity}
-                      onChange={(e) => handleItemChange(idx, "quantity", e.target.value)}
-                      className="w-20 bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-xs font-semibold text-center focus:ring-2 focus:ring-brand-green-500 outline-none"
-                      required
-                    />
-                    <input
-                      type="number"
-                      placeholder="Price"
-                      min="0"
-                      value={item.unitPrice}
-                      onChange={(e) => handleItemChange(idx, "unitPrice", e.target.value)}
-                      className="w-28 bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-xs font-semibold text-right focus:ring-2 focus:ring-brand-green-500 outline-none"
-                      required
-                    />
-                    {createForm.items.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveItem(idx)}
-                        className="p-2 text-red-500 hover:bg-red-50 rounded-lg"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    )}
+                  <div key={idx} className="bg-slate-50 border border-slate-200 rounded-2xl p-3.5 space-y-3">
+                    <div className="flex items-center justify-between border-b border-slate-200/60 pb-2">
+                      <span className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider">
+                        Item #{idx + 1}
+                      </span>
+                      {createForm.items.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveItem(idx)}
+                          className="text-xs font-bold text-red-600 hover:text-red-700 flex items-center gap-1 cursor-pointer"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" /> Remove
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+                      {/* Product Select (Description) */}
+                      <div className="sm:col-span-6 space-y-1">
+                        <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
+                          Select Product *
+                        </label>
+                        <select
+                          value={item.productId || ""}
+                          onChange={(e) => handleProductSelect(idx, e.target.value, item.unitType || "carton")}
+                          className="w-full bg-white border border-slate-200 rounded-xl py-2 px-3 text-xs font-bold text-slate-800 focus:ring-2 focus:ring-brand-green-500 outline-none"
+                        >
+                          <option value="">-- Choose Product --</option>
+                          {products.map((p) => (
+                            <option key={p.id || p._id} value={p.id || p._id}>
+                              {p.name} ({p.category})
+                            </option>
+                          ))}
+                        </select>
+                        {/* Option for custom description if needed */}
+                        {(!item.productId) && (
+                          <input
+                            type="text"
+                            placeholder="Or type custom item description..."
+                            value={item.description}
+                            onChange={(e) => handleItemChange(idx, "description", e.target.value)}
+                            className="w-full bg-white border border-slate-200 rounded-xl py-1.5 px-3 text-xs font-semibold mt-1 outline-none"
+                            required
+                          />
+                        )}
+                      </div>
+
+                      {/* Packaging Unit (Carton vs Pieces) */}
+                      <div className="sm:col-span-3 space-y-1">
+                        <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
+                          Packaging Unit *
+                        </label>
+                        <select
+                          value={item.unitType || "carton"}
+                          onChange={(e) => {
+                            const newUnit = e.target.value;
+                            if (item.productId) {
+                              handleProductSelect(idx, item.productId, newUnit);
+                            } else {
+                              handleItemChange(idx, "unitType", newUnit);
+                            }
+                          }}
+                          className="w-full bg-white border border-slate-200 rounded-xl py-2 px-3 text-xs font-bold text-slate-800 focus:ring-2 focus:ring-brand-green-500 outline-none"
+                        >
+                          <option value="carton">Carton (CTN)</option>
+                          <option value="pieces">Pieces (Pcs)</option>
+                        </select>
+                      </div>
+
+                      {/* Quantity */}
+                      <div className="sm:col-span-3 space-y-1">
+                        <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
+                          Quantity *
+                        </label>
+                        <input
+                          type="number"
+                          min="1"
+                          value={item.quantity}
+                          onChange={(e) => handleItemChange(idx, "quantity", e.target.value)}
+                          className="w-full bg-white border border-slate-200 rounded-xl py-2 px-3 text-xs font-bold text-slate-800 focus:ring-2 focus:ring-brand-green-500 outline-none"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    {/* Auto Price & Subtotal */}
+                    <div className="flex items-center justify-between pt-1 border-t border-slate-200/60 text-xs">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] font-extrabold text-slate-400 uppercase">Unit Price:</span>
+                        <input
+                          type="number"
+                          min="0"
+                          value={item.unitPrice}
+                          onChange={(e) => handleItemChange(idx, "unitPrice", e.target.value)}
+                          className="w-24 bg-white border border-slate-200 rounded-lg py-1 px-2 text-xs font-bold text-slate-800 text-right outline-none focus:ring-1 focus:ring-brand-green-500"
+                        />
+                        <span className="text-[10px] text-slate-400 font-medium hidden sm:inline">(Auto-filled)</span>
+                      </div>
+
+                      <div className="text-right">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase mr-1">Total:</span>
+                        <span className="font-mono font-black text-brand-green-950 text-sm">
+                          {formatCurrency((Number(item.quantity) || 1) * (Number(item.unitPrice) || 0))}
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 ))}
               </div>

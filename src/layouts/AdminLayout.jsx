@@ -17,7 +17,7 @@ export const AdminLayout = () => {
   const { notifications, unreadCount: unreadNotifs, markAllAsRead } = useContext(NotificationContext);
   const navigate = useNavigate();
   const location = useLocation();
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const notifRef = useRef(null);
 
@@ -32,6 +32,27 @@ export const AdminLayout = () => {
       setHistoryDropdownOpen(true);
     }
   }, [isHistoryActive]);
+
+  // Auto-close sidebar on mobile/tablet view when navigating
+  useEffect(() => {
+    if (window.innerWidth < 1024) {
+      setSidebarOpen(false);
+    }
+  }, [location.pathname]);
+
+  // Set default sidebar state based on screen width on initial load
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 1024) {
+        setSidebarOpen(true);
+      } else {
+        setSidebarOpen(false);
+      }
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -109,22 +130,30 @@ export const AdminLayout = () => {
   }
 
   return (
-    <div className="flex h-screen bg-slate-100 overflow-hidden text-slate-800 print:h-auto print:overflow-visible print:bg-white">
+    <div className="flex h-screen bg-slate-100 overflow-hidden text-slate-800 print:h-auto print:overflow-visible print:bg-white relative">
       <AnnouncementModal />
       
-      {/* Sidebar for Desktop */}
+      {/* Mobile/Tablet Overlay Backdrop */}
+      {sidebarOpen && (
+        <div 
+          onClick={() => setSidebarOpen(false)} 
+          className="fixed inset-0 bg-slate-950/70 backdrop-blur-xs z-40 lg:hidden transition-opacity duration-300"
+        />
+      )}
+
+      {/* Sidebar for Desktop, Tablet, and Mobile */}
       <aside 
-        className={`fixed inset-y-0 left-0 z-30 w-64 bg-slate-900 text-slate-300 border-r border-slate-800 transition-all duration-300 transform md:relative md:translate-x-0 print:hidden ${
+        className={`fixed inset-y-0 left-0 z-50 w-64 bg-slate-900 text-slate-300 border-r border-slate-800 transition-all duration-300 transform lg:relative lg:translate-x-0 print:hidden flex flex-col shadow-2xl lg:shadow-none ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
         {/* Sidebar Header Logo */}
-        <div className="flex items-center justify-between h-16 px-6 bg-slate-950 border-b border-slate-800">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center p-1 shadow-sm shrink-0 ring-2 ring-white/20">
-              <img src="/VinoffLogo.png" alt="Vinoff Logo" className="w-8 h-8 object-contain" />
+        <div className="flex items-center justify-between h-16 px-5 bg-slate-950 border-b border-slate-800 shrink-0">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-9 h-9 bg-white rounded-full flex items-center justify-center p-1 shadow-sm shrink-0 ring-2 ring-white/20">
+              <img src="/VinoffLogo.png" alt="Vinoff Logo" className="w-7 h-7 object-contain" />
             </div>
-            <div>
+            <div className="truncate">
               <span className="font-bold text-sm tracking-tight text-white block">
                 VINOFF <span className="text-brand-yellow-400">ADMIN</span>
               </span>
@@ -133,9 +162,12 @@ export const AdminLayout = () => {
               </span>
             </div>
           </div>
+          
           <button 
             onClick={() => setSidebarOpen(false)}
-            className="md:hidden text-slate-400 hover:text-white p-1 rounded-lg"
+            className="lg:hidden text-slate-400 hover:text-white p-1.5 rounded-xl hover:bg-slate-800 transition cursor-pointer"
+            title="Close Sidebar"
+            aria-label="Close Sidebar"
           >
             <X className="w-5 h-5" />
           </button>
@@ -274,9 +306,11 @@ export const AdminLayout = () => {
           <div className="flex items-center gap-4">
             <button 
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100"
+              className="p-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200/80 transition cursor-pointer lg:hidden"
+              title="Toggle Menu"
+              aria-label="Toggle Menu"
             >
-              <Menu className="w-5.5 h-5.5" />
+              <Menu className="w-5 h-5" />
             </button>
             {/* Page Title — shows current section name */}
             <h1 className="text-lg font-bold text-slate-800 tracking-tight">

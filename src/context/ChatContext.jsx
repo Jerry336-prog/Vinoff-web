@@ -371,11 +371,18 @@ export const ChatProvider = ({ children }) => {
 
   const selectRoom = useCallback(
     async (roomIdOrObj) => {
+      if (!roomIdOrObj) {
+        setActiveRoom(null);
+        return null;
+      }
       const roomId =
         typeof roomIdOrObj === "object"
           ? roomIdOrObj?.roomId || roomIdOrObj?._id || roomIdOrObj?.id
           : roomIdOrObj;
-      if (!roomId) return null;
+      if (!roomId) {
+        setActiveRoom(null);
+        return null;
+      }
 
       const isAlreadyActive = activeRoomRef.current?.roomId === roomId;
       if (!isAlreadyActive) {

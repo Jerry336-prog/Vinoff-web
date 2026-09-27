@@ -187,7 +187,7 @@ export const MessageBubble = React.memo(
           </div>
         )}
         <div
-          className={`max-w-[85%] md:max-w-[70%] flex flex-col gap-1 ${
+          className={`max-w-[90%] sm:max-w-[80%] md:max-w-[70%] flex flex-col gap-1 ${
             isSelf ? "items-end" : "items-start"
           }`}
         >
@@ -199,17 +199,17 @@ export const MessageBubble = React.memo(
             </span>
           )}
           <div
-            className={`px-3 py-2.5 rounded-2xl flex flex-col gap-2 ${
+            className={`px-3 py-2 sm:px-4 sm:py-2.5 rounded-2xl flex flex-col gap-2 max-w-full overflow-hidden ${
               isSelf ? "bg-emerald-700 text-white" : "bg-white border border-slate-200 text-slate-800 shadow-xs"
             }`}
           >
             {/* Image Attachment Preview */}
             {imageSrc && (
-              <div className="rounded-xl overflow-hidden border border-slate-200/60 bg-slate-900/5 max-w-full min-h-[120px] flex items-center justify-center group relative">
+              <div className="rounded-xl overflow-hidden border border-slate-200/60 bg-slate-900/5 max-w-full min-h-[100px] sm:min-h-[120px] flex items-center justify-center group relative">
                 <img 
                   src={imageSrc} 
                   alt="Chat Attachment" 
-                  className="max-h-64 max-w-full object-cover cursor-pointer hover:opacity-90 transition"
+                  className="max-h-48 sm:max-h-64 max-w-full object-cover cursor-pointer hover:opacity-90 transition"
                   onClick={() => setIsLightboxOpen(true)}
                 />
                 <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition flex items-center justify-center pointer-events-none">
@@ -228,34 +228,36 @@ export const MessageBubble = React.memo(
               return (
                 <div
                   key={idx}
-                  className={`flex items-center gap-2.5 rounded-xl border p-2.5 text-xs transition ${
+                  className={`flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-xl border p-2 sm:p-2.5 text-xs transition max-w-full ${
                     isSelf
                       ? "border-white/20 bg-white/10 text-white"
                       : "border-slate-200 bg-slate-50 text-slate-800"
                   }`}
                 >
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs shrink-0 ${isSelf ? "bg-white/20 text-white" : "bg-red-100 text-red-700"}`}>
-                    {isPdf ? "PDF" : "FILE"}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="font-bold truncate text-[11px] leading-tight">
-                      {attachment.name || (isPdf ? "Commercial Invoice.pdf" : "Attachment Document")}
-                    </p>
-                    <p className={`text-[9px] ${isSelf ? "text-white/80" : "text-slate-500"}`}>
-                      {isPdf ? "Official PDF Document" : "Download File"}
-                    </p>
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center font-bold text-[10px] sm:text-xs shrink-0 ${isSelf ? "bg-white/20 text-white" : "bg-red-100 text-red-700"}`}>
+                      {isPdf ? "PDF" : "FILE"}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-bold truncate text-[10px] sm:text-[11px] leading-tight">
+                        {attachment.name || (isPdf ? "Commercial Invoice.pdf" : "Attachment Document")}
+                      </p>
+                      <p className={`text-[9px] truncate ${isSelf ? "text-white/80" : "text-slate-500"}`}>
+                        {isPdf ? "Official PDF Document" : "Download File"}
+                      </p>
+                    </div>
                   </div>
                   <button
                     type="button"
                     onClick={() => handleOpenPdfFile(attachment)}
-                    className={`p-1.5 rounded-lg border text-[10px] font-bold flex items-center gap-1 transition shrink-0 cursor-pointer ${
+                    className={`w-full sm:w-auto justify-center p-1.5 sm:px-2.5 sm:py-1.5 rounded-lg border text-[9px] sm:text-[10px] font-bold flex items-center gap-1 transition shrink-0 cursor-pointer ${
                       isSelf
-                        ? "border-white/30 hover:bg-white/20 text-white"
+                        ? "border-white/30 hover:bg-white/20 text-white bg-white/10"
                         : "border-brand-green-200 bg-white text-brand-green-700 hover:bg-brand-green-50"
                     }`}
                   >
-                    <Download className="w-3.5 h-3.5" />
-                    Download PDF
+                    <Download className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                    <span>Download PDF</span>
                   </button>
                 </div>
               );
@@ -264,34 +266,36 @@ export const MessageBubble = React.memo(
             {/* Invoice PDF Action Card */}
             {message.invoiceRef && fileAttachments.length === 0 && (
               <div
-                className={`flex items-center gap-2.5 rounded-xl border p-2.5 text-xs ${
+                className={`flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-xl border p-2 sm:p-2.5 text-xs max-w-full ${
                   isSelf
                     ? "border-white/20 bg-white/10 text-white"
                     : "border-brand-green-200 bg-brand-green-50/50 text-slate-800"
                 }`}
               >
-                <div className="w-8 h-8 rounded-lg bg-emerald-800 text-white flex items-center justify-center font-black text-xs shrink-0">
-                  PDF
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="font-bold truncate text-[11px] leading-tight">
-                    Invoice Document Ready
-                  </p>
-                  <p className={`text-[9px] ${isSelf ? "text-white/80" : "text-slate-500"}`}>
-                    Commercial Invoice PDF
-                  </p>
+                <div className="flex items-center gap-2 min-w-0">
+                  <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-emerald-800 text-white flex items-center justify-center font-black text-[10px] sm:text-xs shrink-0">
+                    PDF
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-bold truncate text-[10px] sm:text-[11px] leading-tight">
+                      Invoice Document Ready
+                    </p>
+                    <p className={`text-[9px] truncate ${isSelf ? "text-white/80" : "text-slate-500"}`}>
+                      Commercial Invoice PDF
+                    </p>
+                  </div>
                 </div>
                 <button
                   type="button"
                   onClick={() => downloadInvoicePDF(message.invoiceRef)}
-                  className={`px-2.5 py-1.5 rounded-lg border text-[10px] font-bold flex items-center gap-1 transition shrink-0 ${
+                  className={`w-full sm:w-auto justify-center px-2 py-1.5 sm:px-2.5 sm:py-1.5 rounded-lg border text-[9px] sm:text-[10px] font-bold flex items-center gap-1 transition shrink-0 cursor-pointer ${
                     isSelf
-                      ? "border-white/30 hover:bg-white/20 text-white"
+                      ? "border-white/30 hover:bg-white/20 text-white bg-white/10"
                       : "border-brand-green-300 bg-white text-brand-green-700 hover:bg-brand-green-50 shadow-xs"
                   }`}
                 >
-                  <Download className="w-3.5 h-3.5" />
-                  Download PDF
+                  <Download className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                  <span>Download PDF</span>
                 </button>
               </div>
             )}

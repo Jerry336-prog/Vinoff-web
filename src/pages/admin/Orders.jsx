@@ -125,41 +125,41 @@ export const Orders = () => {
   });
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 sm:space-y-6 px-1 sm:px-0">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 bg-white border border-slate-200/80 rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-xs">
         <div>
-          <h1 className="text-xl font-bold text-slate-800 tracking-tight flex items-center gap-2">
+          <h1 className="text-lg sm:text-xl font-bold text-slate-800 tracking-tight flex items-center gap-2">
             <ClipboardList className="w-5 h-5 text-brand-green-700" />
             Wholesale Order Processing Desk
           </h1>
-          <p className="text-xs text-slate-500 font-medium mt-0.5">
+          <p className="text-xs text-slate-500 font-medium mt-0.5 leading-relaxed">
             Review buyer orders, inspect transaction screenshots, confirm bank settlements, and manage dispatch lifecycles.
           </p>
         </div>
 
-        <div className="relative w-full sm:w-64">
+        <div className="relative w-full sm:w-64 shrink-0">
           <input
             type="text"
             placeholder="Search order #, customer, store..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-white border border-slate-200 rounded-xl py-2 pl-9 pr-4 text-xs font-semibold focus:ring-2 focus:ring-brand-green-500 outline-none"
+            className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 pl-9 pr-4 text-xs font-semibold focus:bg-white focus:ring-2 focus:ring-brand-green-500 outline-none"
           />
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
         </div>
       </div>
 
       {/* Filter Tabs */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+      <div className="flex items-center gap-1.5 overflow-x-auto pb-1.5 scrollbar-none flex-nowrap">
         {["All", ...ORDER_STATUSES].map((st) => (
           <button
             key={st}
             onClick={() => setStatusFilter(st)}
-            className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all outline-none ${
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all outline-none shrink-0 ${
               statusFilter === st
-                ? "bg-brand-green-600 text-white shadow-sm"
-                : "bg-white hover:bg-slate-100 border border-slate-200 text-slate-600"
+                ? "bg-brand-green-600 text-white shadow-xs"
+                : "bg-white hover:bg-slate-50 border border-slate-200 text-slate-600"
             }`}
           >
             {st}
@@ -169,11 +169,11 @@ export const Orders = () => {
 
       {/* Orders List */}
       {loading ? (
-        <div className="p-12 text-center bg-white border border-slate-200 rounded-3xl animate-pulse text-xs text-slate-400">
+        <div className="p-12 text-center bg-white border border-slate-200/80 rounded-2xl sm:rounded-3xl animate-pulse text-xs text-slate-400">
           Syncing order records...
         </div>
       ) : filteredOrders.length === 0 ? (
-        <div className="bg-white border border-slate-200 rounded-3xl p-12 text-center shadow-sm">
+        <div className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-3xl p-8 sm:p-12 text-center shadow-xs">
           <ClipboardList className="w-8 h-8 text-slate-300 mx-auto mb-2" />
           <p className="text-sm font-bold text-slate-700">No Orders Found</p>
           <p className="text-xs text-slate-400 mt-1">No orders matched the selected filter criteria.</p>
@@ -189,11 +189,11 @@ export const Orders = () => {
             return (
               <div
                 key={order._id}
-                className="bg-white border border-slate-200 rounded-3xl p-5 sm:p-6 shadow-sm hover:border-brand-green-300 transition space-y-4"
+                className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-xs hover:border-brand-green-300 transition space-y-4"
               >
-                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3.5">
                   <div className="space-y-1">
-                    <div className="flex items-center gap-3">
+                    <div className="flex flex-wrap items-center gap-2">
                       <span className="font-mono font-black text-sm text-slate-900">
                         {order.orderNumber}
                       </span>
@@ -201,13 +201,13 @@ export const Orders = () => {
                       {hasScreenshot && (
                         <button
                           onClick={() => setSelectedScreenshot(order.paymentScreenshot)}
-                          className="inline-flex items-center gap-1 text-[10px] font-bold bg-amber-100 text-amber-900 hover:bg-amber-200 px-2.5 py-0.5 rounded-full transition"
+                          className="inline-flex items-center gap-1 text-[10px] font-bold bg-amber-100/90 text-amber-900 hover:bg-amber-200 px-2.5 py-0.5 rounded-full transition"
                         >
                           <ImageIcon className="w-3 h-3" /> View Proof
                         </button>
                       )}
                     </div>
-                    <p className="text-xs text-slate-500 font-medium">
+                    <p className="text-xs text-slate-500 font-medium leading-relaxed">
                       Placed on: {new Date(order.createdAt).toLocaleString()} &bull;{' '}
                       <span className="font-bold text-slate-700">
                         {order.customer?.firstName} {order.customer?.lastName}
@@ -216,7 +216,7 @@ export const Orders = () => {
                     </p>
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-2.5">
+                  <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
                     {/* Confirm Payment Action */}
                     {isAwaitingConfirmation && (
                       <Button
@@ -225,7 +225,7 @@ export const Orders = () => {
                         icon={Check}
                         isLoading={confirmingId === order._id}
                         onClick={() => handleConfirmPayment(order._id)}
-                        className="rounded-xl text-xs bg-emerald-600 hover:bg-emerald-700 shadow-sm"
+                        className="rounded-xl text-xs bg-emerald-600 hover:bg-emerald-700 shadow-xs py-1.5 flex-1 sm:flex-initial justify-center"
                       >
                         Confirm Payment
                       </Button>
@@ -236,7 +236,7 @@ export const Orders = () => {
                       value={order.status}
                       disabled={updatingId === order._id}
                       onChange={(e) => handleStatusChange(order._id, e.target.value)}
-                      className="bg-slate-50 border border-slate-200 text-xs font-bold rounded-xl py-1.5 px-3 focus:ring-2 focus:ring-brand-green-500 outline-none"
+                      className="bg-slate-50 border border-slate-200 text-xs font-bold rounded-xl py-1.5 px-3 focus:ring-2 focus:ring-brand-green-500 outline-none flex-1 sm:flex-initial"
                     >
                       {ORDER_STATUSES.map((s) => (
                         <option key={s} value={s}>
@@ -247,7 +247,7 @@ export const Orders = () => {
 
                     <Link
                       to={customerId ? `/admin/chats?customer=${customerId}` : "/admin/chats"}
-                      className="p-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition"
+                      className="p-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition shrink-0"
                       title="Open Customer Chat"
                     >
                       <MessageSquare className="w-4 h-4" />
@@ -256,7 +256,7 @@ export const Orders = () => {
                     {order.customer?._id && (
                       <Link
                         to={`/admin/customers/${order.customer._id}`}
-                        className="p-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition"
+                        className="p-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition shrink-0"
                         title="View Customer Profile"
                       >
                         <User className="w-4 h-4" />

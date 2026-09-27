@@ -46,6 +46,8 @@ export const CustomerInvoiceDetails = () => {
     status: "Pending",
   });
 
+  const [products, setProducts] = useState([]);
+
   useEffect(() => {
     const fetchInvoice = async () => {
       setLoading(true);
@@ -65,7 +67,49 @@ export const CustomerInvoiceDetails = () => {
     };
 
     fetchInvoice();
+
+    api.get("/api/products")
+      .then((res) => setProducts(unwrapApiList(res) || []))
+      .catch(console.error);
   }, [id]);
+
+  const handleEditProductSelect = (index, selectedId, selectedUnitType = "carton") => {
+    const product = products.find((p) => (p.id || p._id) === selectedId);
+    setEditForm((prev) => {
+      const updated = [...prev.items];
+      if (!product) {
+        updated[index] = {
+          ...updated[index],
+          productId: "",
+          unitType: selectedUnitType,
+        };
+        return { ...prev, items: updated };
+      }
+
+      const ctnPrice = Number(product.cartonPrice || product.wholesalePrice || product.price) || 0;
+      const pcsPrice =
+        Number(product.unitPrice) ||
+        (product.unitsPerCarton ? Math.round(ctnPrice / Number(product.unitsPerCarton)) : Math.round(ctnPrice / 12));
+
+      const isPieces = selectedUnitType === "pieces" || selectedUnitType === "pcs";
+      const unitPrice = isPieces ? pcsPrice : ctnPrice;
+      const unitLabel = isPieces ? "(Pieces)" : "(CTN)";
+      const description = `${product.name} ${unitLabel}`;
+      const qty = Number(updated[index].quantity) || 1;
+
+      updated[index] = {
+        ...updated[index],
+        productId: product.id || product._id,
+        unitType: isPieces ? "pieces" : "carton",
+        description,
+        unitPrice,
+        quantity: qty,
+        total: qty * unitPrice,
+      };
+
+      return { ...prev, items: updated };
+    });
+  };
 
   const handlePrint = () => {
     window.print();
@@ -277,7 +321,7 @@ export const CustomerInvoiceDetails = () => {
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       {/* Top Actions */}
-      <div className="flex items-center justify-between print:hidden">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 print:hidden">
         <Link
           to={isAdminView ? "/admin/invoices" : "/invoices"}
           className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-brand-green-700 transition"
@@ -286,7 +330,7 @@ export const CustomerInvoiceDetails = () => {
           Back to Invoices
         </Link>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {isAdminView && (
             <>
               <Button
@@ -295,17 +339,17 @@ export const CustomerInvoiceDetails = () => {
                 onClick={handleConfirmAndStampInvoice}
                 isLoading={saving}
                 icon={CheckCircle2}
-                className="rounded-xl border-brand-green-200 text-brand-green-800 bg-brand-green-50 hover:bg-brand-green-100"
+                className="rounded-xl border-brand-green-200 text-brand-green-800 bg-brand-green-50 hover:bg-brand-green-100 text-xs py-1.5 px-3"
               >
                 Stamp &amp; Save
               </Button>
-              <Button variant="outline" size="sm" onClick={openEdit} icon={Pencil} className="rounded-xl">
+              <Button variant="outline" size="sm" onClick={openEdit} icon={Pencil} className="rounded-xl text-xs py-1.5 px-3">
                 Edit
               </Button>
-              <Button variant="outline" size="sm" onClick={handleShareToChat} isLoading={sharing} icon={Share2} className="rounded-xl">
+              <Button variant="outline" size="sm" onClick={handleShareToChat} isLoading={sharing} icon={Share2} className="rounded-xl text-xs py-1.5 px-3">
                 Share to Chat
               </Button>
-              <Button variant="danger" size="sm" onClick={handleDeleteInvoice} icon={Trash2} className="rounded-xl">
+              <Button variant="danger" size="sm" onClick={handleDeleteInvoice} icon={Trash2} className="rounded-xl text-xs py-1.5 px-3">
                 Delete
               </Button>
             </>
@@ -315,7 +359,7 @@ export const CustomerInvoiceDetails = () => {
             size="sm"
             onClick={handlePrint}
             icon={Printer}
-            className="rounded-xl"
+            className="rounded-xl text-xs py-1.5 px-3 hidden sm:inline-flex"
           >
             Print
           </Button>
@@ -325,31 +369,31 @@ export const CustomerInvoiceDetails = () => {
             onClick={handleDownload}
             isLoading={downloading}
             icon={Download}
-            className="rounded-xl"
+            className="rounded-xl text-xs py-1.5 px-3"
           >
-            Download Official Invoice
+            Download PDF
           </Button>
         </div>
       </div>
 
       {/* Invoice Document Paper */}
-      <div className="bg-white border border-slate-200 rounded-3xl p-8 sm:p-12 shadow-sm space-y-8 relative overflow-hidden print:border-none print:shadow-none print:p-0">
+      <div className="bg-white border border-slate-200 rounded-3xl p-4 sm:p-8 md:p-12 shadow-sm space-y-6 sm:space-y-8 relative overflow-hidden print:border-none print:shadow-none print:p-0">
         {/* Invoice Watermark Overlay */}
-        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none select-none opacity-[0.09] -rotate-12 z-10">
-          <p className="text-3xl sm:text-5xl font-black text-brand-green-800 tracking-widest uppercase text-center leading-tight whitespace-nowrap">
+        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none select-none opacity-[0.06] -rotate-12 z-10 overflow-hidden">
+          <p className="text-xl sm:text-4xl font-black text-brand-green-800 tracking-widest uppercase text-center leading-tight">
             VINOFF &amp; CO.NIG.LTD
           </p>
-          <p className="text-2xl sm:text-4xl font-black text-brand-green-800 tracking-widest uppercase text-center leading-tight whitespace-nowrap mt-3">
+          <p className="text-lg sm:text-3xl font-black text-brand-green-800 tracking-widest uppercase text-center leading-tight mt-3">
             VINOFF &amp; CO.NIG.LTD
           </p>
         </div>
 
         {/* Document Header */}
-        <div className="flex flex-col sm:flex-row justify-between gap-6 border-b-2 border-brand-green-800 pb-8 relative z-10">
+        <div className="flex flex-col sm:flex-row justify-between gap-4 sm:gap-6 border-b-2 border-brand-green-800 pb-6 sm:pb-8 relative z-10">
           <div>
-            <div className="flex items-center gap-3">
-              <img src="/VinoffLogo.png" alt="Vinoff Logo" className="w-14 h-14 object-contain shrink-0" />
-              <span className="text-xl font-black text-brand-green-950 tracking-tight">
+            <div className="flex items-center gap-2.5 sm:gap-3">
+              <img src="/VinoffLogo.png" alt="Vinoff Logo" className="w-10 h-10 sm:w-14 sm:h-14 object-contain shrink-0" />
+              <span className="text-lg sm:text-xl font-black text-brand-green-950 tracking-tight">
                 VINOFF <span className="text-brand-green-600">WHOLESALE</span>
               </span>
             </div>
@@ -362,10 +406,10 @@ export const CustomerInvoiceDetails = () => {
           </div>
 
           <div className="text-left sm:text-right space-y-1">
-            <h2 className="text-2xl font-black text-slate-900 tracking-tight">
+            <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
               COMMERCIAL INVOICE
             </h2>
-            <p className="font-mono font-bold text-base text-brand-green-800">
+            <p className="font-mono font-bold text-sm sm:text-base text-brand-green-800">
               #{invoice.invoiceNumber}
             </p>
             <div className="pt-1">
@@ -406,7 +450,7 @@ export const CustomerInvoiceDetails = () => {
         </div>
 
         {/* Billed To / Shipping Info */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 bg-slate-50 rounded-2xl p-6 border border-slate-100">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 bg-slate-50 rounded-2xl p-4 sm:p-6 border border-slate-100">
           <div>
             <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider block mb-1">
               Billed To Customer
@@ -446,13 +490,13 @@ export const CustomerInvoiceDetails = () => {
         </div>
 
         {/* Invoice Line Items */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
+        <div className="overflow-x-auto -mx-2 px-2 sm:mx-0 sm:px-0">
+          <table className="w-full text-left text-xs min-w-[500px]">
             <thead>
               <tr className="border-b border-slate-200 text-slate-400 font-black uppercase tracking-wider">
                 <th className="py-3 px-2">Description</th>
-                <th className="py-3 px-4 text-center">Quantity</th>
-                <th className="py-3 px-4 text-right">Unit Price</th>
+                <th className="py-3 px-3 sm:px-4 text-center">Quantity</th>
+                <th className="py-3 px-3 sm:px-4 text-right">Unit Price</th>
                 <th className="py-3 px-2 text-right">Amount</th>
               </tr>
             </thead>
@@ -476,16 +520,16 @@ export const CustomerInvoiceDetails = () => {
 
                 return (
                   <tr key={idx}>
-                    <td className="py-4 px-2">
-                      <p className="font-bold text-slate-900">{formattedDescription}</p>
+                    <td className="py-3.5 px-2">
+                      <p className="font-bold text-slate-900 leading-tight">{formattedDescription}</p>
                     </td>
-                    <td className="py-4 px-4 text-center text-slate-600 font-mono font-bold">
+                    <td className="py-3.5 px-3 sm:px-4 text-center text-slate-600 font-mono font-bold">
                       {item.quantity}
                     </td>
-                    <td className="py-4 px-4 text-right text-slate-600 font-mono font-bold">
+                    <td className="py-3.5 px-3 sm:px-4 text-right text-slate-600 font-mono font-bold">
                       {formatCurrency(unitPrice)}
                     </td>
-                    <td className="py-4 px-2 text-right font-black text-slate-900 font-mono">
+                    <td className="py-3.5 px-2 text-right font-black text-slate-900 font-mono">
                       {formatCurrency(item.total || (item.quantity * unitPrice))}
                     </td>
                   </tr>
@@ -496,7 +540,7 @@ export const CustomerInvoiceDetails = () => {
         </div>
 
         {/* Totals Section */}
-        <div className="flex flex-col sm:flex-row justify-between items-start gap-6 pt-4 border-t border-slate-100">
+        <div className="flex flex-col sm:flex-row justify-between items-start gap-4 sm:gap-6 pt-4 border-t border-slate-100">
           <div className="max-w-xs text-xs text-slate-500 space-y-1">
             <strong className="block text-[10px] uppercase text-slate-400 font-bold mb-1">
               Payment Information
@@ -565,40 +609,114 @@ export const CustomerInvoiceDetails = () => {
                   </button>
                 </div>
                 {editForm.items.map((item, idx) => (
-                  <div key={idx} className="grid grid-cols-12 gap-2">
-                    <input
-                      value={item.description}
-                      onChange={(e) => updateEditItem(idx, "description", e.target.value)}
-                      placeholder="Description"
-                      className="col-span-6 bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-brand-green-500"
-                      required
-                    />
-                    <input
-                      type="number"
-                      min="1"
-                      value={item.quantity}
-                      onChange={(e) => updateEditItem(idx, "quantity", e.target.value)}
-                      className="col-span-2 bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-brand-green-500"
-                      required
-                    />
-                    <input
-                      type="number"
-                      min="0"
-                      value={item.unitPrice}
-                      onChange={(e) => updateEditItem(idx, "unitPrice", e.target.value)}
-                      className="col-span-3 bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-brand-green-500"
-                      required
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setEditForm((prev) => ({
-                        ...prev,
-                        items: prev.items.filter((_, itemIndex) => itemIndex !== idx),
-                      }))}
-                      className="col-span-1 flex items-center justify-center text-red-500 hover:bg-red-50 rounded-lg"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                  <div key={idx} className="bg-slate-50 border border-slate-200 rounded-2xl p-3.5 space-y-3">
+                    <div className="flex items-center justify-between border-b border-slate-200/60 pb-2">
+                      <span className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider">
+                        Item #{idx + 1}
+                      </span>
+                      {editForm.items.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => setEditForm((prev) => ({
+                            ...prev,
+                            items: prev.items.filter((_, itemIndex) => itemIndex !== idx),
+                          }))}
+                          className="text-xs font-bold text-red-600 hover:text-red-700 flex items-center gap-1 cursor-pointer"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" /> Remove
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+                      {/* Product Select (Description) */}
+                      <div className="sm:col-span-6 space-y-1">
+                        <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
+                          Select Product *
+                        </label>
+                        <select
+                          value={item.productId || ""}
+                          onChange={(e) => handleEditProductSelect(idx, e.target.value, item.unitType || "carton")}
+                          className="w-full bg-white border border-slate-200 rounded-xl py-2 px-3 text-xs font-bold text-slate-800 focus:ring-2 focus:ring-brand-green-500 outline-none"
+                        >
+                          <option value="">-- Choose Product --</option>
+                          {products.map((p) => (
+                            <option key={p.id || p._id} value={p.id || p._id}>
+                              {p.name} ({p.category})
+                            </option>
+                          ))}
+                        </select>
+                        {(!item.productId) && (
+                          <input
+                            type="text"
+                            placeholder="Description..."
+                            value={item.description}
+                            onChange={(e) => updateEditItem(idx, "description", e.target.value)}
+                            className="w-full bg-white border border-slate-200 rounded-xl py-1.5 px-3 text-xs font-semibold mt-1 outline-none"
+                            required
+                          />
+                        )}
+                      </div>
+
+                      {/* Packaging Unit (Carton vs Pieces) */}
+                      <div className="sm:col-span-3 space-y-1">
+                        <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
+                          Unit Type *
+                        </label>
+                        <select
+                          value={item.unitType || "carton"}
+                          onChange={(e) => {
+                            const newUnit = e.target.value;
+                            if (item.productId) {
+                              handleEditProductSelect(idx, item.productId, newUnit);
+                            } else {
+                              updateEditItem(idx, "unitType", newUnit);
+                            }
+                          }}
+                          className="w-full bg-white border border-slate-200 rounded-xl py-2 px-3 text-xs font-bold text-slate-800 focus:ring-2 focus:ring-brand-green-500 outline-none"
+                        >
+                          <option value="carton">Carton (CTN)</option>
+                          <option value="pieces">Pieces (Pcs)</option>
+                        </select>
+                      </div>
+
+                      {/* Quantity */}
+                      <div className="sm:col-span-3 space-y-1">
+                        <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
+                          Quantity *
+                        </label>
+                        <input
+                          type="number"
+                          min="1"
+                          value={item.quantity}
+                          onChange={(e) => updateEditItem(idx, "quantity", e.target.value)}
+                          className="w-full bg-white border border-slate-200 rounded-xl py-2 px-3 text-xs font-bold text-slate-800 focus:ring-2 focus:ring-brand-green-500 outline-none"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    {/* Auto Price & Subtotal */}
+                    <div className="flex items-center justify-between pt-1 border-t border-slate-200/60 text-xs">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] font-extrabold text-slate-400 uppercase">Unit Price:</span>
+                        <input
+                          type="number"
+                          min="0"
+                          value={item.unitPrice}
+                          onChange={(e) => updateEditItem(idx, "unitPrice", e.target.value)}
+                          className="w-24 bg-white border border-slate-200 rounded-lg py-1 px-2 text-xs font-bold text-slate-800 text-right outline-none focus:ring-1 focus:ring-brand-green-500"
+                        />
+                        <span className="text-[10px] text-slate-400 font-medium hidden sm:inline">(Auto-filled)</span>
+                      </div>
+
+                      <div className="text-right">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase mr-1">Total:</span>
+                        <span className="font-mono font-black text-brand-green-950 text-sm">
+                          {formatCurrency((Number(item.quantity) || 1) * (Number(item.unitPrice) || 0))}
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 ))}
               </div>

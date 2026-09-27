@@ -163,17 +163,17 @@ export const ExpenseTracker = () => {
   const incomeList = lineItems.filter((i) => i.type === "income");
 
   return (
-    <div className="space-y-6 max-w-6xl mx-auto pb-12">
+    <div className="space-y-5 sm:space-y-6 max-w-6xl mx-auto pb-12 px-1 sm:px-0">
       {/* Header Banner */}
-      <div className="bg-slate-900 text-white border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-md">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-brand-green-600/30 border border-brand-green-500/40 text-brand-green-400 rounded-2xl flex items-center justify-center shrink-0">
-              <Wallet className="w-6 h-6" />
+      <div className="bg-slate-900 text-white border border-slate-800 rounded-2xl sm:rounded-3xl p-5 sm:p-8 shadow-md">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+          <div className="flex items-start sm:items-center gap-3.5 sm:gap-4">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-brand-green-600/30 border border-brand-green-500/40 text-brand-green-400 rounded-2xl flex items-center justify-center shrink-0 shadow-xs">
+              <Wallet className="w-5 h-5 sm:w-6 sm:h-6" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-xl sm:text-2xl font-black tracking-tight text-white">
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="text-lg sm:text-2xl font-black tracking-tight text-white">
                   Daily Expense Tracker & Ledger
                 </h1>
                 <span
@@ -196,18 +196,18 @@ export const ExpenseTracker = () => {
                   )}
                 </span>
               </div>
-              <p className="text-xs text-slate-400 mt-1">
+              <p className="text-xs text-slate-400 mt-1 leading-relaxed">
                 Log daily business expenses, opening cash balance, income entries, and approve final closing ledger.
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="grid grid-cols-2 w-full sm:w-auto gap-2 shrink-0">
             <button
               onClick={() => {
                 setActiveView("today");
               }}
-              className={`px-4 py-2 text-xs font-bold rounded-xl transition ${
+              className={`px-4 py-2.5 text-xs font-bold rounded-xl transition text-center ${
                 activeView === "today"
                   ? "bg-brand-green-600 text-white shadow-sm"
                   : "bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700"
@@ -220,13 +220,13 @@ export const ExpenseTracker = () => {
                 setActiveView("history");
                 fetchHistory();
               }}
-              className={`px-4 py-2 text-xs font-bold rounded-xl transition flex items-center gap-1.5 ${
+              className={`px-4 py-2.5 text-xs font-bold rounded-xl transition flex items-center justify-center gap-1.5 ${
                 activeView === "history"
                   ? "bg-brand-green-600 text-white shadow-sm"
                   : "bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700"
               }`}
             >
-              <History className="w-4 h-4" /> Past Ledgers
+              <History className="w-3.5 h-3.5" /> Past Ledgers
             </button>
           </div>
         </div>
@@ -235,42 +235,42 @@ export const ExpenseTracker = () => {
       {activeView === "today" && (
         <>
           {/* Top Metric Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="bg-white border border-slate-200 rounded-3xl p-5 shadow-xs">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            <div className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-3xl p-4 sm:p-5 shadow-xs flex flex-col justify-between">
               <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">
                 Opening Balance
               </span>
-              <p className="text-xl font-black text-slate-900 mt-1">
+              <p className="text-lg sm:text-xl font-black text-slate-900 mt-1 truncate">
                 {formatCurrency(ledger?.openingBalance || 0)}
               </p>
               <span className="text-[10px] text-slate-400 mt-1 block">Carried over or initial balance</span>
             </div>
 
-            <div className="bg-white border border-slate-200 rounded-3xl p-5 shadow-xs">
+            <div className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-3xl p-4 sm:p-5 shadow-xs flex flex-col justify-between">
               <span className="text-[10px] font-extrabold text-emerald-600 uppercase tracking-wider block flex items-center gap-1">
                 <ArrowUpRight className="w-3.5 h-3.5" /> Total Income
               </span>
-              <p className="text-xl font-black text-emerald-700 mt-1">
+              <p className="text-lg sm:text-xl font-black text-emerald-700 mt-1 truncate">
                 +{formatCurrency(ledger?.totalIncome || 0)}
               </p>
               <span className="text-[10px] text-slate-400 mt-1 block">{incomeList.length} entry(ies)</span>
             </div>
 
-            <div className="bg-white border border-slate-200 rounded-3xl p-5 shadow-xs">
+            <div className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-3xl p-4 sm:p-5 shadow-xs flex flex-col justify-between">
               <span className="text-[10px] font-extrabold text-red-600 uppercase tracking-wider block flex items-center gap-1">
                 <ArrowDownRight className="w-3.5 h-3.5" /> Total Expenses
               </span>
-              <p className="text-xl font-black text-red-700 mt-1">
+              <p className="text-lg sm:text-xl font-black text-red-700 mt-1 truncate">
                 -{formatCurrency(ledger?.totalExpenses || 0)}
               </p>
               <span className="text-[10px] text-slate-400 mt-1 block">{expensesList.length} entry(ies)</span>
             </div>
 
-            <div className="bg-gradient-to-br from-brand-green-950 to-slate-900 text-white border border-brand-green-900 rounded-3xl p-5 shadow-sm">
+            <div className="col-span-2 lg:col-span-1 bg-gradient-to-br from-brand-green-950 to-slate-900 text-white border border-brand-green-900 rounded-2xl sm:rounded-3xl p-4 sm:p-5 shadow-sm flex flex-col justify-between">
               <span className="text-[10px] font-extrabold text-brand-yellow-400 uppercase tracking-wider block">
                 Net Closing Balance
               </span>
-              <p className="text-2xl font-black text-white mt-1">
+              <p className="text-xl sm:text-2xl font-black text-white mt-1 truncate">
                 {formatCurrency(ledger?.closingBalance || 0)}
               </p>
               <span className="text-[10px] text-slate-400 mt-1 block">Opening + Income - Expenses</span>
@@ -279,39 +279,39 @@ export const ExpenseTracker = () => {
 
           {/* Admin Stamp & Lock Banner if Closed */}
           {isClosed ? (
-            <div className="bg-emerald-50 border-2 border-emerald-300/80 rounded-3xl p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-emerald-600 text-white rounded-2xl flex items-center justify-center shrink-0 shadow-md">
-                  <Stamp className="w-6 h-6" />
+            <div className="bg-emerald-50 border-2 border-emerald-300/80 rounded-2xl sm:rounded-3xl p-4 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-3.5">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-emerald-600 text-white rounded-2xl flex items-center justify-center shrink-0 shadow-md">
+                  <Stamp className="w-5 h-5 sm:w-6 sm:h-6" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-black text-emerald-950 flex items-center gap-2">
+                  <h3 className="text-xs sm:text-sm font-black text-emerald-950 flex items-center gap-2">
                     OFFICIALLY STAMPED & VERIFIED BY ADMIN
                   </h3>
-                  <p className="text-xs text-emerald-800 mt-0.5">
+                  <p className="text-xs text-emerald-800 mt-0.5 leading-relaxed">
                     Stamped by: <strong className="font-extrabold text-emerald-950">{ledger?.stampedByAdmin || "Admin"}</strong> on{" "}
                     {new Date(ledger?.stampedAt || ledger?.updatedAt).toLocaleString()}
                   </p>
                 </div>
               </div>
-              <span className="text-xs font-bold text-emerald-900 bg-white border border-emerald-300 px-4 py-2 rounded-xl shadow-xs">
+              <span className="text-xs font-bold text-emerald-900 bg-white border border-emerald-300 px-3.5 py-2 rounded-xl shadow-2xs w-full sm:w-auto text-center">
                 Ledger Finalized & Locked
               </span>
             </div>
           ) : (
-            <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div>
-                <h3 className="text-sm font-black text-slate-900 flex items-center gap-2">
+                <h3 className="text-xs sm:text-sm font-black text-slate-900 flex items-center gap-2">
                   <Stamp className="w-4 h-4 text-brand-green-600" /> Admin Approval & Stamp
                 </h3>
-                <p className="text-xs text-slate-500 mt-1">
+                <p className="text-xs text-slate-500 mt-1 leading-relaxed">
                   Once all day transactions are logged, click "Stamp & Save Ledger" to record your admin identity ({user?.firstName} {user?.lastName}) and lock today's totals.
                 </p>
               </div>
               <Button
                 onClick={handleCloseAndStamp}
                 isLoading={isClosingDay}
-                className="bg-brand-green-600 hover:bg-brand-green-700 text-white rounded-xl text-xs font-bold px-5 py-2.5 shrink-0 shadow-sm flex items-center gap-2"
+                className="w-full sm:w-auto bg-brand-green-600 hover:bg-brand-green-700 text-white rounded-xl text-xs font-bold px-5 py-2.5 shrink-0 shadow-xs flex items-center justify-center gap-2"
               >
                 <Stamp className="w-4 h-4" /> Stamp & Save Today's Ledger
               </Button>
@@ -320,11 +320,11 @@ export const ExpenseTracker = () => {
 
           {/* Form to Add Entry */}
           {!isClosed && (
-            <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm">
-              <h3 className="text-xs font-black uppercase tracking-wider text-slate-400 mb-4 border-b border-slate-100 pb-2">
+            <div className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-xs">
+              <h3 className="text-xs font-black uppercase tracking-wider text-slate-400 mb-4 border-b border-slate-100 pb-2.5">
                 + Add Daily Entry (Expense or Income)
               </h3>
-              <form onSubmit={handleAddLineItem} className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
+              <form onSubmit={handleAddLineItem} className="grid grid-cols-1 sm:grid-cols-12 gap-3.5 items-end">
                 <div className="sm:col-span-3">
                   <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">
                     Entry Type
@@ -333,9 +333,9 @@ export const ExpenseTracker = () => {
                     <button
                       type="button"
                       onClick={() => setType("expense")}
-                      className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition ${
+                      className={`flex-1 py-2 text-xs font-bold rounded-lg transition ${
                         type === "expense"
-                          ? "bg-red-600 text-white shadow-xs"
+                          ? "bg-red-600 text-white shadow-2xs"
                           : "text-slate-600 hover:text-slate-900"
                       }`}
                     >
@@ -344,9 +344,9 @@ export const ExpenseTracker = () => {
                     <button
                       type="button"
                       onClick={() => setType("income")}
-                      className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition ${
+                      className={`flex-1 py-2 text-xs font-bold rounded-lg transition ${
                         type === "income"
-                          ? "bg-emerald-600 text-white shadow-xs"
+                          ? "bg-emerald-600 text-white shadow-2xs"
                           : "text-slate-600 hover:text-slate-900"
                       }`}
                     >
@@ -363,8 +363,8 @@ export const ExpenseTracker = () => {
                     type="text"
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
-                    placeholder="e.g., Generator Fuel, Logistics & Offloading, Store Repairs..."
-                    className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:bg-white focus:border-brand-green-600 focus:outline-none"
+                    placeholder="e.g., Generator Fuel, Logistics, Repairs..."
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:bg-white focus:border-brand-green-600 focus:outline-none"
                     required
                   />
                 </div>
@@ -379,7 +379,7 @@ export const ExpenseTracker = () => {
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
                     placeholder="5000"
-                    className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:bg-white focus:border-brand-green-600 focus:outline-none"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:bg-white focus:border-brand-green-600 focus:outline-none"
                     required
                   />
                 </div>
@@ -388,7 +388,7 @@ export const ExpenseTracker = () => {
                   <Button
                     type="submit"
                     isLoading={isSubmittingItem}
-                    className="w-full bg-brand-green-600 hover:bg-brand-green-700 text-white rounded-xl text-xs font-bold py-2.5"
+                    className="w-full bg-brand-green-600 hover:bg-brand-green-700 text-white rounded-xl text-xs font-bold py-2.5 justify-center"
                   >
                     <Plus className="w-4 h-4 mr-1 inline" /> Add Entry
                   </Button>
@@ -398,8 +398,8 @@ export const ExpenseTracker = () => {
           )}
 
           {/* Line Items Table */}
-          <div className="bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-sm">
-            <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+          <div className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-3xl overflow-hidden shadow-xs">
+            <div className="p-4 sm:p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-1">
               <h3 className="text-xs font-black uppercase tracking-wider text-slate-800">
                 Today's Transaction Log ({lineItems.length})
               </h3>
@@ -409,7 +409,7 @@ export const ExpenseTracker = () => {
             </div>
 
             {lineItems.length === 0 ? (
-              <div className="p-12 text-center text-xs text-slate-400 italic">
+              <div className="p-8 sm:p-12 text-center text-xs text-slate-400 italic">
                 No expense or income entries added for today yet. Use the form above to add line items.
               </div>
             ) : (
@@ -417,7 +417,7 @@ export const ExpenseTracker = () => {
                 {lineItems.map((item) => (
                   <div
                     key={item._id}
-                    className="p-4 flex items-center justify-between hover:bg-slate-50 transition text-xs"
+                    className="p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50 transition text-xs"
                   >
                     <div className="flex items-center gap-3">
                       <div
@@ -429,8 +429,8 @@ export const ExpenseTracker = () => {
                       >
                         {item.type === "expense" ? "-" : "+"}
                       </div>
-                      <div>
-                        <p className="font-bold text-slate-900">{item.description}</p>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-bold text-slate-900 leading-snug break-words">{item.description}</p>
                         <p className="text-[10px] text-slate-400 mt-0.5">
                           Added by {item.createdBy?.firstName || "Admin"} &bull;{" "}
                           {new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -438,24 +438,27 @@ export const ExpenseTracker = () => {
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-4">
-                      <span
-                        className={`font-mono font-black text-sm ${
-                          item.type === "expense" ? "text-red-600" : "text-emerald-600"
-                        }`}
-                      >
-                        {item.type === "expense" ? "-" : "+"}{formatCurrency(item.amount)}
-                      </span>
-
-                      {!isClosed && (
-                        <button
-                          onClick={() => handleRemoveItem(item._id)}
-                          className="p-1 text-slate-300 hover:text-red-600 rounded-lg transition"
-                          title="Delete entry"
+                    <div className="flex items-center justify-between sm:justify-end gap-4 border-t sm:border-t-0 border-slate-100/60 pt-2 sm:pt-0">
+                      <span className="text-[10px] sm:hidden text-slate-400 font-semibold uppercase">Amount:</span>
+                      <div className="flex items-center gap-3">
+                        <span
+                          className={`font-mono font-black text-sm ${
+                            item.type === "expense" ? "text-red-600" : "text-emerald-600"
+                          }`}
                         >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      )}
+                          {item.type === "expense" ? "-" : "+"}{formatCurrency(item.amount)}
+                        </span>
+
+                        {!isClosed && (
+                          <button
+                            onClick={() => handleRemoveItem(item._id)}
+                            className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition"
+                            title="Delete entry"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -466,7 +469,7 @@ export const ExpenseTracker = () => {
       )}
 
       {activeView === "history" && (
-        <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-4">
+        <div className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-xs space-y-4">
           <h3 className="text-xs font-black uppercase tracking-wider text-slate-800 border-b border-slate-100 pb-3">
             Historical Expense Ledgers
           </h3>
@@ -476,15 +479,15 @@ export const ExpenseTracker = () => {
               Loading past ledgers...
             </div>
           ) : historyLedgers.length === 0 ? (
-            <div className="p-12 text-center text-xs text-slate-400 italic">
+            <div className="p-8 sm:p-12 text-center text-xs text-slate-400 italic">
               No closed historical ledgers found.
             </div>
           ) : (
             <div className="divide-y divide-slate-100">
               {historyLedgers.map((item) => (
-                <div key={item._id} className="py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                <div key={item._id} className="py-3.5 sm:py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
                   <div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <span className="font-black text-slate-900">
                         {new Date(item.date).toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}
                       </span>
@@ -503,9 +506,10 @@ export const ExpenseTracker = () => {
                     </p>
                   </div>
 
-                  <div className="flex items-center gap-4 text-right">
-                    <div>
-                      <p className="text-[10px] text-slate-400 uppercase font-bold">Closing Balance</p>
+                  <div className="flex items-center justify-between sm:justify-end gap-4 border-t sm:border-t-0 border-slate-100/60 pt-2 sm:pt-0">
+                    <span className="text-[10px] sm:hidden text-slate-400 font-semibold uppercase">Closing:</span>
+                    <div className="text-right">
+                      <p className="hidden sm:block text-[10px] text-slate-400 uppercase font-bold">Closing Balance</p>
                       <p className="font-black text-brand-green-800 text-sm">
                         {formatCurrency(item.closingBalance)}
                       </p>

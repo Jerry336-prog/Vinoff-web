@@ -125,9 +125,9 @@ export const OrderDetails = () => {
   }
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6">
+    <div className="max-w-5xl mx-auto space-y-5 sm:space-y-6 px-1 sm:px-0">
       {/* Top Navigation */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
         <Link
           to="/orders"
           className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-brand-green-700 transition"
@@ -138,7 +138,7 @@ export const OrderDetails = () => {
 
         <Link
           to={`/chat?orderId=${order._id}`}
-          className="inline-flex items-center gap-1.5 text-xs font-bold bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-3.5 py-1.5 rounded-xl shadow-sm transition"
+          className="inline-flex items-center justify-center gap-1.5 text-xs font-bold bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-3.5 py-2 rounded-xl shadow-xs transition"
         >
           <MessageSquare className="w-4 h-4 text-brand-green-600" />
           Message Admin about Order
@@ -146,20 +146,20 @@ export const OrderDetails = () => {
       </div>
 
       {/* Header Banner */}
-      <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-sm">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-6">
+      <div className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-3xl p-4 sm:p-8 shadow-xs">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-5">
           <div>
             <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
               Wholesale Order Details
             </span>
-            <div className="flex items-center gap-3 mt-1">
+            <div className="flex flex-wrap items-center gap-2.5 mt-1">
               <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight font-mono">
                 {order.orderNumber}
               </h1>
               <Badge status={order.status} className="text-xs" />
             </div>
-            <p className="text-xs text-slate-500 mt-1 flex items-center gap-2">
-              <Calendar className="w-3.5 h-3.5" />
+            <p className="text-xs text-slate-500 mt-1 flex items-center gap-1.5">
+              <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
               Placed on {new Date(order.createdAt).toLocaleString(undefined, {
                 dateStyle: "medium",
                 timeStyle: "short",
@@ -167,7 +167,7 @@ export const OrderDetails = () => {
             </p>
           </div>
 
-          <div className="text-left sm:text-right">
+          <div className="text-left sm:text-right border-t sm:border-t-0 border-slate-100/60 pt-3 sm:pt-0">
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
               Total Payable
             </span>
@@ -183,9 +183,9 @@ export const OrderDetails = () => {
 
         {/* Order Lifecycle Stepper */}
         {order.status !== "Cancelled" && (
-          <div className="pt-6">
+          <div className="pt-5">
             <div className="overflow-x-auto pb-2 scrollbar-none">
-              <div className="flex items-center min-w-[650px] justify-between relative">
+              <div className="flex items-center min-w-[620px] justify-between relative">
                 <div className="absolute left-0 top-3.5 h-0.5 w-full bg-slate-100 -z-0" />
                 {STATUS_STEPS.map((step, idx) => {
                   const isCompleted = currentStepIndex >= idx;

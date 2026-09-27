@@ -19,6 +19,7 @@ import {
   Bell,
   Settings,
   Package,
+  ArrowLeft,
 } from "lucide-react";
 
 export const MainLayout = () => {
@@ -38,6 +39,11 @@ export const MainLayout = () => {
       setProfileDrawerOpen(true);
     }
   }, [location.search]);
+
+  // Auto-close mobile menu drawer on route change
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [location.pathname]);
 
   const handleLogout = async () => {
     await logout();
@@ -119,12 +125,6 @@ export const MainLayout = () => {
                     className={`transition-colors ${isActive("/invoices") ? "text-brand-green-700 border-b-2 border-brand-green-600 pb-1" : "text-slate-600 hover:text-brand-green-700"}`}
                   >
                     Invoices
-                  </Link>
-                  <Link
-                    to="/settings"
-                    className={`transition-colors ${isActive("/settings") ? "text-brand-green-700 border-b-2 border-brand-green-600 pb-1" : "text-slate-600 hover:text-brand-green-700"}`}
-                  >
-                    Settings & Info
                   </Link>
                   <Link
                     to="/chat"
@@ -259,45 +259,60 @@ export const MainLayout = () => {
           </div>
         </div>
 
-        {/* Mobile Navigation Dropdown */}
+        {/* Mobile Navigation Dropdown Menu */}
         {mobileMenuOpen && (
-          <div className="md:hidden bg-white border-b border-slate-200 px-4 pt-2 pb-4 space-y-2.5">
+          <div className="md:hidden bg-white border-b border-slate-200 px-4 pt-3 pb-5 space-y-2 shadow-lg animate-fade-in">
             <Link
               to="/"
               onClick={() => setMobileMenuOpen(false)}
-              className={`block px-3 py-2 rounded-lg text-base font-semibold ${isActive("/") ? "bg-brand-green-50 text-brand-green-700" : "text-slate-600 hover:bg-slate-50"}`}
+              className={`block px-3.5 py-2.5 rounded-xl text-sm font-semibold transition ${
+                isActive("/") ? "bg-brand-green-50 text-brand-green-700 font-bold" : "text-slate-700 hover:bg-slate-50"
+              }`}
             >
               Home
             </Link>
             <Link
               to="/shop"
               onClick={() => setMobileMenuOpen(false)}
-              className={`block px-3 py-2 rounded-lg text-base font-semibold ${isActive("/shop") ? "bg-brand-green-50 text-brand-green-700" : "text-slate-600 hover:bg-slate-50"}`}
+              className={`block px-3.5 py-2.5 rounded-xl text-sm font-semibold transition ${
+                isActive("/shop") ? "bg-brand-green-50 text-brand-green-700 font-bold" : "text-slate-700 hover:bg-slate-50"
+              }`}
             >
-              Product Shelf
+              Catalog
             </Link>
             {user && (
               <>
                 <Link
                   to="/orders"
                   onClick={() => setMobileMenuOpen(false)}
-                  className={`block px-3 py-2 rounded-lg text-base font-semibold ${isActive("/orders") ? "bg-brand-green-50 text-brand-green-700" : "text-slate-600 hover:bg-slate-50"}`}
+                  className={`block px-3.5 py-2.5 rounded-xl text-sm font-semibold transition ${
+                    isActive("/orders") ? "bg-brand-green-50 text-brand-green-700 font-bold" : "text-slate-700 hover:bg-slate-50"
+                  }`}
                 >
                   My Orders
                 </Link>
                 <Link
                   to="/invoices"
                   onClick={() => setMobileMenuOpen(false)}
-                  className={`block px-3 py-2 rounded-lg text-base font-semibold ${isActive("/invoices") ? "bg-brand-green-50 text-brand-green-700" : "text-slate-600 hover:bg-slate-50"}`}
+                  className={`block px-3.5 py-2.5 rounded-xl text-sm font-semibold transition ${
+                    isActive("/invoices") ? "bg-brand-green-50 text-brand-green-700 font-bold" : "text-slate-700 hover:bg-slate-50"
+                  }`}
                 >
                   Invoices
                 </Link>
                 <Link
                   to="/notifications"
                   onClick={() => setMobileMenuOpen(false)}
-                  className={`block px-3 py-2 rounded-lg text-base font-semibold ${isActive("/notifications") ? "bg-brand-green-50 text-brand-green-700" : "text-slate-600 hover:bg-slate-50"}`}
+                  className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-semibold transition ${
+                    isActive("/notifications") ? "bg-brand-green-50 text-brand-green-700 font-bold" : "text-slate-700 hover:bg-slate-50"
+                  }`}
                 >
-                  Notifications {unreadNotifications > 0 && `(${unreadNotifications})`}
+                  <span>Notifications</span>
+                  {unreadNotifications > 0 && (
+                    <span className="bg-brand-yellow-400 text-slate-950 text-[10px] font-black px-2 py-0.5 rounded-full">
+                      {unreadNotifications}
+                    </span>
+                  )}
                 </Link>
                 <button
                   type="button"
@@ -305,16 +320,21 @@ export const MainLayout = () => {
                     setMobileMenuOpen(false);
                     setProfileDrawerOpen(true);
                   }}
-                  className="w-full text-left block px-3 py-2 rounded-lg text-base font-semibold text-slate-600 hover:bg-slate-50"
+                  className="w-full text-left block px-3.5 py-2.5 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-50 transition"
                 >
                   Account Profile
                 </button>
                 <Link
                   to="/chat"
                   onClick={() => setMobileMenuOpen(false)}
-                  className={`block px-3 py-2 rounded-lg text-base font-semibold ${isActive("/chat") ? "bg-brand-green-50 text-brand-green-700" : "text-slate-600 hover:bg-slate-50"}`}
+                  className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-semibold transition ${
+                    isActive("/chat") ? "bg-brand-green-50 text-brand-green-700 font-bold" : "text-slate-700 hover:bg-slate-50"
+                  }`}
                 >
-                  Support Chat {hasUnread && "(New messages)"}
+                  <span>Support Chat</span>
+                  {hasUnread && (
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                  )}
                 </Link>
               </>
             )}
@@ -323,13 +343,13 @@ export const MainLayout = () => {
               <Link
                 to="/admin/dashboard"
                 onClick={() => setMobileMenuOpen(false)}
-                className="block px-3 py-2 rounded-lg bg-amber-50 text-amber-800 text-base font-semibold"
+                className="block px-3.5 py-2.5 rounded-xl bg-amber-50 text-amber-800 text-sm font-bold border border-amber-200 mt-2"
               >
                 Admin Console
               </Link>
             )}
 
-            <div className="border-t border-slate-100 pt-3">
+            <div className="border-t border-slate-100 pt-3 mt-2">
               {user ? (
                 <div className="flex items-center justify-between gap-3 px-3 py-2 bg-slate-50 rounded-xl">
                   <div className="flex items-center gap-2.5 min-w-0">
@@ -354,27 +374,27 @@ export const MainLayout = () => {
                       setMobileMenuOpen(false);
                       handleLogout();
                     }}
-                    className="flex items-center gap-1.5 text-red-600 text-sm font-semibold hover:bg-red-50 p-2 rounded-lg"
+                    className="flex items-center gap-1.5 text-red-600 text-xs font-bold hover:bg-red-50 p-2 rounded-xl transition"
                   >
                     <LogOut className="w-4 h-4" />
                     Sign Out
                   </button>
                 </div>
               ) : (
-                <div className="grid grid-cols-2 gap-2 px-3">
+                <div className="grid grid-cols-2 gap-2 pt-1">
                   <Link
                     to="/login"
                     onClick={() => setMobileMenuOpen(false)}
-                    className="text-center text-slate-600 hover:bg-slate-50 border border-slate-200 py-2.5 rounded-lg text-sm font-semibold"
+                    className="text-center text-slate-700 hover:bg-slate-50 border border-slate-200 py-2.5 rounded-xl text-xs font-bold"
                   >
                     Sign In
                   </Link>
                   <Link
                     to="/register"
                     onClick={() => setMobileMenuOpen(false)}
-                    className="text-center bg-brand-green-600 hover:bg-brand-green-700 text-white py-2.5 rounded-lg text-sm font-semibold"
+                    className="text-center bg-brand-green-600 hover:bg-brand-green-700 text-white py-2.5 rounded-xl text-xs font-bold shadow-xs"
                   >
-                    Register
+                    Register Business
                   </Link>
                 </div>
               )}

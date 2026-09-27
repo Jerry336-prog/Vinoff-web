@@ -97,12 +97,12 @@ export const CustomerInvoices = () => {
       </div>
 
       {/* Filter Tabs */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
         {allowedStatuses.map((st) => (
           <button
             key={st}
             onClick={() => setStatusFilter(st)}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all outline-none ${
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all outline-none whitespace-nowrap ${
               statusFilter === st
                 ? "bg-brand-green-600 text-white shadow-sm"
                 : "bg-white hover:bg-slate-100 border border-slate-200 text-slate-600"
@@ -131,7 +131,7 @@ export const CustomerInvoices = () => {
       ) : (
         <div className="bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-sm">
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
+            <table className="w-full text-left text-xs min-w-[650px]">
               <thead>
                 <tr className="text-slate-400 font-extrabold border-b border-slate-100 bg-slate-50/70">
                   <th className="py-4 px-5">Invoice #</th>
