@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../../services/api";
+import { createIdempotencyKey, withIdempotencyKey } from "../../services/idempotency";
 import { formatCurrency } from "../../utils/formatCurrency";
 import Badge from "../../components/ui/Badge";
 import { AuthContext } from "../../context/AuthContext";
@@ -89,7 +90,11 @@ export const Invoices = () => {
   const handleStatusUpdate = async (invoiceId, newStatus) => {
     try {
       const adminName = user?.name || "System Admin";
-      await api.patch(`/api/invoices/${invoiceId}`, { status: newStatus, issuedBy: adminName });
+      await api.patch(
+        `/api/invoices/${invoiceId}`,
+        { status: newStatus, issuedBy: adminName },
+        withIdempotencyKey(createIdempotencyKey(`invoice-status-${invoiceId}-${newStatus}`)),
+      );
       setInvoices((prev) =>
         prev.map((inv) => ((inv._id || inv.id) === invoiceId ? { ...inv, status: newStatus, issuedBy: adminName } : inv))
       );
@@ -205,7 +210,11 @@ export const Invoices = () => {
         issuedBy: adminName,
       };
 
-      const res = await api.post("/api/invoices", payload);
+      const res = await api.post(
+        "/api/invoices",
+        payload,
+        withIdempotencyKey(createIdempotencyKey("create-invoice")),
+      );
       setInvoices((prev) => [unwrapApiRecord(res), ...prev].filter(Boolean));
       setIsCreateOpen(false);
       setCreateForm({

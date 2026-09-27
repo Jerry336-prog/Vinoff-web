@@ -299,7 +299,9 @@ export const SalesOrderHistory = () => {
                       <td className="py-4 px-4 whitespace-nowrap text-slate-500">
                         <div className="flex items-center gap-1.5 font-mono text-[11px]">
                           <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                          {new Date(ord.createdAt || ord.date || Date.now()).toLocaleString()}
+                          {ord.createdAt || ord.date
+                            ? new Date(ord.createdAt || ord.date).toLocaleString()
+                            : 'Date unavailable'}
                         </div>
                       </td>
 

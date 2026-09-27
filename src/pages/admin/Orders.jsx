@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import api from "../../services/api";
+import { createIdempotencyKey, withIdempotencyKey } from "../../services/idempotency";
 import { formatCurrency } from "../../utils/formatCurrency";
 import Badge from "../../components/ui/Badge";
 import {
@@ -78,7 +79,11 @@ export const Orders = () => {
       onConfirm: async () => {
         setConfirmingId(orderId);
         try {
-          const res = await api.post(`/api/orders/${orderId}/confirm-payment`);
+          const res = await api.post(
+            `/api/orders/${orderId}/confirm-payment`,
+            {},
+            withIdempotencyKey(createIdempotencyKey(`confirm-payment-${orderId}`)),
+          );
           const updatedOrder = res.data?.order || res.data;
           setOrders((prev) =>
             prev.map((o) => (o._id === orderId ? { ...o, ...updatedOrder, status: "Payment Confirmed", paymentStatus: "Confirmed" } : o))
@@ -96,7 +101,11 @@ export const Orders = () => {
   const handleStatusChange = async (orderId, newStatus) => {
     setUpdatingId(orderId);
     try {
-      const res = await api.patch(`/api/orders/${orderId}/status`, { status: newStatus });
+      const res = await api.patch(
+        `/api/orders/${orderId}/status`,
+        { status: newStatus },
+        withIdempotencyKey(createIdempotencyKey(`order-status-${orderId}-${newStatus}`)),
+      );
       const updatedOrder = res.data?.order || res.data;
       setOrders((prev) =>
         prev.map((o) => (o._id === orderId ? { ...o, status: newStatus } : o))

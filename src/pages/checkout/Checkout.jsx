@@ -1,8 +1,9 @@
-import React, { useContext, useState, useEffect } from "react";
+import React, { useContext, useState, useEffect, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { CartContext } from "../../context/CartContext";
 import { AuthContext } from "../../context/AuthContext";
 import api from "../../services/api";
+import { createIdempotencyKey, withIdempotencyKey } from "../../services/idempotency";
 import { formatCurrency } from "../../utils/formatCurrency";
 import {
   FileText,
@@ -32,6 +33,8 @@ export const Checkout = () => {
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [orderConfirmed, setOrderConfirmed] = useState(null);
+  const orderSubmissionKeyRef = useRef(null);
+  const paymentSubmissionKeyRef = useRef(null);
 
   useEffect(() => {
     if (user?.profile?.address) {
@@ -71,6 +74,9 @@ export const Checkout = () => {
     setErrorMsg("");
 
     try {
+      // Keep the key when the browser/client retries this checkout request.
+      const orderKey = orderSubmissionKeyRef.current || createIdempotencyKey("order");
+      orderSubmissionKeyRef.current = orderKey;
       // 1. Prepare items payload for Express API with explicit Carton vs Pieces mode
       const items = cartItems.map((item) => ({
         product: item.id || item._id,
@@ -88,7 +94,7 @@ export const Checkout = () => {
       };
 
       // 2. Post order
-      const res = await api.post("/api/orders", payload);
+      const res = await api.post("/api/orders", payload, withIdempotencyKey(orderKey));
       const createdOrder = res.data?.order || res.data;
 
       // 3. If customer attached a payment screenshot, upload it now
@@ -96,9 +102,12 @@ export const Checkout = () => {
         try {
           const formData = new FormData();
           formData.append("screenshot", screenshotFile);
+          const paymentKey = paymentSubmissionKeyRef.current || createIdempotencyKey("payment-proof");
+          paymentSubmissionKeyRef.current = paymentKey;
           const paymentRes = await api.post(
             `/api/orders/${createdOrder._id}/payment`,
-            formData
+            formData,
+            withIdempotencyKey(paymentKey),
           );
           setOrderConfirmed(paymentRes.data?.order || paymentRes.data || createdOrder);
         } catch (payErr) {

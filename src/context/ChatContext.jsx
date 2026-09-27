@@ -7,6 +7,7 @@ import React, {
   useCallback,
 } from "react";
 import api from "../services/api";
+import { createIdempotencyKey, withIdempotencyKey } from "../services/idempotency";
 import { AuthContext } from "./AuthContext";
 import { unwrapApiList, unwrapApiRecord } from "../utils/apiResponse";
 import { getAvatarUrl } from "../utils/avatar";
@@ -439,7 +440,11 @@ export const ChatProvider = ({ children }) => {
         if (orderId) payload.orderId = orderId;
         if (customerId) payload.customerId = customerId;
 
-        const res = await api.post("/api/chats", payload);
+        const res = await api.post(
+          "/api/chats",
+          payload,
+          withIdempotencyKey(createIdempotencyKey(`chat-room-${orderId || customerId || "customer"}`)),
+        );
         const chat = normalizeRoom(unwrapApiRecord(res), isAdmin, currentUserId);
         if (!chat) throw new Error("Chat room could not be created");
         setActiveRoom(chat);
@@ -510,6 +515,7 @@ export const ChatProvider = ({ children }) => {
       }
 
       try {
+        const messageKey = createIdempotencyKey(`chat-message-${roomId}`);
         let res;
         if (isFileUpload) {
           const formData = new FormData();
@@ -518,7 +524,11 @@ export const ChatProvider = ({ children }) => {
             formData.append("text", trimmedText);
           }
           formData.append("attachments", attachment);
-          res = await api.post(`/api/chats/${roomId}/messages`, formData);
+          res = await api.post(
+            `/api/chats/${roomId}/messages`,
+            formData,
+            withIdempotencyKey(messageKey),
+          );
         } else {
           const imageUrl =
             attachment?.image ||
@@ -548,7 +558,11 @@ export const ChatProvider = ({ children }) => {
             ];
           }
 
-          res = await api.post(`/api/chats/${roomId}/messages`, payload);
+          res = await api.post(
+            `/api/chats/${roomId}/messages`,
+            payload,
+            withIdempotencyKey(messageKey),
+          );
         }
 
         const newMsg = normalizeMessage(unwrapApiRecord(res), currentUserId);

@@ -1,5 +1,6 @@
 import { useState, useEffect, useContext } from 'react';
 import api from '../../services/api';
+import { createIdempotencyKey, withIdempotencyKey } from '../../services/idempotency';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { AlertTriangle, ArrowUp, Search } from 'lucide-react';
 import { showModal, showPrompt } from '../../services/ui/modal';
@@ -56,15 +57,17 @@ export const Inventory = () => {
     const newCount = (Number(product[field]) || 0) + parsedAmount;
 
     try {
-      await api.patch(`/api/products/${product.id || product._id}`, {
-        [field]: newCount,
-      });
+      await api.patch(
+        `/api/products/${product.id || product._id}`,
+        { [field]: newCount },
+        withIdempotencyKey(createIdempotencyKey(`restock-${product.id || product._id}-${field}`)),
+      );
 
       // Record explicit restock movement in localStorage for Inventory History
       try {
         const existingRestocks = JSON.parse(localStorage.getItem('vinoff_restock_history') || '[]');
         const newLogItem = {
-          id: `restock-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+          id: createIdempotencyKey('restock-log'),
           timestamp: new Date().toISOString(),
           productName: product.name,
           category: product.category || 'General',

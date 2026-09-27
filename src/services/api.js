@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { createIdempotencyKey } from './idempotency';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
@@ -22,6 +23,13 @@ api.interceptors.request.use(
       delete config.headers['Content-Type'];
     } else {
       config.headers['Content-Type'] = 'application/json';
+    }
+
+    // Every state-changing request carries a replay key. Retried Axios requests
+    // retain this header, letting a compatible API return the original result.
+    const method = String(config.method || 'get').toLowerCase();
+    if (!['get', 'head', 'options'].includes(method) && !config.headers['Idempotency-Key']) {
+      config.headers['Idempotency-Key'] = createIdempotencyKey(method);
     }
     return config;
   },

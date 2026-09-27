@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import api from "../../services/api";
+import { createIdempotencyKey, withIdempotencyKey } from "../../services/idempotency";
 import { formatCurrency } from "../../utils/formatCurrency";
 import Badge from "../../components/ui/Badge";
 import {
@@ -46,6 +47,7 @@ export const OrderDetails = () => {
   const [uploading, setUploading] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState("");
   const [uploadError, setUploadError] = useState("");
+  const paymentUploadKeyRef = useRef(null);
 
   const fetchOrder = async () => {
     setLoading(true);
@@ -67,6 +69,7 @@ export const OrderDetails = () => {
     const file = e.target.files?.[0];
     if (!file) return;
     setScreenshotFile(file);
+    paymentUploadKeyRef.current = createIdempotencyKey("payment-proof");
     setPreviewUrl(URL.createObjectURL(file));
     setUploadError("");
   };
@@ -85,7 +88,9 @@ export const OrderDetails = () => {
       const formData = new FormData();
       formData.append("screenshot", screenshotFile);
 
-      const res = await api.post(`/api/orders/${id}/payment`, formData);
+      const uploadKey = paymentUploadKeyRef.current || createIdempotencyKey("payment-proof");
+      paymentUploadKeyRef.current = uploadKey;
+      const res = await api.post(`/api/orders/${id}/payment`, formData, withIdempotencyKey(uploadKey));
       setOrder(res.data);
       setUploadSuccess("Payment screenshot successfully submitted! Awaiting admin verification.");
       setScreenshotFile(null);

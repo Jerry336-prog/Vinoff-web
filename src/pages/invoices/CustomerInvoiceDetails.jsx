@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useContext } from "react";
 import { useParams, Link, useNavigate, useLocation } from "react-router-dom";
 import api from "../../services/api";
+import { createIdempotencyKey, withIdempotencyKey } from "../../services/idempotency";
 import { formatCurrency } from "../../utils/formatCurrency";
 import Badge from "../../components/ui/Badge";
 import { AuthContext } from "../../context/AuthContext";
@@ -20,7 +21,7 @@ import {
 import Button from "../../components/ui/Button";
 import { downloadInvoicePDF, createInvoicePDFFile } from "../../utils/generatePDF";
 import { useToast } from "../../context/ToastContext";
-import { unwrapApiRecord } from "../../utils/apiResponse";
+import { unwrapApiList, unwrapApiRecord } from "../../utils/apiResponse";
 
 export const CustomerInvoiceDetails = () => {
   const { toast, showModal, showPrompt } = useToast();
@@ -132,10 +133,11 @@ export const CustomerInvoiceDetails = () => {
 
     try {
       setSaving(true);
-      const res = await api.patch(`/api/invoices/${invoice._id || invoice.id}`, {
-        status: "Paid",
-        issuedBy: adminName,
-      });
+      const res = await api.patch(
+        `/api/invoices/${invoice._id || invoice.id}`,
+        { status: "Paid", issuedBy: adminName },
+        withIdempotencyKey(createIdempotencyKey(`invoice-paid-${invoice._id || invoice.id}`)),
+      );
 
       const updatedRecord = unwrapApiRecord(res);
 
@@ -210,7 +212,11 @@ export const CustomerInvoiceDetails = () => {
           total: (Number(item.quantity) || 1) * (Number(item.unitPrice) || 0),
         })),
       };
-      const res = await api.patch(`/api/invoices/${invoice._id || invoice.id}`, payload);
+      const res = await api.patch(
+        `/api/invoices/${invoice._id || invoice.id}`,
+        payload,
+        withIdempotencyKey(createIdempotencyKey(`invoice-edit-${invoice._id || invoice.id}`)),
+      );
       setInvoice(unwrapApiRecord(res) || { ...invoice, ...payload });
       setIsEditOpen(false);
       toast.success("Invoice updated successfully.", "Invoice Saved");
@@ -230,7 +236,11 @@ export const CustomerInvoiceDetails = () => {
     }
     setSharing(true);
     try {
-      const roomRes = await api.post("/api/chats", { customerId });
+      const roomRes = await api.post(
+        "/api/chats",
+        { customerId },
+        withIdempotencyKey(createIdempotencyKey(`invoice-chat-${invoice._id || invoice.id}`)),
+      );
       const room = unwrapApiRecord(roomRes);
       const roomId = room?.roomId || room?._id || room?.id;
       if (!roomId) throw new Error("Chat room was not returned by the server.");
@@ -250,14 +260,22 @@ export const CustomerInvoiceDetails = () => {
         formData.append("text", messageText);
         formData.append("invoiceRef", invoice._id || invoice.id);
         formData.append("attachments", pdfFile);
-        await api.post(`/api/chats/${roomId}/messages`, formData);
+        await api.post(
+          `/api/chats/${roomId}/messages`,
+          formData,
+          withIdempotencyKey(createIdempotencyKey(`invoice-share-${invoice._id || invoice.id}`)),
+        );
       } else {
-        await api.post(`/api/chats/${roomId}/messages`, {
-          text: messageText,
-          content: messageText,
-          invoiceRef: invoice._id || invoice.id,
-          invoiceId: invoice._id || invoice.id,
-        });
+        await api.post(
+          `/api/chats/${roomId}/messages`,
+          {
+            text: messageText,
+            content: messageText,
+            invoiceRef: invoice._id || invoice.id,
+            invoiceId: invoice._id || invoice.id,
+          },
+          withIdempotencyKey(createIdempotencyKey(`invoice-share-${invoice._id || invoice.id}`)),
+        );
       }
 
       toast.success("Invoice shared to customer chat as PDF.", "Shared as PDF");
