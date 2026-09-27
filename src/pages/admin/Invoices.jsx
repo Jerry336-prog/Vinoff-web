@@ -197,6 +197,9 @@ export const Invoices = () => {
       const payload = {
         customer: createForm.customerId,
         items: createForm.items.map((i) => ({
+          product: i.productId || null,
+          isCarton: i.unitType === "carton" || !/(pieces|units)/i.test(i.description),
+          unitType: i.unitType || (/(pieces|units)/i.test(i.description) ? "pieces" : "carton"),
           description: i.description,
           quantity: Number(i.quantity) || 1,
           unitPrice: Number(i.unitPrice) || 0,
