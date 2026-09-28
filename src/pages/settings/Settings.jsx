@@ -28,7 +28,7 @@ import {
 
 export const Settings = () => {
   const { user, isAdmin } = useContext(AuthContext);
-  const toast = useToast();
+  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("announcements");
   const [announcements, setAnnouncements] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -91,14 +91,18 @@ export const Settings = () => {
     }
     setSavingBank(true);
     try {
-      const res = await api.put(
+      await api.put(
         "/api/settings/bank-details",
         bankForm,
         withIdempotencyKey(createIdempotencyKey("update-bank-details"))
       );
       toast.success("Company bank details updated & published live!", "Bank Info Saved");
     } catch (err) {
-      toast.error(err.message || "Failed to update bank account details", "Update Error");
+      const message =
+        err.status === 404
+          ? "The bank-details API route was not found. Add or deploy PUT /api/settings/bank-details on the backend."
+          : err.message || "Failed to update bank account details";
+      toast.error(message, "Update Error");
     } finally {
       setSavingBank(false);
     }
