@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useContext } from "react";
 import api from "../../services/api";
 import { AuthContext } from "../../context/AuthContext";
-import { unwrapApiList } from "../../utils/apiResponse";
+import { useToast } from "../../context/ToastContext";
+import { unwrapApiList, unwrapApiRecord } from "../../utils/apiResponse";
+import { createIdempotencyKey, withIdempotencyKey } from "../../services/idempotency";
 import {
   Settings as SettingsIcon,
   Megaphone,
@@ -18,13 +20,30 @@ import {
   AlertTriangle,
   Mail,
   Phone,
+  Landmark,
+  Lock,
+  Save,
+  CreditCard,
 } from "lucide-react";
 
 export const Settings = () => {
-  const { user } = useContext(AuthContext);
+  const { user, isAdmin } = useContext(AuthContext);
+  const toast = useToast();
   const [activeTab, setActiveTab] = useState("announcements");
   const [announcements, setAnnouncements] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // Company Bank Account State
+  const [bankForm, setBankForm] = useState({
+    bankName: "Guaranty Trust Bank (GTB)",
+    accountName: "Vinoff Wholesales Ltd",
+    accountNumber: "0123456789",
+    instructions: "Please use your Order # or Invoice # as the transfer payment narration.",
+  });
+  const [loadingBank, setLoadingBank] = useState(false);
+  const [savingBank, setSavingBank] = useState(false);
+
+  const isSuperAdmin = user?.role === "superadmin";
 
   useEffect(() => {
     const fetchAnnouncements = async () => {
@@ -41,11 +60,49 @@ export const Settings = () => {
     fetchAnnouncements();
   }, []);
 
-  const storeImages = [
-    { src: "/store_front.jpg", alt: "Walk-in Store Front View 1" },
-    { src: "/store_shelf.jpg", alt: "Walk-in Store Display Shelves" },
-    { src: "/store_warehouse.jpg", alt: "Wholesale Inventory Stock Area" },
-  ];
+  useEffect(() => {
+    const fetchBankDetails = async () => {
+      setLoadingBank(true);
+      try {
+        const res = await api.get("/api/settings/bank-details");
+        const record = unwrapApiRecord(res) || res.data || res;
+        if (record && record.bankName) {
+          setBankForm({
+            bankName: record.bankName || "",
+            accountName: record.accountName || "",
+            accountNumber: record.accountNumber || "",
+            instructions: record.instructions || "",
+          });
+        }
+      } catch (err) {
+        console.error("Failed to load bank details:", err);
+      } finally {
+        setLoadingBank(false);
+      }
+    };
+    fetchBankDetails();
+  }, []);
+
+  const handleSaveBankDetails = async (e) => {
+    e.preventDefault();
+    if (!isSuperAdmin) {
+      toast.warning("Only Super Admin accounts can modify company bank details.", "Access Restricted");
+      return;
+    }
+    setSavingBank(true);
+    try {
+      const res = await api.put(
+        "/api/settings/bank-details",
+        bankForm,
+        withIdempotencyKey(createIdempotencyKey("update-bank-details"))
+      );
+      toast.success("Company bank details updated & published live!", "Bank Info Saved");
+    } catch (err) {
+      toast.error(err.message || "Failed to update bank account details", "Update Error");
+    } finally {
+      setSavingBank(false);
+    }
+  };
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto pb-12">
@@ -60,7 +117,7 @@ export const Settings = () => {
               Settings & Platform Information Hub
             </h1>
             <p className="text-xs text-slate-400 mt-1">
-              Read official announcements, locate our walk-in trade-fair physical store, and view account settings.
+              Configure settlement bank details, read store announcements, and view platform location.
             </p>
           </div>
         </div>
@@ -69,6 +126,9 @@ export const Settings = () => {
         <div className="flex items-center gap-2 border-t border-slate-800 pt-5 mt-6 overflow-x-auto">
           {[
             { id: "announcements", label: `Announcements & News (${announcements.length})`, icon: Megaphone },
+            ...(isAdmin
+              ? [{ id: "bank_details", label: "Bank Account Details", icon: Landmark }]
+              : []),
             { id: "store", label: "Walk-in Store & Location", icon: MapPin },
             { id: "account", label: "Account & Support Info", icon: User },
           ].map((tab) => {
@@ -166,6 +226,147 @@ export const Settings = () => {
         </div>
       )}
 
+      {/* Tab: Bank Account Details (Admins) */}
+      {activeTab === "bank_details" && isAdmin && (
+        <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-sm space-y-6">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
+            <div>
+              <h2 className="text-sm font-black uppercase tracking-wider text-slate-800 flex items-center gap-2">
+                <Landmark className="w-4 h-4 text-brand-green-600" /> Official Company Bank Account & Wire Details
+              </h2>
+              <p className="text-xs text-slate-500 mt-0.5">
+                These payment details are displayed live on the Checkout page, Invoice views, and PDF invoice downloads.
+              </p>
+            </div>
+
+            {/* Permission Badge */}
+            {isSuperAdmin ? (
+              <span className="inline-flex items-center gap-1.5 text-xs font-extrabold text-emerald-800 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-xl shadow-2xs">
+                <Shield className="w-3.5 h-3.5 text-emerald-600" /> Super Admin Access (Full Edit Rights)
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 text-xs font-extrabold text-amber-800 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-xl">
+                <Lock className="w-3.5 h-3.5 text-amber-600" /> View Only (Super Admin Restricted)
+              </span>
+            )}
+          </div>
+
+          {loadingBank ? (
+            <div className="p-8 text-center text-xs text-slate-400 animate-pulse">
+              Loading active bank account settings...
+            </div>
+          ) : (
+            <form onSubmit={handleSaveBankDetails} className="space-y-5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Bank Name */}
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 block">
+                    Bank Name *
+                  </label>
+                  <input
+                    type="text"
+                    value={bankForm.bankName}
+                    onChange={(e) => setBankForm({ ...bankForm, bankName: e.target.value })}
+                    disabled={!isSuperAdmin}
+                    placeholder="e.g. Guaranty Trust Bank (GTB)"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3.5 text-xs font-bold text-slate-800 focus:bg-white focus:ring-2 focus:ring-brand-green-500 outline-none disabled:opacity-60 disabled:cursor-not-allowed"
+                    required
+                  />
+                </div>
+
+                {/* Account Name */}
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 block">
+                    Account Name / Title *
+                  </label>
+                  <input
+                    type="text"
+                    value={bankForm.accountName}
+                    onChange={(e) => setBankForm({ ...bankForm, accountName: e.target.value })}
+                    disabled={!isSuperAdmin}
+                    placeholder="e.g. Vinoff Wholesales Ltd"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3.5 text-xs font-bold text-slate-800 focus:bg-white focus:ring-2 focus:ring-brand-green-500 outline-none disabled:opacity-60 disabled:cursor-not-allowed"
+                    required
+                  />
+                </div>
+
+                {/* Account Number */}
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 block">
+                    Account Number *
+                  </label>
+                  <input
+                    type="text"
+                    value={bankForm.accountNumber}
+                    onChange={(e) => setBankForm({ ...bankForm, accountNumber: e.target.value })}
+                    disabled={!isSuperAdmin}
+                    placeholder="e.g. 0123456789"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3.5 text-xs font-mono font-black text-slate-900 focus:bg-white focus:ring-2 focus:ring-brand-green-500 outline-none disabled:opacity-60 disabled:cursor-not-allowed"
+                    required
+                  />
+                </div>
+
+                {/* Payment Narration / Instructions */}
+                <div className="space-y-1.5 sm:col-span-2">
+                  <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 block">
+                    Payment Narration / Instructions (Shown to customer)
+                  </label>
+                  <textarea
+                    rows="3"
+                    value={bankForm.instructions}
+                    onChange={(e) => setBankForm({ ...bankForm, instructions: e.target.value })}
+                    disabled={!isSuperAdmin}
+                    placeholder="e.g. Please use your Order # or Invoice # as the transfer payment narration."
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3.5 text-xs font-semibold text-slate-700 focus:bg-white focus:ring-2 focus:ring-brand-green-500 outline-none disabled:opacity-60 disabled:cursor-not-allowed resize-none"
+                  />
+                </div>
+              </div>
+
+              {/* Live Preview Box */}
+              <div className="bg-brand-green-50/80 border border-brand-green-200 rounded-2xl p-4 text-xs space-y-2">
+                <span className="text-[10px] font-extrabold uppercase tracking-wider text-brand-green-800 block">
+                  Live Preview (As rendered on Checkout & Invoices)
+                </span>
+                <div className="bg-white rounded-xl p-3 border border-brand-green-100 space-y-1">
+                  <p className="font-extrabold text-brand-green-950 text-sm">{bankForm.bankName || "Bank Name"}</p>
+                  <div className="flex justify-between text-brand-green-900 text-xs">
+                    <span>Account Name:</span>
+                    <strong className="font-semibold">{bankForm.accountName || "Account Name"}</strong>
+                  </div>
+                  <div className="flex justify-between text-brand-green-900 text-xs">
+                    <span>Account Number:</span>
+                    <strong className="font-mono font-black text-brand-green-700">{bankForm.accountNumber || "0000000000"}</strong>
+                  </div>
+                  {bankForm.instructions && (
+                    <p className="text-[11px] text-slate-500 italic pt-1 border-t border-slate-100 mt-1">
+                      Narration: {bankForm.instructions}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Submit Button for Super Admin */}
+              {isSuperAdmin ? (
+                <div className="flex justify-end pt-2">
+                  <button
+                    type="submit"
+                    disabled={savingBank}
+                    className="bg-brand-green-600 hover:bg-brand-green-700 text-white font-bold text-xs py-2.5 px-6 rounded-xl transition flex items-center gap-2 shadow-sm disabled:opacity-50"
+                  >
+                    <Save className="w-4 h-4" />
+                    {savingBank ? "Saving Bank Details..." : "Save Bank Account Details"}
+                  </button>
+                </div>
+              ) : (
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-center text-xs text-slate-500 font-medium italic">
+                  Normal admins can view bank details, but only Super Admins can save changes.
+                </div>
+              )}
+            </form>
+          )}
+        </div>
+      )}
+
       {/* Tab 2: Store Location */}
       {activeTab === "store" && (
         <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-sm space-y-6">
@@ -253,3 +454,4 @@ export const Settings = () => {
 };
 
 export default Settings;
+

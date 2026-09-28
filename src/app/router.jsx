@@ -247,6 +247,10 @@ export const router = createBrowserRouter([
         element: <NotificationsPage />
       },
       {
+        path: 'settings',
+        element: <Settings />
+      },
+      {
         path: 'profile',
         element: <AdminProfile />
       },

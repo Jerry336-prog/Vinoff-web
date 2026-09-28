@@ -29,6 +29,10 @@ const buildInvoiceHTML = ({
   deliveryFee,
   total,
   notes,
+  bankName,
+  accountName,
+  accountNumber,
+  bankInstructions,
 }) => `
   <div style="position: relative; overflow: hidden; background-color: #ffffff;">
     <!-- Overlay Watermark -->
@@ -161,10 +165,15 @@ const buildInvoiceHTML = ({
             Payment Instructions (Bank Transfer)
           </div>
           <div style="font-size: 11px; color: #334155; line-height: 1.6;">
-            <div>Bank: <strong>Guaranty Trust Bank (GTB)</strong></div>
-            <div>Account Name: <strong>Vinoff Wholesales Ltd</strong></div>
-            <div>Account Number: <strong style="font-family: monospace; font-size: 12px; color: #047857;">0123456789</strong></div>
+            <div>Bank: <strong>${bankName || "Guaranty Trust Bank (GTB)"}</strong></div>
+            <div>Account Name: <strong>${accountName || "Vinoff Wholesales Ltd"}</strong></div>
+            <div>Account Number: <strong style="font-family: monospace; font-size: 12px; color: #047857;">${accountNumber || "0123456789"}</strong></div>
           </div>
+          ${
+            bankInstructions
+              ? `<div style="margin-top: 8px; font-size: 11px; color: #64748b; font-style: italic; background-color: #f8fafc; padding: 6px 10px; border-radius: 8px;">${bankInstructions}</div>`
+              : ""
+          }
           ${
             notes
               ? `<div style="margin-top: 8px; font-size: 11px; color: #64748b; font-style: italic; background-color: #f8fafc; padding: 6px 10px; border-radius: 8px;">
@@ -354,7 +363,36 @@ const extractInvoiceParams = (invData) => {
     deliveryFee,
     total,
     notes,
+    bankName: "",
+    accountName: "",
+    accountNumber: "",
+    bankInstructions: "",
   };
+};
+
+/**
+ * Fetches bank details from the API with a short-lived in-memory cache to avoid redundant requests.
+ */
+let _cachedBankDetails = null;
+let _bankDetailsFetchedAt = 0;
+const fetchBankDetails = async () => {
+  const now = Date.now();
+  // Cache for 5 minutes
+  if (_cachedBankDetails && now - _bankDetailsFetchedAt < 5 * 60 * 1000) {
+    return _cachedBankDetails;
+  }
+  try {
+    const res = await api.get("/api/settings/bank-details");
+    const data = res.data?.data || res.data || res;
+    if (data?.bankName) {
+      _cachedBankDetails = data;
+      _bankDetailsFetchedAt = now;
+      return data;
+    }
+  } catch (e) {
+    console.warn("Could not fetch bank details for PDF:", e);
+  }
+  return null;
 };
 
 /**
@@ -384,6 +422,15 @@ export const downloadInvoicePDF = async (invoiceOrId) => {
     }
 
     const params = extractInvoiceParams(invData);
+
+    // Fetch live bank details and merge into params
+    const bankData = await fetchBankDetails();
+    if (bankData) {
+      params.bankName = bankData.bankName || params.bankName;
+      params.accountName = bankData.accountName || params.accountName;
+      params.accountNumber = bankData.accountNumber || params.accountNumber;
+      params.bankInstructions = bankData.instructions || "";
+    }
 
     const container = document.createElement("div");
     container.style.position = "fixed";
@@ -448,6 +495,15 @@ export const createInvoicePDFFile = async (invoiceOrId) => {
   if (!invData) throw new Error("Invoice data unavailable");
 
   const params = extractInvoiceParams(invData);
+
+  // Fetch live bank details and merge into params
+  const bankData = await fetchBankDetails();
+  if (bankData) {
+    params.bankName = bankData.bankName || params.bankName;
+    params.accountName = bankData.accountName || params.accountName;
+    params.accountNumber = bankData.accountNumber || params.accountNumber;
+    params.bankInstructions = bankData.instructions || "";
+  }
 
   const container = document.createElement("div");
   container.style.position = "fixed";

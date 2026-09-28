@@ -36,6 +36,13 @@ export const Checkout = () => {
   const orderSubmissionKeyRef = useRef(null);
   const paymentSubmissionKeyRef = useRef(null);
 
+  const [bankDetails, setBankDetails] = useState({
+    bankName: "Guaranty Trust Bank (GTB)",
+    accountName: "Vinoff Wholesales Ltd",
+    accountNumber: "0123456789",
+    instructions: "",
+  });
+
   useEffect(() => {
     if (user?.profile?.address) {
       const addr = [
@@ -48,6 +55,16 @@ export const Checkout = () => {
       setDeliveryAddress(addr);
     }
   }, [user]);
+
+  // Fetch bank details from admin settings
+  useEffect(() => {
+    api.get("/api/settings/bank-details")
+      .then((res) => {
+        const data = res.data?.data || res.data || res;
+        if (data?.bankName) setBankDetails(data);
+      })
+      .catch(() => {}); // silently fall back to defaults
+  }, []);
 
   // If cart is empty and order is not confirmed, redirect
   useEffect(() => {
@@ -285,15 +302,18 @@ export const Checkout = () => {
             </h3>
 
             <div className="bg-brand-green-50/70 border border-brand-green-100 rounded-2xl p-4 text-xs space-y-1.5">
-              <p className="font-extrabold text-brand-green-950">Guaranty Trust Bank (GTB)</p>
+              <p className="font-extrabold text-brand-green-950">{bankDetails.bankName}</p>
               <div className="flex justify-between text-brand-green-900">
                 <span>Account Name:</span>
-                <strong className="font-mono">Vinoff Wholesales Ltd</strong>
+                <strong className="font-mono">{bankDetails.accountName}</strong>
               </div>
               <div className="flex justify-between text-brand-green-900">
                 <span>Account Number:</span>
-                <strong className="font-mono text-sm font-black">0123456789</strong>
+                <strong className="font-mono text-sm font-black">{bankDetails.accountNumber}</strong>
               </div>
+              {bankDetails.instructions && (
+                <p className="text-brand-green-700 pt-1 italic text-[11px]">{bankDetails.instructions}</p>
+              )}
             </div>
 
             {/* Optional screenshot upload during checkout */}

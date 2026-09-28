@@ -48,6 +48,12 @@ export const CustomerInvoiceDetails = () => {
   });
 
   const [products, setProducts] = useState([]);
+  const [bankDetails, setBankDetails] = useState({
+    bankName: "Guaranty Trust Bank (GTB)",
+    accountName: "Vinoff Wholesales Ltd",
+    accountNumber: "0123456789",
+    instructions: "",
+  });
 
   useEffect(() => {
     const fetchInvoice = async () => {
@@ -68,6 +74,13 @@ export const CustomerInvoiceDetails = () => {
     };
 
     fetchInvoice();
+
+    api.get("/api/settings/bank-details")
+      .then((res) => {
+        const data = res.data?.data || res.data || res;
+        if (data?.bankName) setBankDetails(data);
+      })
+      .catch(() => {});
 
     api.get("/api/products")
       .then((res) => setProducts(unwrapApiList(res) || []))
@@ -563,9 +576,12 @@ export const CustomerInvoiceDetails = () => {
             <strong className="block text-[10px] uppercase text-slate-400 font-bold mb-1">
               Payment Information
             </strong>
-            <p>Account Name: Vinoff Wholesales Ltd</p>
-            <p>Bank: Guaranty Trust Bank (GTB)</p>
-            <p>Account Number: 0123456789</p>
+            <p>Account Name: {bankDetails.accountName}</p>
+            <p>Bank: {bankDetails.bankName}</p>
+            <p>Account Number: {bankDetails.accountNumber}</p>
+            {bankDetails.instructions && (
+              <p className="pt-1 text-slate-600 italic">{bankDetails.instructions}</p>
+            )}
             {invoice.notes && (
               <p className="pt-2 text-slate-600 italic">Notes: {invoice.notes}</p>
             )}
