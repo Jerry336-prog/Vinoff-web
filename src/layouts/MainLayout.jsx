@@ -21,6 +21,7 @@ import {
   Package,
   ArrowLeft,
 } from "lucide-react";
+import { trackPageView } from "../utils/trafficTracker";
 
 export const MainLayout = () => {
   const { user, logout, isAdmin } = useContext(AuthContext);
@@ -44,6 +45,11 @@ export const MainLayout = () => {
   useEffect(() => {
     setMobileMenuOpen(false);
   }, [location.pathname]);
+
+  // Track visitor traffic across public pages
+  useEffect(() => {
+    trackPageView(location.pathname, user);
+  }, [location.pathname, user]);
 
   const handleLogout = async () => {
     await logout();

@@ -151,10 +151,7 @@ export const ProductCard = ({ product }) => {
             </div>
           </div>
         ) : (
-          <div className="pt-1 sm:pt-2 border-t border-slate-100 flex items-center justify-between">
-            <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-              Ordering Mode:
-            </span>
+          <div className="pt-1 flex items-center justify-start">
             <span className={`inline-flex items-center gap-1 text-[9px] sm:text-[10px] font-extrabold px-2 py-0.5 rounded-lg border ${
               allowCarton
                 ? 'bg-brand-green-50 text-brand-green-800 border-brand-green-200'

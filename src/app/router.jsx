@@ -40,6 +40,7 @@ import AdminActivity from '../pages/admin/Activity';
 import AdminProfile from '../pages/admin/AdminProfile';
 import ExpenseTracker from '../pages/admin/ExpenseTracker';
 import AdminAnnouncements from '../pages/admin/AdminAnnouncements';
+import Analytics from '../pages/admin/Analytics';
 
 /**
  * ProtectedGate — requires the user to be signed in.
@@ -217,6 +218,10 @@ export const router = createBrowserRouter([
       {
         path: 'expenses',
         element: <ExpenseTracker />
+      },
+      {
+        path: 'analytics',
+        element: <Analytics />
       },
       {
         path: 'announcements',
