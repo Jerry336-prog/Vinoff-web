@@ -360,7 +360,7 @@ export const ExpenseTracker = () => {
 
             <div className="col-span-2 lg:col-span-1 bg-gradient-to-br from-brand-green-950 to-slate-900 text-white border border-brand-green-900 rounded-2xl sm:rounded-3xl p-4 sm:p-5 shadow-sm flex flex-col justify-between">
               <span className="text-[10px] font-extrabold text-brand-yellow-400 uppercase tracking-wider block">
-                Net Closing Balance
+                Closing Balance
               </span>
               <p className="text-xl sm:text-2xl font-black text-white mt-1 truncate">
                 {formatCurrency(ledger?.closingBalance || 0)}
@@ -747,7 +747,7 @@ export const ExpenseTracker = () => {
                     const closeBal = Number(selectedHistoryLedger.closingBalance ?? (openBal + netVal));
 
                     return (
-                      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
                         <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3">
                           <span className="text-[9px] font-extrabold uppercase text-slate-400 block">
                             Opening Balance
@@ -775,21 +775,7 @@ export const ExpenseTracker = () => {
                           </span>
                         </div>
 
-                        <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3">
-                          <span className="text-[9px] font-extrabold uppercase text-slate-500 block">
-                            Net Movement
-                          </span>
-                          <span
-                            className={`text-xs sm:text-sm font-black mt-1 block ${
-                              netVal >= 0 ? "text-emerald-700" : "text-red-700"
-                            }`}
-                          >
-                            {netVal >= 0 ? "+" : ""}
-                            {formatCurrency(netVal)}
-                          </span>
-                        </div>
-
-                        <div className="bg-brand-green-50 border border-brand-green-200 rounded-2xl p-3 col-span-2 sm:col-span-1">
+                        <div className="bg-brand-green-50 border border-brand-green-200 rounded-2xl p-3">
                           <span className="text-[9px] font-extrabold uppercase text-brand-green-700 block">
                             Closing Balance
                           </span>

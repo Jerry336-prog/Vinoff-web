@@ -665,7 +665,7 @@ export const downloadDailyExpensePDF = async (ledgerOrDate) => {
           </div>
 
           <!-- Summary Balance Cards -->
-          <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 24px;">
+          <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 24px;">
             <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px;">
               <div style="font-size: 9px; font-weight: 800; color: #64748b; text-transform: uppercase;">Opening Balance</div>
               <div style="font-size: 14px; font-weight: 900; color: #0f172a; margin-top: 4px;">₦${openingBalance.toLocaleString()}</div>
@@ -677,12 +677,6 @@ export const downloadDailyExpensePDF = async (ledgerOrDate) => {
             <div style="background-color: #fef2f2; border: 1px solid #fecaca; border-radius: 12px; padding: 10px;">
               <div style="font-size: 9px; font-weight: 800; color: #991b1b; text-transform: uppercase;">Day Outflow (Expense)</div>
               <div style="font-size: 14px; font-weight: 900; color: #b91c1c; margin-top: 4px;">-₦${totalExpense.toLocaleString()}</div>
-            </div>
-            <div style="background-color: #f8fafc; border: 1px solid #cbd5e1; border-radius: 12px; padding: 10px;">
-              <div style="font-size: 9px; font-weight: 800; color: #475569; text-transform: uppercase;">Net Cash Flow</div>
-              <div style="font-size: 14px; font-weight: 900; color: ${netAmount >= 0 ? '#15803d' : '#b91c1c'}; margin-top: 4px;">
-                ${netAmount >= 0 ? '+' : ''}₦${netAmount.toLocaleString()}
-              </div>
             </div>
             <div style="background-color: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 12px; padding: 10px;">
               <div style="font-size: 9px; font-weight: 800; color: #047857; text-transform: uppercase;">Closing Balance</div>

@@ -14,7 +14,7 @@ import {
 export const AdminLayout = () => {
   const { user, logout, isAdmin, loading } = useContext(AuthContext);
   const { rooms } = useContext(ChatContext);
-  const { notifications, unreadCount: unreadNotifs, markAllAsRead } = useContext(NotificationContext);
+  const { notifications, unreadCount: unreadNotifs, markAllAsRead, markAsRead } = useContext(NotificationContext);
   const navigate = useNavigate();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -78,28 +78,75 @@ export const AdminLayout = () => {
     navigate('/login');
   };
 
+  const unreadSystemNotifs = notifications.filter(n => !(n.isRead || n.read));
+  const unreadNotifsCount = unreadSystemNotifs.length;
+  const unreadTotalCount = unreadChatRoomsCount + unreadNotifsCount;
+
+  // Track unread updates per sidebar category
+  const tabCounts = {
+    products: 0,
+    orders: 0,
+    invoices: 0,
+    customers: 0,
+    inventory: 0,
+    announcements: 0,
+    expenses: 0,
+  };
+
+  unreadSystemNotifs.forEach((n) => {
+    const t = (n.type || '').toUpperCase();
+    const title = (n.title || '').toLowerCase();
+    const msg = (n.message || '').toLowerCase();
+
+    if (t.includes('PRODUCT') || title.includes('product') || msg.includes('product')) {
+      tabCounts.products++;
+    } else if (t.includes('ORDER') || Boolean(n.relatedOrder) || title.includes('order')) {
+      tabCounts.orders++;
+    } else if (
+      t.includes('INVOICE') ||
+      t.includes('PAYMENT') ||
+      Boolean(n.relatedInvoice) ||
+      title.includes('invoice') ||
+      title.includes('payment')
+    ) {
+      tabCounts.invoices++;
+    } else if (
+      t.includes('CUSTOMER') ||
+      t.includes('USER') ||
+      title.includes('customer') ||
+      msg.includes('registered')
+    ) {
+      tabCounts.customers++;
+    } else if (
+      t.includes('INVENTORY') ||
+      t.includes('STOCK') ||
+      title.includes('stock') ||
+      title.includes('inventory')
+    ) {
+      tabCounts.inventory++;
+    } else if (t.includes('ANNOUNCEMENT') || title.includes('announcement')) {
+      tabCounts.announcements++;
+    } else if (t.includes('EXPENSE') || title.includes('expense')) {
+      tabCounts.expenses++;
+    }
+  });
+
   const menuItems = [
     { name: 'Dashboard', path: '/admin/dashboard', icon: LayoutGrid },
-    { name: 'Products', path: '/admin/products', icon: ShoppingBag },
-    { name: 'Orders', path: '/admin/orders', icon: ClipboardList },
+    { name: 'Products', path: '/admin/products', icon: ShoppingBag, tabKey: 'products' },
+    { name: 'Orders', path: '/admin/orders', icon: ClipboardList, tabKey: 'orders' },
     { name: 'Chats', path: '/admin/chats', icon: MessageSquare, badge: true },
-    { name: 'Invoices', path: '/admin/invoices', icon: FileSpreadsheet },
-    { name: 'Customers', path: '/admin/customers', icon: Users },
-    { name: 'Inventory', path: '/admin/inventory', icon: Warehouse },
+    { name: 'Invoices', path: '/admin/invoices', icon: FileSpreadsheet, tabKey: 'invoices' },
+    { name: 'Customers', path: '/admin/customers', icon: Users, tabKey: 'customers' },
+    { name: 'Inventory', path: '/admin/inventory', icon: Warehouse, tabKey: 'inventory' },
     { name: 'Inventory History', path: '/admin/inventory-history', icon: History },
-    { name: 'Expense Tracker', path: '/admin/expenses', icon: Wallet },
+    { name: 'Expense Tracker', path: '/admin/expenses', icon: Wallet, tabKey: 'expenses' },
     { name: 'Traffic Analytics', path: '/admin/analytics', icon: BarChart3 },
-    { name: 'Announcements', path: '/admin/announcements', icon: Megaphone },
+    { name: 'Announcements', path: '/admin/announcements', icon: Megaphone, tabKey: 'announcements' },
     { name: 'Notifications', path: '/admin/notifications', icon: Bell, notifBadge: true },
     { name: 'Settings', path: '/admin/settings', icon: Settings },
     { name: 'Profile', path: '/admin/profile', icon: UserCircle2 },
   ];
-
-  const activeRoomsWithUnread = rooms.filter(r => (r.unreadCount || 0) > 0);
-  const unreadChatRoomsCount = activeRoomsWithUnread.reduce((acc, r) => acc + (r.unreadCount || 0), 0);
-  const unreadSystemNotifs = notifications.filter(n => !(n.isRead || n.read));
-  const unreadNotifsCount = unreadSystemNotifs.length;
-  const unreadTotalCount = unreadChatRoomsCount + unreadNotifsCount;
 
   // Show spinner while auth session is loading
   if (loading) {
@@ -130,6 +177,47 @@ export const AdminLayout = () => {
       </div>
     );
   }
+
+  // Auto-clear category notifications when the admin is actively viewing that tab
+  useEffect(() => {
+    if (!user || !unreadSystemNotifs.length) return;
+    const currentPath = location.pathname;
+
+    const notifsToClear = unreadSystemNotifs.filter((n) => {
+      const t = (n.type || '').toUpperCase();
+      const title = (n.title || '').toLowerCase();
+      const msg = (n.message || '').toLowerCase();
+
+      if (currentPath.startsWith('/admin/products') && (t.includes('PRODUCT') || title.includes('product') || msg.includes('product'))) {
+        return true;
+      }
+      if (currentPath.startsWith('/admin/orders') && (t.includes('ORDER') || Boolean(n.relatedOrder) || title.includes('order'))) {
+        return true;
+      }
+      if (currentPath.startsWith('/admin/invoices') && (t.includes('INVOICE') || t.includes('PAYMENT') || Boolean(n.relatedInvoice) || title.includes('invoice') || title.includes('payment'))) {
+        return true;
+      }
+      if (currentPath.startsWith('/admin/customers') && (t.includes('CUSTOMER') || t.includes('USER') || title.includes('customer') || msg.includes('registered'))) {
+        return true;
+      }
+      if (currentPath.startsWith('/admin/inventory') && (t.includes('INVENTORY') || t.includes('STOCK') || title.includes('stock') || title.includes('inventory'))) {
+        return true;
+      }
+      if (currentPath.startsWith('/admin/announcements') && (t.includes('ANNOUNCEMENT') || title.includes('announcement'))) {
+        return true;
+      }
+      if (currentPath.startsWith('/admin/expenses') && (t.includes('EXPENSE') || title.includes('expense'))) {
+        return true;
+      }
+      return false;
+    });
+
+    if (notifsToClear.length > 0) {
+      notifsToClear.forEach((n) => {
+        markAsRead(n._id);
+      });
+    }
+  }, [location.pathname, unreadSystemNotifs, markAsRead, user]);
 
   return (
     <div className="flex h-screen bg-slate-100 overflow-hidden text-slate-800 print:h-auto print:overflow-visible print:bg-white relative">
@@ -234,6 +322,8 @@ export const AdminLayout = () => {
             const isSelected = location.pathname === item.path || location.pathname.startsWith(item.path + '/');
             const isChatBadge = item.badge && unreadChatRoomsCount > 0;
             const isNotifBadge = item.notifBadge && unreadTotalCount > 0;
+            const tabBadgeCount = item.tabKey ? (tabCounts[item.tabKey] || 0) : 0;
+            const isTabBadge = tabBadgeCount > 0;
 
             return (
               <Link
@@ -245,20 +335,25 @@ export const AdminLayout = () => {
                     : 'hover:bg-slate-800/80 hover:text-white text-slate-400 rounded-xl'
                 }`}
               >
-                <div className="flex items-center gap-3.5">
-                  <Icon className={`w-5 h-5 transition-colors ${
+                <div className="flex items-center gap-3.5 min-w-0">
+                  <Icon className={`w-5 h-5 shrink-0 transition-colors ${
                     isSelected ? 'text-white' : 'text-slate-500 group-hover:text-brand-yellow-400'
                   }`} />
-                  <span>{item.name}</span>
+                  <span className="truncate">{item.name}</span>
                 </div>
                 {isChatBadge && (
-                  <span className="bg-brand-yellow-400 text-slate-950 text-[10px] font-bold px-2 py-0.5 rounded-full animate-bounce">
+                  <span className="bg-brand-yellow-400 text-slate-950 text-[10px] font-bold min-w-5 h-5 px-1.5 flex items-center justify-center rounded-full animate-bounce shrink-0 shadow-sm">
                     {unreadChatRoomsCount}
                   </span>
                 )}
                 {isNotifBadge && (
-                  <span className="bg-emerald-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full animate-pulse">
+                  <span className="bg-emerald-500 text-white text-[10px] font-bold min-w-5 h-5 px-1.5 flex items-center justify-center rounded-full animate-pulse shrink-0 shadow-sm">
                     {unreadTotalCount}
+                  </span>
+                )}
+                {isTabBadge && (
+                  <span className="bg-emerald-500 text-white text-[10px] font-bold min-w-5 h-5 px-1.5 flex items-center justify-center rounded-full animate-pulse shrink-0 shadow-sm">
+                    {tabBadgeCount}
                   </span>
                 )}
               </Link>
