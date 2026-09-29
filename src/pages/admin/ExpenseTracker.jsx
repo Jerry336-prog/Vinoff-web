@@ -5,6 +5,7 @@ import Button from "../../components/ui/Button";
 import { useToast } from "../../context/ToastContext";
 import { AuthContext } from "../../context/AuthContext";
 import { unwrapApiRecord, unwrapApiList } from "../../utils/apiResponse";
+import { downloadExpenseEvidencePDF } from "../../utils/generatePDF";
 import {
   Wallet,
   Plus,
@@ -19,6 +20,15 @@ import {
   Lock,
   ChevronRight,
   FileSpreadsheet,
+  Download,
+  FileText,
+  ExternalLink,
+  Image as ImageIcon,
+  UploadCloud,
+  Eye,
+  Paperclip,
+  X,
+  RefreshCw,
 } from "lucide-react";
 
 export const ExpenseTracker = () => {
@@ -31,6 +41,12 @@ export const ExpenseTracker = () => {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [activeView, setActiveView] = useState("today"); // 'today' | 'history'
 
+  // Selected Day Details Modal State
+  const [selectedHistoryLedger, setSelectedHistoryLedger] = useState(null);
+  const [loadingDayDetails, setLoadingDayDetails] = useState(false);
+  const [isDownloadingPDF, setIsDownloadingPDF] = useState(false);
+  const [uploadingEvidence, setUploadingEvidence] = useState(false);
+
   // Form states for line item
   const [description, setDescription] = useState("");
   const [amount, setAmount] = useState("");
@@ -41,6 +57,70 @@ export const ExpenseTracker = () => {
   const [openingBalanceInput, setOpeningBalanceInput] = useState("");
   const [isUpdatingOpening, setIsUpdatingOpening] = useState(false);
   const [isClosingDay, setIsClosingDay] = useState(false);
+
+  const handleOpenDayDetails = async (historyItem) => {
+    setSelectedHistoryLedger(historyItem);
+    setLoadingDayDetails(true);
+    try {
+      const dateStr = historyItem.date ? historyItem.date.split("T")[0] : historyItem.date;
+      const res = await api.get(`/api/admin/expenses/day/${dateStr}`);
+      const dayData = res.data?.ledger || res.data?.data || res.data;
+      if (dayData) {
+        setSelectedHistoryLedger(dayData);
+      }
+    } catch (err) {
+      console.warn("Could not refetch day ledger details, using cached record:", err);
+    } finally {
+      setLoadingDayDetails(false);
+    }
+  };
+
+  const handleDownloadPDF = async (targetLedger) => {
+    if (!targetLedger) return;
+    setIsDownloadingPDF(true);
+    try {
+      await downloadExpenseEvidencePDF(targetLedger);
+    } catch (err) {
+      toast.error(err.message || "Failed to download evidence PDF", "Download Error");
+    } finally {
+      setIsDownloadingPDF(false);
+    }
+  };
+
+  const handleUploadEvidence = async (e, dateStr) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setUploadingEvidence(true);
+    const formData = new FormData();
+    for (let i = 0; i < files.length; i++) {
+      formData.append("evidence", files[i]);
+    }
+
+    try {
+      const targetDate = dateStr ? dateStr.split("T")[0] : "";
+      const endpoint = targetDate
+        ? `/api/admin/expenses/${targetDate}/evidence`
+        : `/api/admin/expenses/evidence`;
+      const res = await api.post(endpoint, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      const updatedLedger = res.data?.ledger || res.data?.data;
+      if (updatedLedger) {
+        if (selectedHistoryLedger) {
+          setSelectedHistoryLedger(updatedLedger);
+        }
+        if (activeView === "today") {
+          setLedger(updatedLedger);
+        }
+      }
+      toast.success("Receipt / evidence file uploaded successfully", "Upload Complete");
+    } catch (err) {
+      toast.error(err.message || "Failed to upload evidence receipt", "Upload Error");
+    } finally {
+      setUploadingEvidence(false);
+    }
+  };
 
   const fetchTodayLedger = async () => {
     setLoading(true);
@@ -202,12 +282,12 @@ export const ExpenseTracker = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 w-full sm:w-auto gap-2 shrink-0">
+          <div className="flex flex-wrap items-center w-full sm:w-auto gap-2 shrink-0">
             <button
               onClick={() => {
                 setActiveView("today");
               }}
-              className={`px-4 py-2.5 text-xs font-bold rounded-xl transition text-center ${
+              className={`px-3.5 py-2.5 text-xs font-bold rounded-xl transition text-center ${
                 activeView === "today"
                   ? "bg-brand-green-600 text-white shadow-sm"
                   : "bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700"
@@ -220,7 +300,7 @@ export const ExpenseTracker = () => {
                 setActiveView("history");
                 fetchHistory();
               }}
-              className={`px-4 py-2.5 text-xs font-bold rounded-xl transition flex items-center justify-center gap-1.5 ${
+              className={`px-3.5 py-2.5 text-xs font-bold rounded-xl transition flex items-center justify-center gap-1.5 ${
                 activeView === "history"
                   ? "bg-brand-green-600 text-white shadow-sm"
                   : "bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700"
@@ -228,6 +308,18 @@ export const ExpenseTracker = () => {
             >
               <History className="w-3.5 h-3.5" /> Past Ledgers
             </button>
+            {activeView === "today" && ledger && (
+              <button
+                type="button"
+                disabled={isDownloadingPDF}
+                onClick={() => handleDownloadPDF(ledger)}
+                className="px-3.5 py-2.5 text-xs font-bold rounded-xl transition flex items-center justify-center gap-1.5 bg-emerald-700 hover:bg-emerald-600 text-white disabled:opacity-50 shadow-sm"
+                title="Download today's daily expense statement as PDF"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>{isDownloadingPDF ? "Downloading..." : "Download Daily PDF"}</span>
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -470,9 +562,23 @@ export const ExpenseTracker = () => {
 
       {activeView === "history" && (
         <div className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-xs space-y-4">
-          <h3 className="text-xs font-black uppercase tracking-wider text-slate-800 border-b border-slate-100 pb-3">
-            Historical Expense Ledgers
-          </h3>
+          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+            <div>
+              <h3 className="text-xs font-black uppercase tracking-wider text-slate-800">
+                Historical Expense Ledgers
+              </h3>
+              <p className="text-[11px] text-slate-400 mt-0.5">
+                Click any day's ledger to inspect tracked line items, view uploaded receipts, and download certified evidence.
+              </p>
+            </div>
+            <button
+              onClick={fetchHistory}
+              className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition"
+              title="Refresh past ledgers"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+            </button>
+          </div>
 
           {historyLoading ? (
             <div className="p-8 text-center text-xs text-slate-400 animate-pulse">
@@ -485,34 +591,70 @@ export const ExpenseTracker = () => {
           ) : (
             <div className="divide-y divide-slate-100">
               {historyLedgers.map((item) => (
-                <div key={item._id} className="py-3.5 sm:py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-                  <div>
+                <div
+                  key={item._id}
+                  onClick={() => handleOpenDayDetails(item)}
+                  className="py-4 px-3 sm:px-4 -mx-3 sm:-mx-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs hover:bg-brand-green-50/40 rounded-2xl transition cursor-pointer group"
+                >
+                  <div className="space-y-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-black text-slate-900">
-                        {new Date(item.date).toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}
+                      <span className="font-black text-slate-900 group-hover:text-brand-green-800 text-sm transition">
+                        {new Date(item.date).toLocaleDateString(undefined, {
+                          weekday: "short",
+                          year: "numeric",
+                          month: "short",
+                          day: "numeric",
+                        })}
                       </span>
                       <span
-                        className={`text-[9px] font-bold px-2 py-0.5 rounded-md ${
+                        className={`text-[9px] font-extrabold px-2.5 py-0.5 rounded-full ${
                           item.status === "closed"
-                            ? "bg-emerald-100 text-emerald-800"
-                            : "bg-amber-100 text-amber-800"
+                            ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
+                            : "bg-amber-100 text-amber-800 border border-amber-200"
                         }`}
                       >
                         {item.status === "closed" ? "Closed & Stamped" : "Open"}
                       </span>
+                      {item.evidence && item.evidence.length > 0 && (
+                        <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200 flex items-center gap-1">
+                          <Paperclip className="w-2.5 h-2.5" />
+                          {item.evidence.length} receipt{item.evidence.length > 1 ? "s" : ""}
+                        </span>
+                      )}
                     </div>
-                    <p className="text-[11px] text-slate-400 mt-1">
-                      Stamped By: <strong className="text-slate-700">{item.stampedByAdmin || "N/A"}</strong> &bull; {item.lineItems?.length || 0} transaction(s)
+                    <p className="text-[11px] text-slate-400">
+                      Stamped By: <strong className="text-slate-700">{item.stampedByAdmin || "System Admin"}</strong> &bull;{" "}
+                      {item.lineItems?.length || 0} transaction{item.lineItems?.length === 1 ? "" : "s"} &bull;{" "}
+                      Opening: <span className="font-mono text-slate-600">{formatCurrency(item.openingBalance || 0)}</span>
                     </p>
                   </div>
 
-                  <div className="flex items-center justify-between sm:justify-end gap-4 border-t sm:border-t-0 border-slate-100/60 pt-2 sm:pt-0">
-                    <span className="text-[10px] sm:hidden text-slate-400 font-semibold uppercase">Closing:</span>
-                    <div className="text-right">
-                      <p className="hidden sm:block text-[10px] text-slate-400 uppercase font-bold">Closing Balance</p>
+                  <div className="flex items-center justify-between sm:justify-end gap-3 border-t sm:border-t-0 border-slate-100/60 pt-2 sm:pt-0">
+                    <div className="text-left sm:text-right">
+                      <p className="text-[10px] text-slate-400 uppercase font-bold">Closing Balance</p>
                       <p className="font-black text-brand-green-800 text-sm">
                         {formatCurrency(item.closingBalance)}
                       </p>
+                    </div>
+
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDownloadPDF(item);
+                        }}
+                        disabled={isDownloadingPDF}
+                        className="px-2.5 py-1.5 bg-brand-green-50 hover:bg-brand-green-100 text-brand-green-800 font-extrabold rounded-xl transition text-[11px] flex items-center gap-1 border border-brand-green-200"
+                        title="Download daily expense statement as PDF"
+                      >
+                        <Download className="w-3 h-3" />
+                        Download PDF
+                      </button>
+
+                      <div className="p-1.5 text-slate-400 group-hover:text-brand-green-700 transition">
+                        <ChevronRight className="w-4 h-4" />
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -521,8 +663,329 @@ export const ExpenseTracker = () => {
           )}
         </div>
       )}
+
+      {/* Day Ledger Details Modal */}
+      {selectedHistoryLedger && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 z-50 overflow-y-auto">
+          <div className="max-w-3xl w-full bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden my-auto animate-scale-up max-h-[92vh] flex flex-col">
+            {/* Modal Header */}
+            <div className="bg-slate-900 text-white p-5 sm:p-6 border-b border-slate-800 flex items-start justify-between gap-4 shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-brand-green-600/30 border border-brand-green-500/40 text-brand-green-400 flex items-center justify-center shrink-0">
+                  <Calendar className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="text-base sm:text-lg font-black text-white">
+                      Daily Expense Ledger
+                    </h3>
+                    <span
+                      className={`text-[9px] font-extrabold px-2.5 py-0.5 rounded-full ${
+                        selectedHistoryLedger.status === "closed"
+                          ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40"
+                          : "bg-amber-500/20 text-amber-300 border border-amber-500/40"
+                      }`}
+                    >
+                      {selectedHistoryLedger.status === "closed" ? "Audited & Closed" : "Open Ledger"}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    {new Date(selectedHistoryLedger.date).toLocaleDateString(undefined, {
+                      weekday: "long",
+                      year: "numeric",
+                      month: "long",
+                      day: "numeric",
+                    })} &bull; Stamped by {selectedHistoryLedger.stampedByAdmin || "Admin"}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleDownloadPDF(selectedHistoryLedger)}
+                  disabled={isDownloadingPDF}
+                  className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl transition text-xs flex items-center gap-1.5 shadow-sm disabled:opacity-50"
+                  title="Download daily expense statement PDF"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">
+                    {isDownloadingPDF ? "Downloading..." : "Download PDF"}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedHistoryLedger(null)}
+                  className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-5 sm:p-6 overflow-y-auto space-y-6 text-xs text-slate-700">
+              {loadingDayDetails ? (
+                <div className="p-10 text-center text-slate-400 animate-pulse">
+                  Refreshing day transactions and attached receipts...
+                </div>
+              ) : (
+                <>
+                  {/* Financial Metrics Cards with Robust Inflow/Outflow Calculation */}
+                  {(() => {
+                    const lItems = Array.isArray(selectedHistoryLedger.lineItems) ? selectedHistoryLedger.lineItems : [];
+                    const calculatedIncome = lItems
+                      .filter((i) => i.type === "income")
+                      .reduce((acc, i) => acc + Number(i.amount || 0), 0);
+                    const calculatedExpenses = lItems
+                      .filter((i) => i.type === "expense")
+                      .reduce((acc, i) => acc + Number(i.amount || 0), 0);
+                    const inflowVal = Number(selectedHistoryLedger.totalIncome ?? calculatedIncome);
+                    const outflowVal = Number(selectedHistoryLedger.totalExpenses ?? selectedHistoryLedger.totalExpense ?? calculatedExpenses);
+                    const openBal = Number(selectedHistoryLedger.openingBalance || 0);
+                    const netVal = Number(selectedHistoryLedger.netAmount ?? (inflowVal - outflowVal));
+                    const closeBal = Number(selectedHistoryLedger.closingBalance ?? (openBal + netVal));
+
+                    return (
+                      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
+                        <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3">
+                          <span className="text-[9px] font-extrabold uppercase text-slate-400 block">
+                            Opening Balance
+                          </span>
+                          <span className="text-xs sm:text-sm font-black text-slate-800 mt-1 block">
+                            {formatCurrency(openBal)}
+                          </span>
+                        </div>
+
+                        <div className="bg-emerald-50/50 border border-emerald-200 rounded-2xl p-3">
+                          <span className="text-[9px] font-extrabold uppercase text-emerald-700 block">
+                            Total Inflow
+                          </span>
+                          <span className="text-xs sm:text-sm font-black text-emerald-800 mt-1 block">
+                            +{formatCurrency(inflowVal)}
+                          </span>
+                        </div>
+
+                        <div className="bg-red-50/50 border border-red-200 rounded-2xl p-3">
+                          <span className="text-[9px] font-extrabold uppercase text-red-700 block">
+                            Total Outflow
+                          </span>
+                          <span className="text-xs sm:text-sm font-black text-red-800 mt-1 block">
+                            -{formatCurrency(outflowVal)}
+                          </span>
+                        </div>
+
+                        <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3">
+                          <span className="text-[9px] font-extrabold uppercase text-slate-500 block">
+                            Net Movement
+                          </span>
+                          <span
+                            className={`text-xs sm:text-sm font-black mt-1 block ${
+                              netVal >= 0 ? "text-emerald-700" : "text-red-700"
+                            }`}
+                          >
+                            {netVal >= 0 ? "+" : ""}
+                            {formatCurrency(netVal)}
+                          </span>
+                        </div>
+
+                        <div className="bg-brand-green-50 border border-brand-green-200 rounded-2xl p-3 col-span-2 sm:col-span-1">
+                          <span className="text-[9px] font-extrabold uppercase text-brand-green-700 block">
+                            Closing Balance
+                          </span>
+                          <span className="text-xs sm:text-sm font-black text-brand-green-950 mt-1 block">
+                            {formatCurrency(closeBal)}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Line Items Breakdown */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                      <h4 className="font-extrabold text-slate-800 uppercase tracking-wider text-[11px]">
+                        Tracked Line Items ({selectedHistoryLedger.lineItems?.length || 0})
+                      </h4>
+                    </div>
+
+                    {(!selectedHistoryLedger.lineItems || selectedHistoryLedger.lineItems.length === 0) ? (
+                      <p className="text-slate-400 italic text-center py-4 bg-slate-50 rounded-2xl">
+                        No individual line items tracked for this day.
+                      </p>
+                    ) : (
+                      <div className="border border-slate-200 rounded-2xl overflow-hidden divide-y divide-slate-100">
+                        {selectedHistoryLedger.lineItems.map((item, idx) => (
+                          <div
+                            key={item._id || idx}
+                            className="p-3 sm:p-3.5 flex items-center justify-between gap-3 hover:bg-slate-50/60 transition"
+                          >
+                            <div className="flex items-center gap-3">
+                              <span
+                                className={`w-7 h-7 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 ${
+                                  item.type === "expense"
+                                    ? "bg-red-100 text-red-700"
+                                    : "bg-emerald-100 text-emerald-700"
+                                }`}
+                              >
+                                {item.type === "expense" ? "-" : "+"}
+                              </span>
+                              <div>
+                                <p className="font-bold text-slate-900">{item.description}</p>
+                                <p className="text-[10px] text-slate-400 mt-0.5">
+                                  {item.category && (
+                                    <span className="font-semibold text-slate-600 mr-1.5">
+                                      [{item.category}]
+                                    </span>
+                                  )}
+                                  Recorded by {item.createdBy?.firstName || "Admin"} &bull;{" "}
+                                  {item.createdAt ? new Date(item.createdAt).toLocaleTimeString([], {
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                  }) : ""}
+                                </p>
+                              </div>
+                            </div>
+
+                            <span
+                              className={`font-mono font-black text-xs sm:text-sm ${
+                                item.type === "expense" ? "text-red-600" : "text-emerald-600"
+                              }`}
+                            >
+                              {item.type === "expense" ? "-" : "+"}
+                              {formatCurrency(item.amount)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Attached Receipts Section */}
+                  <div className="space-y-3 pt-2">
+                    <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                      <div>
+                        <h4 className="font-extrabold text-slate-800 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+                          <Paperclip className="w-3.5 h-3.5 text-brand-green-700" />
+                          Attached Receipts &amp; Documents (
+                          {selectedHistoryLedger.evidence?.length || 0})
+                        </h4>
+                        <p className="text-[10px] text-slate-400 mt-0.5">
+                          Invoices, bank payment receipts, and voucher scans.
+                        </p>
+                      </div>
+
+                      {/* Upload Receipt Input */}
+                      <label className="relative cursor-pointer px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition text-[11px] flex items-center gap-1.5 border border-slate-200">
+                        <UploadCloud className="w-3.5 h-3.5 text-slate-600" />
+                        <span>{uploadingEvidence ? "Uploading..." : "Attach Receipt"}</span>
+                        <input
+                          type="file"
+                          multiple
+                          accept="image/*,.pdf"
+                          onChange={(e) => handleUploadEvidence(e, selectedHistoryLedger.date)}
+                          disabled={uploadingEvidence}
+                          className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                        />
+                      </label>
+                    </div>
+
+                    {(!selectedHistoryLedger.evidence || selectedHistoryLedger.evidence.length === 0) ? (
+                      <div className="p-6 bg-slate-50 border border-dashed border-slate-200 rounded-2xl text-center space-y-1.5">
+                        <FileText className="w-6 h-6 text-slate-400 mx-auto" />
+                        <p className="text-slate-500 font-semibold text-xs">
+                          No receipts attached to this day's record yet.
+                        </p>
+                        <p className="text-[10px] text-slate-400">
+                          Use the "Attach Receipt" button above to upload photo receipts or invoice PDFs.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {selectedHistoryLedger.evidence.map((ev, i) => (
+                          <div
+                            key={ev._id || i}
+                            className="bg-slate-50 border border-slate-200 rounded-2xl p-3 flex items-center gap-3 hover:bg-white transition shadow-2xs"
+                          >
+                            <div className="w-12 h-12 rounded-xl bg-white border border-slate-200 overflow-hidden flex items-center justify-center shrink-0">
+                              {ev.url && (ev.url.endsWith(".pdf") || ev.filename?.endsWith(".pdf")) ? (
+                                <FileText className="w-6 h-6 text-red-500" />
+                              ) : (
+                                <img
+                                  src={ev.url}
+                                  alt={ev.filename || "Receipt"}
+                                  className="w-full h-full object-cover"
+                                />
+                              )}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="font-extrabold text-slate-800 text-xs truncate">
+                                {ev.filename || `Receipt File ${i + 1}`}
+                              </p>
+                              <p className="text-[10px] text-slate-400 mt-0.5">
+                                {ev.uploadedAt ? new Date(ev.uploadedAt).toLocaleDateString() : "Attached"}
+                              </p>
+                              <div className="flex items-center gap-2 mt-1.5">
+                                <a
+                                  href={ev.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-[10px] font-bold text-brand-green-700 hover:underline flex items-center gap-1"
+                                >
+                                  <ExternalLink className="w-2.5 h-2.5" /> View
+                                </a>
+                                <a
+                                  href={ev.url}
+                                  download={ev.filename || `Receipt-${i + 1}`}
+                                  className="text-[10px] font-bold text-slate-500 hover:text-slate-800 flex items-center gap-1"
+                                >
+                                  <Download className="w-2.5 h-2.5" /> Download
+                                </a>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="bg-slate-50 border-t border-slate-200 p-4 sm:p-5 flex flex-wrap items-center justify-between gap-3 shrink-0">
+              <div className="flex items-center gap-2 text-[11px] text-slate-500">
+                <Stamp className="w-4 h-4 text-brand-green-700" />
+                <span>
+                  Official Vinoff Ledger Stamp &bull; {selectedHistoryLedger.stampedByAdmin || "Superadmin"}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <Button
+                  variant="secondary"
+                  onClick={() => setSelectedHistoryLedger(null)}
+                  className="rounded-xl px-4 py-2 text-xs flex-1 sm:flex-initial"
+                >
+                  Close
+                </Button>
+                <Button
+                  variant="primary"
+                  onClick={() => handleDownloadPDF(selectedHistoryLedger)}
+                  disabled={isDownloadingPDF}
+                  className="rounded-xl px-4 py-2 text-xs flex-1 sm:flex-initial flex items-center justify-center gap-1.5"
+                  icon={Download}
+                >
+                  {isDownloadingPDF ? "Generating PDF..." : "Download Daily Statement (PDF)"}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
 export default ExpenseTracker;
+

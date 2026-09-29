@@ -29,6 +29,8 @@ export const useProducts = () => {
           unitsPerCarton: unitsPerCarton > 0 ? unitsPerCarton : 12,
           stock: p.stock ?? p.inventoryCount ?? 0,
           unitStock: p.unitStock ?? 0,
+          allowCarton: p.allowCarton !== false,
+          allowPieces: p.allowPieces !== false,
         };
       });
       setProducts(normalized);
@@ -84,6 +86,43 @@ export const useProducts = () => {
     }
   };
 
+  const bulkUpdateOrderingFormat = async ({ productIds, allowCarton, allowPieces, applyToAll }) => {
+    setError(null);
+    try {
+      const res = await api.patch('/api/products/bulk/ordering-format', {
+        productIds,
+        allowCarton,
+        allowPieces,
+        applyToAll,
+      });
+      await fetchProducts();
+      return res.data;
+    } catch (err) {
+      // If endpoint is not deployed yet on remote server (404), fall back to individual product updates
+      if (err.status === 404 || err.message?.toLowerCase().includes('not found')) {
+        try {
+          const targetIds =
+            applyToAll || !productIds || (Array.isArray(productIds) && productIds.length === 0)
+              ? products.map((p) => p._id || p.id).filter(Boolean)
+              : productIds;
+
+          await Promise.all(
+            targetIds.map((id) =>
+              api.patch(`/api/products/${id}`, { allowCarton, allowPieces })
+            )
+          );
+          await fetchProducts();
+          return { success: true };
+        } catch (fallbackErr) {
+          setError(fallbackErr.message || 'Failed to update ordering format');
+          throw fallbackErr;
+        }
+      }
+      setError(err.message || 'Failed to update ordering format');
+      throw err;
+    }
+  };
+
   const getCategories = () => {
     const categories = products.map((p) => p.category).filter(Boolean);
     return ['All', ...new Set(categories)];
@@ -97,6 +136,7 @@ export const useProducts = () => {
     refreshProducts: fetchProducts,
     addProduct,
     updateProduct,
+    bulkUpdateOrderingFormat,
     deleteProduct,
     categories: getCategories(),
   };

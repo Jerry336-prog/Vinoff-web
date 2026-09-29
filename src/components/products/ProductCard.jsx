@@ -13,8 +13,22 @@ export const ProductCard = ({ product }) => {
   const { showModal } = useToast();
   const navigate = useNavigate();
 
-  const [isCarton, setIsCarton] = useState(true); // true = Carton mode, false = Loose Piece / Unit mode
+  const allowCarton = product.allowCarton !== false;
+  const allowPieces = product.allowPieces !== false;
+
+  const [isCarton, setIsCarton] = useState(() => {
+    if (!allowCarton && allowPieces) return false;
+    return true;
+  });
   const [quantity, setQuantity] = useState(1);
+
+  useEffect(() => {
+    if (!allowCarton && allowPieces) {
+      setIsCarton(false);
+    } else if (allowCarton && !allowPieces) {
+      setIsCarton(true);
+    }
+  }, [allowCarton, allowPieces]);
 
   const price = isCarton ? product.cartonPrice : product.unitPrice;
   const currentStock = isCarton ? (product.stock ?? product.cartonStock ?? 0) : (product.unitStock ?? product.stock ?? 0);
@@ -99,42 +113,67 @@ export const ProductCard = ({ product }) => {
         </div>
 
         {/* Pricing Mode Toggle: Carton vs Loose Unit / Piece */}
-        <div className="space-y-1.5 sm:space-y-2 pt-1 sm:pt-2 border-t border-slate-100">
-          <div className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center justify-between">
-            <span className="truncate">Format:</span>
-            <span className="text-brand-green-700 font-extrabold truncate">
-              {isCarton ? `1 Ctn = ${product.unitsPerCarton || 12} pcs` : 'Single Piece'}
+        {allowCarton && allowPieces ? (
+          <div className="space-y-1.5 sm:space-y-2 pt-1 sm:pt-2 border-t border-slate-100">
+            <div className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center justify-between">
+              <span className="truncate">Format:</span>
+              <span className="text-brand-green-700 font-extrabold truncate">
+                {isCarton ? `1 Ctn = ${product.unitsPerCarton || 12} pcs` : 'Single Piece'}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-1 bg-slate-100 p-0.5 sm:p-1 rounded-xl sm:rounded-2xl">
+              <button
+                type="button"
+                onClick={() => setIsCarton(true)}
+                className={`flex items-center justify-center gap-1 py-1.5 sm:py-2 px-1 sm:px-2 rounded-lg sm:rounded-xl text-[10px] sm:text-xs font-black transition-all ${
+                  isCarton
+                    ? 'bg-brand-green-600 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+                }`}
+              >
+                <Package className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                <span>Cartons</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setIsCarton(false)}
+                className={`flex items-center justify-center gap-1 py-1.5 sm:py-2 px-1 sm:px-2 rounded-lg sm:rounded-xl text-[10px] sm:text-xs font-black transition-all ${
+                  !isCarton
+                    ? 'bg-brand-green-600 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+                }`}
+              >
+                <Box className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                <span>Pieces</span>
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="pt-1 sm:pt-2 border-t border-slate-100 flex items-center justify-between">
+            <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+              Ordering Mode:
+            </span>
+            <span className={`inline-flex items-center gap-1 text-[9px] sm:text-[10px] font-extrabold px-2 py-0.5 rounded-lg border ${
+              allowCarton
+                ? 'bg-brand-green-50 text-brand-green-800 border-brand-green-200'
+                : 'bg-amber-50 text-amber-900 border-amber-200'
+            }`}>
+              {allowCarton ? (
+                <>
+                  <Package className="w-3 h-3 text-brand-green-600" />
+                  <span>Cartons Only ({product.unitsPerCarton || 12} pcs)</span>
+                </>
+              ) : (
+                <>
+                  <Box className="w-3 h-3 text-amber-600" />
+                  <span>Pieces Only</span>
+                </>
+              )}
             </span>
           </div>
-
-          <div className="grid grid-cols-2 gap-1 bg-slate-100 p-0.5 sm:p-1 rounded-xl sm:rounded-2xl">
-            <button
-              type="button"
-              onClick={() => setIsCarton(true)}
-              className={`flex items-center justify-center gap-1 py-1.5 sm:py-2 px-1 sm:px-2 rounded-lg sm:rounded-xl text-[10px] sm:text-xs font-black transition-all ${
-                isCarton
-                  ? 'bg-brand-green-600 text-white shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
-              }`}
-            >
-              <Package className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-              <span>Cartons</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setIsCarton(false)}
-              className={`flex items-center justify-center gap-1 py-1.5 sm:py-2 px-1 sm:px-2 rounded-lg sm:rounded-xl text-[10px] sm:text-xs font-black transition-all ${
-                !isCarton
-                  ? 'bg-brand-green-600 text-white shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
-              }`}
-            >
-              <Box className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-              <span>Pieces</span>
-            </button>
-          </div>
-        </div>
+        )}
 
         {/* Dynamic Price Display */}
         <div className="flex items-baseline justify-between pt-0.5 sm:pt-1">

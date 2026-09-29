@@ -29,6 +29,8 @@ export const ProductDetails = () => {
             cartonPrice: p.wholesalePrice || p.price,
             unitPrice: p.price,
             unitsPerCarton: p.minimumQuantity || 1,
+            allowCarton: p.allowCarton !== false,
+            allowPieces: p.allowPieces !== false,
           });
         })
         .catch(console.error);
@@ -36,6 +38,17 @@ export const ProductDetails = () => {
   }, [id, products]);
 
   const product = products.find((p) => p.id === id || p._id === id) || fetchedProduct;
+
+  const allowCarton = product ? product.allowCarton !== false : true;
+  const allowPieces = product ? product.allowPieces !== false : true;
+
+  useEffect(() => {
+    if (allowCarton && !allowPieces) {
+      setIsCarton(true);
+    } else if (!allowCarton && allowPieces) {
+      setIsCarton(false);
+    }
+  }, [allowCarton, allowPieces]);
 
   if (loading && !product) {
     return (
@@ -118,9 +131,9 @@ export const ProductDetails = () => {
             </p>
 
             <div className="grid grid-cols-2 gap-4 border border-slate-200/80 rounded-2xl p-4 bg-slate-50/50">
-              <div>
+              <div className={!allowCarton ? "opacity-40" : ""}>
                 <span className="text-[9px] font-extrabold uppercase text-slate-400 block">
-                  Carton Price
+                  Carton Price {!allowCarton && "(Unavailable)"}
                 </span>
                 <span className="text-lg font-black text-slate-900">
                   {formatCurrency(product.cartonPrice)}
@@ -129,9 +142,9 @@ export const ProductDetails = () => {
                   Pack of {product.unitsPerCarton} units
                 </span>
               </div>
-              <div className="border-l border-slate-200 pl-4">
+              <div className={`border-l border-slate-200 pl-4 ${!allowPieces ? "opacity-40" : ""}`}>
                 <span className="text-[9px] font-extrabold uppercase text-slate-400 block">
-                  Unit Price
+                  Unit Price {!allowPieces && "(Unavailable)"}
                 </span>
                 <span className="text-lg font-black text-slate-900">
                   {formatCurrency(product.unitPrice)}
@@ -149,28 +162,46 @@ export const ProductDetails = () => {
               <span className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider block">
                 Wholesale Purchase Unit:
               </span>
-              <div className="bg-slate-100 border border-slate-200 rounded-xl p-1.5 grid grid-cols-2 text-center text-xs font-bold text-slate-600">
-                <button
-                  onClick={() => setIsCarton(true)}
-                  className={`py-2.5 rounded-lg transition ${
-                    isCarton
-                      ? "bg-brand-green-600 text-white shadow-sm"
-                      : "hover:text-slate-800"
-                  }`}
-                >
-                  Carton Bundle ({product.unitsPerCarton} Pcs)
-                </button>
-                <button
-                  onClick={() => setIsCarton(false)}
-                  className={`py-2.5 rounded-lg transition ${
-                    !isCarton
-                      ? "bg-brand-green-600 text-white shadow-sm"
-                      : "hover:text-slate-800"
-                  }`}
-                >
-                  Single Pieces (Units)
-                </button>
-              </div>
+              {allowCarton && allowPieces ? (
+                <div className="bg-slate-100 border border-slate-200 rounded-xl p-1.5 grid grid-cols-2 text-center text-xs font-bold text-slate-600">
+                  <button
+                    type="button"
+                    onClick={() => setIsCarton(true)}
+                    className={`py-2.5 rounded-lg transition ${
+                      isCarton
+                        ? "bg-brand-green-600 text-white shadow-sm"
+                        : "hover:text-slate-800"
+                    }`}
+                  >
+                    Carton Bundle ({product.unitsPerCarton} Pcs)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsCarton(false)}
+                    className={`py-2.5 rounded-lg transition ${
+                      !isCarton
+                        ? "bg-brand-green-600 text-white shadow-sm"
+                        : "hover:text-slate-800"
+                    }`}
+                  >
+                    Single Pieces (Units)
+                  </button>
+                </div>
+              ) : allowCarton ? (
+                <div className="bg-amber-50 border border-amber-200 text-amber-900 rounded-xl p-3 text-xs font-bold flex items-center justify-between">
+                  <span>Carton Bundle Only ({product.unitsPerCarton} Pcs)</span>
+                  <span className="text-[10px] bg-amber-100 border border-amber-300 px-2.5 py-0.5 rounded-full font-black uppercase tracking-wider">
+                    Cartons Only
+                  </span>
+                </div>
+              ) : (
+                <div className="bg-emerald-50 border border-emerald-200 text-emerald-900 rounded-xl p-3 text-xs font-bold flex items-center justify-between">
+                  <span>Single Pieces (Units) Only</span>
+                  <span className="text-[10px] bg-emerald-100 border border-emerald-300 px-2.5 py-0.5 rounded-full font-black uppercase tracking-wider">
+                    Pieces Only
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Calculations & Carton quantity selector */}

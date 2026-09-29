@@ -576,4 +576,274 @@ export const generateInvoicePDF = async (elementId, filename) => {
   }
 };
 
+/**
+ * Downloads a certified Daily Financial Ledger & Expense Statement PDF
+ * @param {string|object} ledgerOrDate - The day date string (YYYY-MM-DD) or full ledger object
+ */
+export const downloadDailyExpensePDF = async (ledgerOrDate) => {
+  let ledger = null;
+
+  try {
+    if (typeof ledgerOrDate === "string") {
+      const res = await api.get(`/api/admin/expenses/day/${ledgerOrDate}`);
+      ledger = res.data?.ledger || res.data?.data || res.data;
+    } else if (ledgerOrDate && typeof ledgerOrDate === "object") {
+      ledger = ledgerOrDate;
+    }
+
+    if (!ledger) {
+      throw new Error("Expense ledger details could not be retrieved.");
+    }
+
+    const dateStr = ledger.date || new Date().toISOString().split("T")[0];
+    const adminName = ledger.loggedByAdmin?.name || ledger.loggedByAdmin?.email || "System Superadmin";
+    const lineItems = Array.isArray(ledger.lineItems) ? ledger.lineItems : [];
+    const evidenceList = Array.isArray(ledger.evidence) ? ledger.evidence : [];
+
+    const openingBalance = Number(ledger.openingBalance || 0);
+
+    const totalIncome = Number(
+      ledger.totalIncome ?? (
+        lineItems.filter((i) => i.type === "income").reduce((acc, i) => acc + Number(i.amount || 0), 0)
+      )
+    );
+
+    const totalExpense = Number(
+      ledger.totalExpenses ?? ledger.totalExpense ?? (
+        lineItems.filter((i) => i.type === "expense").reduce((acc, i) => acc + Number(i.amount || 0), 0)
+      )
+    );
+
+    const netAmount = Number(ledger.netAmount ?? (totalIncome - totalExpense));
+    const closingBalance = Number(ledger.closingBalance ?? (openingBalance + netAmount));
+
+    const htmlContent = `
+      <div style="position: relative; overflow: hidden; background-color: #ffffff;">
+        <!-- Watermark -->
+        <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column; align-items: center; justify-content: space-around; pointer-events: none; opacity: 0.07; transform: rotate(-22deg); z-index: 10; text-align: center; padding: 80px 0;">
+          <div style="margin: 40px 0; font-size: 42px; font-weight: 900; color: #047857; letter-spacing: 4px; text-transform: uppercase;">VINOFF OFFICIAL AUDIT</div>
+          <div style="margin: 40px 0; font-size: 42px; font-weight: 900; color: #047857; letter-spacing: 4px; text-transform: uppercase;">VINOFF OFFICIAL AUDIT</div>
+          <div style="margin: 40px 0; font-size: 42px; font-weight: 900; color: #047857; letter-spacing: 4px; text-transform: uppercase;">VINOFF OFFICIAL AUDIT</div>
+        </div>
+
+        <div style="position: relative; z-index: 1;">
+          <!-- Header -->
+          <div style="border-bottom: 3px solid #064e3b; padding-bottom: 18px; margin-bottom: 22px; display: flex; justify-content: space-between; align-items: flex-start;">
+            <div>
+              <div style="display: flex; align-items: center; gap: 12px;">
+                <img src="/VinoffLogo.png" alt="Vinoff Logo" style="width: 52px; height: 52px; object-fit: contain;" />
+                <div>
+                  <div style="font-size: 22px; font-weight: 900; color: #064e3b; letter-spacing: -0.5px;">
+                    VINOFF <span style="color: #047857;">&amp; CO. NIG. LTD</span>
+                  </div>
+                  <div style="font-size: 11px; color: #64748b; font-weight: 600;">
+                    Daily Financial Operations &amp; Expense Report
+                  </div>
+                </div>
+              </div>
+              <div style="font-size: 10px; color: #94a3b8; margin-top: 6px;">
+                Generated: ${new Date().toLocaleString()} &bull; Official Daily Statement
+              </div>
+            </div>
+
+            <div style="text-align: right;">
+              <div style="font-size: 18px; font-weight: 900; color: #0f172a; text-transform: uppercase;">
+                DAILY EXPENSE STATEMENT
+              </div>
+              <div style="font-size: 13px; font-weight: 800; color: #047857; margin-top: 2px;">
+                Period: ${dateStr}
+              </div>
+              <div style="margin-top: 6px;">
+                <span style="display: inline-block; padding: 3px 12px; border-radius: 9999px; font-size: 9px; font-weight: 800; text-transform: uppercase; background-color: #ecfdf5; color: #047857; border: 1px solid #a7f3d0;">
+                  AUDITED &amp; CLOSED
+                </span>
+              </div>
+              <div style="font-size: 10px; color: #64748b; margin-top: 4px;">
+                Admin: <strong style="color: #334155;">${adminName}</strong>
+              </div>
+            </div>
+          </div>
+
+          <!-- Summary Balance Cards -->
+          <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 24px;">
+            <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px;">
+              <div style="font-size: 9px; font-weight: 800; color: #64748b; text-transform: uppercase;">Opening Balance</div>
+              <div style="font-size: 14px; font-weight: 900; color: #0f172a; margin-top: 4px;">₦${openingBalance.toLocaleString()}</div>
+            </div>
+            <div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 10px;">
+              <div style="font-size: 9px; font-weight: 800; color: #166534; text-transform: uppercase;">Day Inflow (Income)</div>
+              <div style="font-size: 14px; font-weight: 900; color: #15803d; margin-top: 4px;">+₦${totalIncome.toLocaleString()}</div>
+            </div>
+            <div style="background-color: #fef2f2; border: 1px solid #fecaca; border-radius: 12px; padding: 10px;">
+              <div style="font-size: 9px; font-weight: 800; color: #991b1b; text-transform: uppercase;">Day Outflow (Expense)</div>
+              <div style="font-size: 14px; font-weight: 900; color: #b91c1c; margin-top: 4px;">-₦${totalExpense.toLocaleString()}</div>
+            </div>
+            <div style="background-color: #f8fafc; border: 1px solid #cbd5e1; border-radius: 12px; padding: 10px;">
+              <div style="font-size: 9px; font-weight: 800; color: #475569; text-transform: uppercase;">Net Cash Flow</div>
+              <div style="font-size: 14px; font-weight: 900; color: ${netAmount >= 0 ? '#15803d' : '#b91c1c'}; margin-top: 4px;">
+                ${netAmount >= 0 ? '+' : ''}₦${netAmount.toLocaleString()}
+              </div>
+            </div>
+            <div style="background-color: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 12px; padding: 10px;">
+              <div style="font-size: 9px; font-weight: 800; color: #047857; text-transform: uppercase;">Closing Balance</div>
+              <div style="font-size: 14px; font-weight: 900; color: #064e3b; margin-top: 4px;">₦${closingBalance.toLocaleString()}</div>
+            </div>
+          </div>
+
+          <!-- Line Items Table -->
+          <div style="margin-bottom: 24px;">
+            <div style="font-size: 12px; font-weight: 900; color: #1e293b; text-transform: uppercase; margin-bottom: 8px;">
+              Ledger Transactions &amp; Receipts Breakdown (${lineItems.length} Entries)
+            </div>
+            <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
+              <thead>
+                <tr style="background-color: #f1f5f9; border-bottom: 2px solid #cbd5e1; color: #475569; font-weight: 800;">
+                  <th style="padding: 8px 10px; text-align: left;">Category / Description</th>
+                  <th style="padding: 8px 10px; text-align: center;">Type</th>
+                  <th style="padding: 8px 10px; text-align: center;">Payment Method</th>
+                  <th style="padding: 8px 10px; text-align: right;">Amount (₦)</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${
+                  lineItems.length === 0
+                    ? `<tr><td colspan="4" style="text-align: center; padding: 18px; color: #94a3b8; font-style: italic;">No specific itemized entries recorded for this date.</td></tr>`
+                    : lineItems
+                        .map(
+                          (item, index) => `
+                        <tr style="border-bottom: 1px solid #e2e8f0; background-color: ${index % 2 === 0 ? '#ffffff' : '#f8fafc'};">
+                          <td style="padding: 8px 10px;">
+                            <strong style="color: #0f172a;">${item.category || "General"}</strong>
+                            ${item.description ? `<div style="font-size: 10px; color: #64748b; margin-top: 1px;">${item.description}</div>` : ""}
+                          </td>
+                          <td style="padding: 8px 10px; text-align: center;">
+                            <span style="display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 9px; font-weight: 800; text-transform: uppercase; ${
+                              item.type === 'income'
+                                ? 'background-color: #dcfce7; color: #15803d;'
+                                : 'background-color: #fee2e2; color: #b91c1c;'
+                            }">
+                              ${item.type === 'income' ? 'Income' : 'Expense'}
+                            </span>
+                          </td>
+                          <td style="padding: 8px 10px; text-align: center; color: #475569; font-size: 10px; text-transform: capitalize;">
+                            ${item.paymentMethod || "Transfer / Cash"}
+                          </td>
+                          <td style="padding: 8px 10px; text-align: right; font-weight: 800; color: ${
+                            item.type === 'income' ? '#15803d' : '#b91c1c'
+                          };">
+                            ${item.type === 'income' ? '+' : '-'}₦${Number(item.amount || 0).toLocaleString()}
+                          </td>
+                        </tr>
+                      `
+                        )
+                        .join("")
+                }
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Documented Receipts Section -->
+          <div style="background-color: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 12px; padding: 14px; margin-bottom: 24px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <span style="font-size: 11px; font-weight: 800; color: #1e293b; text-transform: uppercase;">
+                Documented Receipts &amp; Uploaded Files (${evidenceList.length})
+              </span>
+              <span style="font-size: 10px; color: #047857; font-weight: 700;">
+                Verified Cloudinary Secure Archive
+              </span>
+            </div>
+            ${
+              evidenceList.length === 0
+                ? `<div style="font-size: 10px; color: #94a3b8; font-style: italic;">No digital receipt photos or physical voucher scans attached to this daily record.</div>`
+                : `<div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;">
+                    ${evidenceList
+                      .map(
+                        (ev, i) => `
+                      <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 6px 10px; font-size: 10px; display: flex; align-items: center; justify-content: space-between;">
+                        <span style="color: #334155; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 240px;">
+                          #${i + 1} &bull; ${ev.filename || "Receipt Scan " + (i + 1)}
+                        </span>
+                        <span style="color: #047857; font-weight: 800; font-size: 9px; text-transform: uppercase;">Attached</span>
+                      </div>
+                    `
+                      )
+                      .join("")}
+                  </div>`
+            }
+          </div>
+
+          <!-- Official Stamp & Signoff -->
+          <div style="display: flex; justify-content: space-between; align-items: flex-end; border-top: 2px solid #e2e8f0; padding-top: 18px; margin-top: 10px;">
+            <div>
+              <div style="font-size: 10px; color: #64748b; line-height: 1.4;">
+                <strong>Certification Statement:</strong><br />
+                This document certifies the day's financial ledger records as recorded in the Vinoff Enterprise System.<br />
+                All transactions have been verified against source sales receipts, bank credits, and operational logs.
+              </div>
+            </div>
+
+            <div style="text-align: center; border: 2px dashed #047857; border-radius: 12px; padding: 10px 18px; background-color: #f0fdf4;">
+              <div style="font-size: 10px; font-weight: 900; color: #047857; text-transform: uppercase; letter-spacing: 1px;">
+                VINOFF FINANCE DESK
+              </div>
+              <div style="font-size: 9px; color: #166534; margin: 4px 0; font-weight: 700;">
+                AUTHENTICATED STATEMENT
+              </div>
+              <div style="font-size: 8px; color: #64748b;">
+                Date: ${dateStr}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    const container = document.createElement("div");
+    container.style.position = "fixed";
+    container.style.left = "-9999px";
+    container.style.top = "0";
+    container.style.width = "800px";
+    container.style.backgroundColor = "#ffffff";
+    container.style.padding = "44px 50px";
+    container.style.fontFamily = 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    container.style.color = "#0f172a";
+    container.style.boxSizing = "border-box";
+    container.style.zIndex = "-1";
+
+    container.innerHTML = htmlContent;
+    document.body.appendChild(container);
+
+    const canvas = await html2canvas(container, {
+      scale: 2,
+      useCORS: true,
+      backgroundColor: "#ffffff",
+      logging: false,
+    });
+
+    document.body.removeChild(container);
+
+    const pdf = new jsPDF({
+      orientation: "portrait",
+      unit: "mm",
+      format: "a4",
+    });
+
+    appendCanvasToJsPDF(pdf, canvas);
+
+    const filename = `Daily-Expense-Statement-${dateStr}.pdf`;
+    pdf.save(filename);
+
+    toast.success(`Daily expense statement for ${dateStr} downloaded as PDF`, "Statement Downloaded");
+    return true;
+  } catch (err) {
+    console.error("Failed to generate daily expense PDF:", err);
+    toast.error(err.message || "Could not generate PDF", "Download Failed");
+    throw err;
+  }
+};
+
+// Backwards-compatible alias
+export const downloadExpenseEvidencePDF = downloadDailyExpensePDF;
+
 export default downloadInvoicePDF;
+
