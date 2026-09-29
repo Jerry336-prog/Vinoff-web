@@ -49,7 +49,11 @@ export const Dashboard = () => {
   const customerCount = users.filter(u => u.role === 'customer').length || users.length;
   const totalStock = products.reduce((sum, p) => sum + (Number(p.stock) || 0), 0);
   const totalUnitStock = products.reduce((sum, p) => sum + (Number(p.unitStock) || 0), 0);
-  const activeChats = chats.filter(c => c.status !== 'Resolved').length || chats.length;
+  const isChatResolved = (c) => {
+    const s = String(c?.status || "").toLowerCase().trim();
+    return s === "closed" || s === "resolved";
+  };
+  const unresolvedChatsCount = chats.filter(c => !isChatResolved(c)).length;
   const totalProducts = products.length;
   const lowStockAlerts = products.filter(p => (Number(p.stock) || 0) < 100).length;
 
@@ -92,11 +96,11 @@ export const Dashboard = () => {
         />
         <StatCard 
           title="Support Rooms" 
-          value={activeChats} 
+          value={chats.length} 
           icon={MessageSquare} 
-          trend={`${activeChats} unresolved`} 
-          trendLabel="awaiting reply"
-          variant="slate" 
+          trend={`${unresolvedChatsCount} unresolved`} 
+          trendLabel={unresolvedChatsCount === 0 ? "all chats resolved" : "awaiting reply"}
+          variant={unresolvedChatsCount > 0 ? "yellow" : "slate"} 
         />
         <StatCard 
           title="Restock Alerts" 

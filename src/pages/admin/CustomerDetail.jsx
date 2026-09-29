@@ -22,7 +22,6 @@ import {
   ExternalLink,
   Download,
   Shield,
-  Sparkles,
 } from "lucide-react";
 import Button from "../../components/ui/Button";
 import Avatar from "../../components/ui/Avatar";
@@ -196,8 +195,8 @@ export const CustomerDetail = () => {
                   {customer.firstName} {customer.lastName}
                 </h1>
                 {hasProfileUpdate && (
-                  <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-emerald-100/80 text-emerald-900 px-2.5 py-0.5 rounded-full border border-emerald-200/50">
-                    <Sparkles className="w-3 h-3 text-emerald-600" /> Profile Updated
+                  <span className="inline-flex items-center text-[10px] font-bold bg-emerald-100/80 text-emerald-900 px-2.5 py-0.5 rounded-full border border-emerald-200/50">
+                    Profile Updated
                   </span>
                 )}
                 <span

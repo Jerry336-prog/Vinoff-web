@@ -218,27 +218,13 @@ export const Chats = () => {
         {/* Center Panel: Active Chat Window (Dominant Space) */}
         <div className={`flex-1 h-full flex-col min-w-0 ${!activeRoom ? 'hidden md:flex' : 'flex'}`}>
           {activeRoom ? (
-            <>
-              <div className="md:hidden px-4 py-2.5 bg-slate-900 text-white flex items-center justify-between border-b border-slate-800 shrink-0">
-                <button
-                  onClick={() => selectRoom(null)}
-                  className="flex items-center gap-1.5 text-xs font-bold text-brand-yellow-400 bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-xl border border-slate-700 transition cursor-pointer"
-                >
-                  <ArrowLeft className="w-4 h-4" />
-                  <span>Back to Chats</span>
-                </button>
-                <span className="text-xs font-bold truncate max-w-[160px] text-slate-200">
-                  {activeRoom.customerName || "Customer Chat"}
-                </span>
-              </div>
-              <ChatWindow
-                room={activeRoom}
-                onSendMessage={sendMessage}
-                onUpdateStatus={updateRoomStatus}
-                isAdmin={true}
-                onBack={() => selectRoom(null)}
-              />
-            </>
+            <ChatWindow
+              room={activeRoom}
+              onSendMessage={sendMessage}
+              onUpdateStatus={updateRoomStatus}
+              isAdmin={true}
+              onBack={() => selectRoom(null)}
+            />
           ) : (
             <div className="h-full flex flex-col items-center justify-center p-8 text-center text-slate-400 space-y-2">
               <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-400">

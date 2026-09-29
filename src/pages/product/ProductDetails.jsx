@@ -4,7 +4,7 @@ import useProducts from "../../hooks/useProducts";
 import api from "../../services/api";
 import { CartContext } from "../../context/CartContext";
 import { formatCurrency } from "../../utils/formatCurrency";
-import { ArrowLeft, ShoppingCart, Sparkles } from "lucide-react";
+import { ArrowLeft, ShoppingCart } from "lucide-react";
 import Button from "../../components/ui/Button";
 import { showModal } from "../../services/ui/modal";
 

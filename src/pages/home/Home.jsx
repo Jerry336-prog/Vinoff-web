@@ -20,7 +20,6 @@ import {
   X,
   Navigation,
   Store,
-  Sparkles,
 } from 'lucide-react';
 import Button from '../../components/ui/Button';
 import ProductCard from '../../components/products/ProductCard';
@@ -219,7 +218,7 @@ TRADE-FAIR COMPLEX, BADAGRY EXPRESS WAY, LAGOS`;
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="text-xs font-extrabold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
-              <Sparkles className="w-3.5 h-3.5 text-brand-green-600" />
+              <Store className="w-3.5 h-3.5 text-brand-green-600" />
               Store Showroom Photos (Click to Enlarge)
             </h3>
             <span className="text-[10px] font-bold text-slate-400">5 Real Walk-in Shop Photos</span>
@@ -509,7 +508,7 @@ TRADE-FAIR COMPLEX, BADAGRY EXPRESS WAY, LAGOS`;
             <p className="text-slate-500 text-xs font-semibold mt-2.5">Loading featured products...</p>
           </div>
         ) : filteredProducts.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-5">
             {filteredProducts.slice(0, 4).map((product) => (
               <ProductCard key={product.id || product._id} product={product} />
             ))}

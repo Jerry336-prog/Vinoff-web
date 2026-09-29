@@ -454,7 +454,7 @@ export const MainLayout = () => {
                 Wholesale T&C
               </h4>
               <p className="text-xs leading-relaxed text-slate-500">
-                Wire payments and GTB transfer slips must be submitted in
+                Wire payments transfer slips proof must be submitted in
                 support chats to begin packing and logistics.
               </p>
             </div>

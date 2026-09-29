@@ -47,7 +47,7 @@ export const Invoices = () => {
     customerId: "",
     items: [{ description: "", quantity: 1, unitPrice: 0, total: 0 }],
     discount: 0,
-    deliveryFee: 5000,
+    deliveryFee: 0,
     notes: "",
     dueDate: "",
     status: "Pending",
@@ -206,7 +206,7 @@ export const Invoices = () => {
           total: (Number(i.quantity) || 1) * (Number(i.unitPrice) || 0),
         })),
         discount: Number(createForm.discount) || 0,
-        deliveryFee: Number(createForm.deliveryFee) || 0,
+        deliveryFee: 0,
         notes: createForm.notes,
         dueDate: createForm.dueDate || undefined,
         status: createForm.status,
@@ -224,7 +224,7 @@ export const Invoices = () => {
         customerId: "",
         items: [{ description: "", quantity: 1, unitPrice: 0, total: 0 }],
         discount: 0,
-        deliveryFee: 5000,
+        deliveryFee: 0,
         notes: "",
         dueDate: "",
         status: "Pending",
@@ -599,8 +599,8 @@ export const Invoices = () => {
                 ))}
               </div>
 
-              {/* Financials: Discount, Delivery, Status */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 border-t border-slate-100">
+              {/* Financials: Discount, Status */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-slate-100">
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-extrabold uppercase text-slate-500 tracking-wider">
                     Discount (₦)
@@ -610,19 +610,6 @@ export const Invoices = () => {
                     min="0"
                     value={createForm.discount}
                     onChange={(e) => setCreateForm({ ...createForm, discount: e.target.value })}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-xs font-semibold focus:ring-2 focus:ring-brand-green-500 outline-none"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-extrabold uppercase text-slate-500 tracking-wider">
-                    Delivery Fee (₦)
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={createForm.deliveryFee}
-                    onChange={(e) => setCreateForm({ ...createForm, deliveryFee: e.target.value })}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-xs font-semibold focus:ring-2 focus:ring-brand-green-500 outline-none"
                   />
                 </div>

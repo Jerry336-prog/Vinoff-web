@@ -299,10 +299,12 @@ export const Orders = () => {
                       <span>Subtotal:</span>
                       <span>{formatCurrency(order.subtotal)}</span>
                     </div>
-                    <div className="flex justify-between text-slate-500">
-                      <span>Delivery:</span>
-                      <span>{formatCurrency(order.deliveryFee || 0)}</span>
-                    </div>
+                    {Number(order.deliveryFee) > 0 && (
+                      <div className="flex justify-between text-slate-500">
+                        <span>Delivery:</span>
+                        <span>{formatCurrency(order.deliveryFee)}</span>
+                      </div>
+                    )}
                     <div className="flex justify-between font-black text-slate-900 pt-1.5 border-t border-slate-200">
                       <span>Total:</span>
                       <span className="text-brand-green-950 text-sm">

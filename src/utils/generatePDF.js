@@ -198,10 +198,14 @@ const buildInvoiceHTML = ({
               : ""
           }
 
-          <div style="display: flex; justify-content: space-between; font-size: 12px; color: #64748b; padding: 4px 0;">
-            <span>Delivery Fee:</span>
-            <span style="font-weight: 700; color: #1e293b;">₦${deliveryFee.toLocaleString()}</span>
-          </div>
+          ${
+            deliveryFee > 0
+              ? `<div style="display: flex; justify-content: space-between; font-size: 12px; color: #64748b; padding: 4px 0;">
+                  <span>Delivery Fee:</span>
+                  <span style="font-weight: 700; color: #1e293b;">₦${deliveryFee.toLocaleString()}</span>
+                </div>`
+              : ""
+          }
 
           <div style="display: flex; justify-content: space-between; font-size: 15px; font-weight: 900; color: #064e3b; padding: 12px 0 0 0; margin-top: 6px; border-top: 2px solid #064e3b;">
             <span>Total Payable:</span>

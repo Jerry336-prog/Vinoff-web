@@ -190,7 +190,7 @@ export const CustomerInvoiceDetails = () => {
         total: item.total || (Number(item.quantity || 1) * Number(item.unitPrice || item.price || 0)),
       })),
       discount: invoice.discount || 0,
-      deliveryFee: invoice.deliveryFee || 0,
+      deliveryFee: 0,
       notes: invoice.notes || "",
       dueDate: invoice.dueDate ? new Date(invoice.dueDate).toISOString().slice(0, 10) : "",
       status: invoice.status || "Pending",
@@ -216,7 +216,7 @@ export const CustomerInvoiceDetails = () => {
       const payload = {
         ...editForm,
         discount: Number(editForm.discount) || 0,
-        deliveryFee: Number(editForm.deliveryFee) || 0,
+        deliveryFee: 0,
         dueDate: editForm.dueDate || undefined,
         items: editForm.items.map((item) => ({
           description: item.description,
@@ -598,10 +598,12 @@ export const CustomerInvoiceDetails = () => {
                 <span>-{formatCurrency(invoice.discount)}</span>
               </div>
             )}
-            <div className="flex justify-between text-slate-500">
-              <span>Delivery Fee:</span>
-              <span className="font-semibold text-slate-800">{formatCurrency(invoice.deliveryFee || 0)}</span>
-            </div>
+            {Number(invoice.deliveryFee) > 0 && (
+              <div className="flex justify-between text-slate-500">
+                <span>Delivery Fee:</span>
+                <span className="font-semibold text-slate-800">{formatCurrency(invoice.deliveryFee)}</span>
+              </div>
+            )}
             <div className="flex justify-between text-sm font-black text-brand-green-950 pt-3 border-t-2 border-brand-green-800">
               <span>Total Payable:</span>
               <span>{formatCurrency(invoice.total || invoice.totalAmount)}</span>
@@ -754,9 +756,8 @@ export const CustomerInvoiceDetails = () => {
                   </div>
                 ))}
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <input type="number" min="0" value={editForm.discount} onChange={(e) => setEditForm({ ...editForm, discount: e.target.value })} placeholder="Discount" className="bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-brand-green-500" />
-                <input type="number" min="0" value={editForm.deliveryFee} onChange={(e) => setEditForm({ ...editForm, deliveryFee: e.target.value })} placeholder="Delivery" className="bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-brand-green-500" />
                 <input type="date" value={editForm.dueDate} onChange={(e) => setEditForm({ ...editForm, dueDate: e.target.value })} className="bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-brand-green-500" />
                 <select value={editForm.status} onChange={(e) => setEditForm({ ...editForm, status: e.target.value })} className="bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-brand-green-500">
                   <option>Draft</option>

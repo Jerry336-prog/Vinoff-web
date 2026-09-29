@@ -73,8 +73,7 @@ export const Checkout = () => {
     }
   }, [cartItems.length, navigate, orderConfirmed]);
 
-  const deliveryFee = 5000;
-  const estimatedTotal = subtotal + deliveryFee;
+  const estimatedTotal = subtotal;
 
   const handleScreenshotSelect = (e) => {
     const file = e.target.files?.[0];
@@ -349,10 +348,6 @@ export const Checkout = () => {
               <div className="flex justify-between text-slate-500">
                 <span>Cart Subtotal</span>
                 <span className="font-bold text-slate-800">{formatCurrency(subtotal)}</span>
-              </div>
-              <div className="flex justify-between text-slate-500">
-                <span>Estimated Delivery</span>
-                <span className="font-bold text-slate-800">{formatCurrency(deliveryFee)}</span>
               </div>
               <div className="flex justify-between text-sm font-black text-slate-900 pt-2 border-t border-slate-100">
                 <span>Grand Total</span>
