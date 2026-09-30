@@ -18,7 +18,6 @@ import {
   MapPin,
   Clock,
   Package,
-  MessageCircle,
 } from "lucide-react";
 import { playNotificationChime } from "../../utils/soundEffects";
 import Button from "../../components/ui/Button";
@@ -36,7 +35,6 @@ export const Checkout = () => {
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [orderConfirmed, setOrderConfirmed] = useState(null);
-  const [orderWhatsappUrl, setOrderWhatsappUrl] = useState(null);
   const orderSubmissionKeyRef = useRef(null);
   const paymentSubmissionKeyRef = useRef(null);
 
@@ -136,20 +134,11 @@ export const Checkout = () => {
       const res = await api.post("/api/orders", payload, withIdempotencyKey(orderKey));
       const responseData = res.data?.data || res.data;
       const createdOrder = responseData?.order || responseData;
-      const waUrl = responseData?.whatsappUrl || res.data?.whatsappUrl || null;
 
       // Play audio notification chime
       try {
         playNotificationChime();
       } catch (_) {}
-
-      // Automatically dispatch WhatsApp notification to store owner if enabled
-      if (waUrl) {
-        setOrderWhatsappUrl(waUrl);
-        try {
-          window.open(waUrl, "_blank");
-        } catch (_) {}
-      }
 
       // 3. If customer attached a payment screenshot, upload it now
       if (screenshotFile && createdOrder?._id) {
@@ -215,27 +204,6 @@ export const Checkout = () => {
                 : "Your order is currently in 'Pending Payment' status. Please upload your transfer screenshot to initiate packaging."}
             </p>
           </div>
-
-          {orderWhatsappUrl && (
-            <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl text-center space-y-2">
-              <span className="text-xs font-black text-emerald-900 block flex items-center justify-center gap-1.5">
-                <MessageCircle className="w-4 h-4 text-emerald-600" />
-                WhatsApp Order Dispatch Alert
-              </span>
-              <p className="text-[11px] text-emerald-800 leading-relaxed">
-                Send real-time order details and proof directly to the warehouse dispatch WhatsApp line:
-              </p>
-              <a
-                href={orderWhatsappUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs transition active:scale-95"
-              >
-                <MessageCircle className="w-4 h-4" />
-                <span>Notify Store Owner on WhatsApp</span>
-              </a>
-            </div>
-          )}
 
           <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-3">
             <Button

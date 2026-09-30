@@ -29,7 +29,6 @@ import {
   Tablet,
   LogOut,
   RefreshCw,
-  MessageCircle,
   Volume2,
   Trash2,
   Power,
@@ -73,8 +72,6 @@ export const Settings = () => {
       "Laundry Care": 5,
     },
     lowStockAlertsEnabled: true,
-    whatsappNotificationsEnabled: true,
-    whatsappNumber: "",
     notifyOnNewOrder: true,
     soundAlertsEnabled: true,
   });
@@ -198,8 +195,6 @@ export const Settings = () => {
             lowStockThreshold: record.lowStockThreshold ?? prev.lowStockThreshold,
             categoryThresholds: cleanCategoryThresholds,
             lowStockAlertsEnabled: record.lowStockAlertsEnabled ?? prev.lowStockAlertsEnabled,
-            whatsappNotificationsEnabled: record.whatsappNotificationsEnabled ?? prev.whatsappNotificationsEnabled,
-            whatsappNumber: record.whatsappNumber ?? prev.whatsappNumber,
             notifyOnNewOrder: record.notifyOnNewOrder ?? prev.notifyOnNewOrder,
             soundAlertsEnabled: record.soundAlertsEnabled ?? prev.soundAlertsEnabled,
           }));
@@ -317,7 +312,7 @@ export const Settings = () => {
         setAlertsForm((prev) => ({ ...prev, ...data }));
       }
       localStorage.setItem("vinoff_sound_enabled", String(alertsForm.soundAlertsEnabled));
-      toast.success("Low-stock alerts & WhatsApp notification rules updated!", "Preferences Saved");
+      toast.success("Low-stock alerts & notification rules updated!", "Preferences Saved");
     } catch (err) {
       const message = err.response?.data?.message || err.message || "Failed to save alert preferences";
       toast.error(message, "Preferences Error");
@@ -523,36 +518,6 @@ export const Settings = () => {
     } finally {
       setRevokingId(null);
     }
-  };
-
-  // Test WhatsApp
-  const handleTestWhatsApp = () => {
-    if (!alertsForm.whatsappNumber) {
-      toast.warning("Please enter your WhatsApp phone number first.", "Phone Required");
-      return;
-    }
-    let cleanNumber = alertsForm.whatsappNumber.replace(/[^0-9]/g, "");
-    if (cleanNumber.startsWith("0") && cleanNumber.length === 11) {
-      cleanNumber = `234${cleanNumber.slice(1)}`;
-    } else if (!cleanNumber.startsWith("234") && cleanNumber.length === 10) {
-      cleanNumber = `234${cleanNumber}`;
-    }
-
-    if (!cleanNumber || cleanNumber.length < 10) {
-      toast.warning("Please enter a valid phone number (e.g. +234 803 000 0000).", "Invalid Phone");
-      return;
-    }
-
-    const testText =
-      `*🔔 VINOFF ORDER NOTIFICATION TEST*\n\n` +
-      `Your automated WhatsApp order notification is working!\n` +
-      `Whenever a wholesale order is placed, you will receive real-time order alerts here.\n\n` +
-      `Verified Phone: +${cleanNumber}\n` +
-      `Time: ${new Date().toLocaleTimeString()} • Vinoff Wholesales Ltd`;
-
-    const url = `https://api.whatsapp.com/send?phone=${cleanNumber}&text=${encodeURIComponent(testText)}`;
-    window.open(url, "_blank");
-    toast.success(`Opening WhatsApp alert test for +${cleanNumber}...`, "WhatsApp Test");
   };
 
   // Test Email Ping
@@ -761,7 +726,7 @@ export const Settings = () => {
               <BellRing className="w-4 h-4 text-brand-green-600" /> Alerts &amp; Notification Preferences
             </h2>
             <p className="text-[11px] sm:text-xs text-slate-500 mt-0.5 leading-relaxed">
-              Set carton thresholds based on your store's real categories and manage automated WhatsApp order alerts and in-app sound chimes.
+              Set carton thresholds based on your store's real categories and manage automated email order alerts and in-app sound chimes.
             </p>
           </div>
 
@@ -916,53 +881,26 @@ export const Settings = () => {
             </div>
           </div>
 
-          {/* Section B: WhatsApp Order Notifications */}
+          {/* Section B: Automated Email Order Notifications */}
           <div className="space-y-4 bg-slate-50/70 border border-slate-200/80 rounded-2xl p-4 sm:p-5">
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-xs sm:text-sm font-black text-slate-900 flex items-center gap-2">
-                  <MessageCircle className="w-4 h-4 text-emerald-600" /> WhatsApp Order Notifications
+                  <Mail className="w-4 h-4 text-emerald-600" /> Automated Email Order Notifications
                 </h3>
                 <p className="text-[11px] sm:text-xs text-slate-500 mt-0.5">
-                  Sends wholesale order details directly to your WhatsApp when an order is submitted.
+                  Sends wholesale order details with direct review links to all active store admins whenever an order is submitted.
                 </p>
               </div>
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
                   type="checkbox"
-                  checked={alertsForm.whatsappNotificationsEnabled}
-                  onChange={(e) => setAlertsForm((prev) => ({ ...prev, whatsappNotificationsEnabled: e.target.checked }))}
+                  checked={alertsForm.notifyOnNewOrder}
+                  onChange={(e) => setAlertsForm((prev) => ({ ...prev, notifyOnNewOrder: e.target.checked }))}
                   className="rounded text-brand-green-600 focus:ring-brand-green-500 h-4 w-4"
                 />
                 <span className="text-xs font-bold text-slate-700">Enabled</span>
               </label>
-            </div>
-
-            {/* Store Owner WhatsApp Number */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-center pt-2">
-              <label className="text-xs font-bold text-slate-700 sm:col-span-1">
-                Store Owner WhatsApp Number
-                <span className="block text-[11px] font-normal text-slate-500">
-                  Accepts local (080...) or international (+234...) format.
-                </span>
-              </label>
-              <div className="sm:col-span-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                <input
-                  type="text"
-                  value={alertsForm.whatsappNumber}
-                  onChange={(e) => setAlertsForm((prev) => ({ ...prev, whatsappNumber: e.target.value }))}
-                  placeholder="+234 803 000 0000 or 0803 000 0000"
-                  className="flex-1 text-xs sm:text-sm font-semibold p-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-green-500/20 outline-none"
-                />
-                <button
-                  type="button"
-                  onClick={handleTestWhatsApp}
-                  className="px-3.5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shrink-0 active:scale-95 shadow-2xs"
-                >
-                  <MessageCircle className="w-3.5 h-3.5" />
-                  <span>Test WhatsApp</span>
-                </button>
-              </div>
             </div>
 
             {/* Notification Test & Info Card */}
@@ -973,14 +911,14 @@ export const Settings = () => {
                   Live Order Dispatch Rules
                 </span>
                 <p className="text-[11px] text-emerald-800 leading-relaxed">
-                  Every order immediately sends an instant email alert to your admin inbox (<strong className="font-semibold">chinedujeremiah723@gmail.com</strong>) and opens the WhatsApp dispatch message for the store owner.
+                  Every order immediately triggers an email notification to all verified admin and superadmin accounts, containing itemized cart summaries, invoice details, and direct access links.
                 </p>
               </div>
               <button
                 type="button"
                 onClick={handleTestEmail}
                 disabled={testingEmail}
-                className="px-3.5 py-2 bg-white hover:bg-emerald-50 text-emerald-800 border border-emerald-300 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shrink-0 shadow-2xs active:scale-95 disabled:opacity-50"
+                className="px-4 py-2.5 bg-white hover:bg-emerald-50 text-emerald-800 border border-emerald-300 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shrink-0 shadow-2xs active:scale-95 disabled:opacity-50"
               >
                 <Mail className="w-3.5 h-3.5 text-emerald-600" />
                 <span>{testingEmail ? "Sending Ping..." : "Send Test Email Ping"}</span>
