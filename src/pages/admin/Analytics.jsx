@@ -140,9 +140,9 @@ export const Analytics = () => {
   const maxTimelineViews = Math.max(...timeline.map((t) => t.views || 0), 1);
 
   return (
-    <div className="space-y-4 sm:space-y-6 max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6">
+    <div className="space-y-3.5 sm:space-y-6 max-w-7xl mx-auto pb-10">
       {/* Header Bar */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4 bg-white p-4 sm:p-6 rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-xs">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 bg-white p-3.5 sm:p-6 rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-xs">
         <div className="space-y-1">
           <div className="flex items-center gap-2 flex-wrap">
             <h1 className="text-lg sm:text-2xl font-black text-slate-900 tracking-tight">
@@ -159,8 +159,8 @@ export const Analytics = () => {
         </div>
 
         {/* Time Filters & Refresh */}
-        <div className="flex items-center justify-between sm:justify-end gap-2 pt-2 md:pt-0 border-t md:border-t-0 border-slate-100">
-          <div className="inline-flex bg-slate-100 p-1 rounded-xl border border-slate-200 overflow-x-auto">
+        <div className="flex items-center justify-between sm:justify-end gap-2 pt-2.5 sm:pt-0 border-t sm:border-t-0 border-slate-100">
+          <div className="inline-flex bg-slate-100 p-0.5 sm:p-1 rounded-xl border border-slate-200 overflow-x-auto">
             {[
               { id: '24h', label: '24h' },
               { id: '7d', label: '7 Days' },
@@ -173,7 +173,7 @@ export const Analytics = () => {
                 onClick={() => setPeriod(tab.id)}
                 className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-[11px] sm:text-xs font-bold transition-all whitespace-nowrap ${
                   period === tab.id
-                    ? 'bg-white text-slate-900 shadow-xs'
+                    ? 'bg-white text-slate-900 shadow-xs font-extrabold'
                     : 'text-slate-500 hover:text-slate-800'
                 }`}
               >
@@ -187,7 +187,7 @@ export const Analytics = () => {
             onClick={() => fetchAnalytics(true)}
             disabled={refreshing || loading}
             title="Refresh traffic data"
-            className="p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-xl border border-slate-200 transition-all shrink-0 disabled:opacity-50"
+            className="p-1.5 sm:p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-xl border border-slate-200 transition-all shrink-0 disabled:opacity-50"
           >
             <RefreshCw className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${refreshing ? 'animate-spin text-brand-green-600' : ''}`} />
           </button>
@@ -278,8 +278,8 @@ export const Analytics = () => {
       </div>
 
       {/* Traffic Sources Breakdown */}
-      <div className="bg-white p-4 sm:p-6 rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-xs">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 sm:gap-2 mb-4 sm:mb-6">
+      <div className="bg-white p-3.5 sm:p-6 rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-xs">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 sm:gap-2 mb-3.5 sm:mb-6">
           <div>
             <h2 className="text-sm sm:text-lg font-black text-slate-900 tracking-tight flex items-center gap-2">
               <Compass className="w-4 h-4 sm:w-5 sm:h-5 text-brand-green-600" />
@@ -301,7 +301,7 @@ export const Analytics = () => {
             return (
               <div
                 key={item.name}
-                className="p-3.5 sm:p-4 rounded-xl sm:rounded-2xl border border-slate-100 bg-slate-50/70 hover:bg-slate-50 transition-all flex flex-col justify-between"
+                className="p-3 sm:p-4 rounded-xl sm:rounded-2xl border border-slate-100 bg-slate-50/70 hover:bg-slate-50 transition-all flex flex-col justify-between"
               >
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
@@ -336,9 +336,9 @@ export const Analytics = () => {
       </div>
 
       {/* Visitor Timeline & Top Pages */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3.5 sm:gap-6">
         {/* Timeline Chart */}
-        <div className="lg:col-span-2 bg-white p-4 sm:p-6 rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-xs flex flex-col justify-between">
+        <div className="lg:col-span-2 bg-white p-3.5 sm:p-6 rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-xs flex flex-col justify-between">
           <div className="flex items-center justify-between mb-3 sm:mb-4">
             <div>
               <h3 className="text-sm sm:text-base font-black text-slate-900 tracking-tight flex items-center gap-2">
@@ -390,7 +390,7 @@ export const Analytics = () => {
         </div>
 
         {/* Top Visited Store Pages */}
-        <div className="bg-white p-4 sm:p-6 rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-xs">
+        <div className="bg-white p-3.5 sm:p-6 rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-xs">
           <h3 className="text-sm sm:text-base font-black text-slate-900 tracking-tight flex items-center gap-2 mb-1">
             <ExternalLink className="w-4 h-4 text-brand-green-600" />
             Top Visited Pages
@@ -427,14 +427,14 @@ export const Analytics = () => {
       </div>
 
       {/* Devices & Browsers */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 sm:gap-6">
         {/* Devices */}
-        <div className="bg-white p-4 sm:p-6 rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-xs">
+        <div className="bg-white p-3.5 sm:p-6 rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-xs">
           <h3 className="text-sm sm:text-base font-black text-slate-900 tracking-tight flex items-center gap-2 mb-1">
             <Smartphone className="w-4 h-4 text-brand-green-600" />
             Visitor Devices
           </h3>
-          <p className="text-[11px] sm:text-xs text-slate-500 mb-4 sm:mb-5">Screen types used to browse the store</p>
+          <p className="text-[11px] sm:text-xs text-slate-500 mb-3.5 sm:mb-5">Screen types used to browse the store</p>
 
           <div className="space-y-3.5">
             {devices.map((d) => {
@@ -463,12 +463,12 @@ export const Analytics = () => {
         </div>
 
         {/* Browsers & In-App WebViews */}
-        <div className="bg-white p-4 sm:p-6 rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-xs">
+        <div className="bg-white p-3.5 sm:p-6 rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-xs">
           <h3 className="text-sm sm:text-base font-black text-slate-900 tracking-tight flex items-center gap-2 mb-1">
             <Globe className="w-4 h-4 text-brand-green-600" />
             Browsers &amp; In-App WebViews
           </h3>
-          <p className="text-[11px] sm:text-xs text-slate-500 mb-4 sm:mb-5">
+          <p className="text-[11px] sm:text-xs text-slate-500 mb-3.5 sm:mb-5">
             Including direct TikTok/Instagram/WhatsApp in-app browser views
           </p>
 
@@ -490,7 +490,7 @@ export const Analytics = () => {
 
       {/* Live Incoming Visitor Stream */}
       <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
-        <div className="p-4 sm:p-6 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3">
+        <div className="p-3.5 sm:p-6 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3">
           <div>
             <h3 className="text-sm sm:text-base font-black text-slate-900 tracking-tight flex items-center gap-2">
               <Clock className="w-4 h-4 text-brand-green-600" />

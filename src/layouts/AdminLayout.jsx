@@ -78,6 +78,8 @@ export const AdminLayout = () => {
     navigate('/login');
   };
 
+  const activeRoomsWithUnread = rooms.filter(r => (r.unreadCount || 0) > 0);
+  const unreadChatRoomsCount = activeRoomsWithUnread.reduce((acc, r) => acc + (r.unreadCount || 0), 0);
   const unreadSystemNotifs = notifications.filter(n => !(n.isRead || n.read));
   const unreadNotifsCount = unreadSystemNotifs.length;
   const unreadTotalCount = unreadChatRoomsCount + unreadNotifsCount;
@@ -561,7 +563,7 @@ export const AdminLayout = () => {
         </header>
 
         {/* Dashboard Pages Mount */}
-        <main className="flex-1 overflow-y-auto p-6 md:p-8 print:p-0 print:overflow-visible">
+        <main className="flex-1 overflow-y-auto p-3.5 sm:p-6 md:p-8 print:p-0 print:overflow-visible">
           <Outlet />
         </main>
       </div>

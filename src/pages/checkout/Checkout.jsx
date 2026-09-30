@@ -14,6 +14,7 @@ import {
   Loader2,
   ArrowRight,
   ShieldAlert,
+  AlertTriangle,
   MapPin,
   Clock,
   Package,
@@ -56,14 +57,25 @@ export const Checkout = () => {
     }
   }, [user]);
 
-  // Fetch bank details from admin settings
+  const [storeStatus, setStoreStatus] = useState({ isOpen: true, bannerMessage: "" });
+
+  // Fetch bank details and store operational status from admin settings
   useEffect(() => {
     api.get("/api/settings/bank-details")
       .then((res) => {
         const data = res.data?.data || res.data || res;
         if (data?.bankName) setBankDetails(data);
       })
-      .catch(() => {}); // silently fall back to defaults
+      .catch(() => {});
+
+    api.get("/api/settings/store-status")
+      .then((res) => {
+        const data = res.data?.data || res.data || res;
+        if (data && typeof data.isOpen === "boolean") {
+          setStoreStatus(data);
+        }
+      })
+      .catch(() => {});
   }, []);
 
   // If cart is empty and order is not confirmed, redirect
@@ -85,6 +97,14 @@ export const Checkout = () => {
   const handleSubmitOrder = async (e) => {
     e.preventDefault();
     if (cartItems.length === 0) return;
+
+    if (storeStatus?.isOpen === false) {
+      setErrorMsg(
+        storeStatus.bannerMessage ||
+          "The store is temporarily closed for orders and warehouse stock-taking. Please check back soon."
+      );
+      return;
+    }
 
     setSubmitting(true);
     setErrorMsg("");
@@ -355,15 +375,34 @@ export const Checkout = () => {
               </div>
             </div>
 
+            {/* Vacation Mode / Store Closed Warning */}
+            {storeStatus?.isOpen === false && (
+              <div className="p-3.5 bg-amber-50 border border-amber-300 rounded-2xl text-xs text-amber-900 flex items-start gap-2.5">
+                <AlertTriangle className="w-4 h-4 shrink-0 text-amber-600 mt-0.5" />
+                <div className="space-y-0.5">
+                  <strong className="block font-black uppercase tracking-wider text-[10px]">
+                    Orders Temporarily Paused
+                  </strong>
+                  <p className="leading-relaxed">
+                    {storeStatus.bannerMessage ||
+                      "Our warehouse is currently restocking. Online checkout is paused temporarily."}
+                  </p>
+                </div>
+              </div>
+            )}
+
             <Button
               type="submit"
               variant="primary"
               size="lg"
+              disabled={storeStatus?.isOpen === false || submitting}
               isLoading={submitting}
-              className="w-full rounded-2xl mt-2"
+              className="w-full rounded-2xl mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
               icon={ArrowRight}
             >
-              Confirm Wholesale Order
+              {storeStatus?.isOpen === false
+                ? "Checkout Paused (Store in Vacation Mode)"
+                : "Confirm Wholesale Order"}
             </Button>
           </div>
         </div>

@@ -22,6 +22,7 @@ import {
   ArrowLeft,
 } from "lucide-react";
 import { trackPageView } from "../utils/trafficTracker";
+import StoreNoticeBanner from "../components/common/StoreNoticeBanner";
 
 export const MainLayout = () => {
   const { user, logout, isAdmin } = useContext(AuthContext);
@@ -83,6 +84,9 @@ export const MainLayout = () => {
           <span>WHOLESALE-ONLY PLATFORM | BULK PACKAGING & DIRECT DELIVERY</span>
         </span>
       </div>
+
+      {/* Dynamic Store Operational Notice / Vacation Banner */}
+      <StoreNoticeBanner />
 
       {/* Main Header Navbar */}
       <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-slate-200/80 shadow-sm">
