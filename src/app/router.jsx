@@ -1,5 +1,5 @@
 import React, { useContext } from 'react';
-import { createBrowserRouter, Navigate } from 'react-router-dom';
+import { createBrowserRouter, Navigate, useLocation } from 'react-router-dom';
 import MainLayout from '../layouts/MainLayout';
 import AdminLayout from '../layouts/AdminLayout';
 import { AuthContext } from '../context/AuthContext';
@@ -48,6 +48,7 @@ import Analytics from '../pages/admin/Analytics';
  */
 const ProtectedGate = ({ children }) => {
   const { user, loading } = useContext(AuthContext);
+  const location = useLocation();
 
   if (loading) {
     return (
@@ -61,7 +62,8 @@ const ProtectedGate = ({ children }) => {
   }
 
   if (!user) {
-    return <Navigate to="/login" replace />;
+    const fullPath = location.pathname + location.search;
+    return <Navigate to={`/login?redirect=${encodeURIComponent(fullPath)}`} state={{ from: location }} replace />;
   }
 
   return children;
@@ -72,6 +74,7 @@ const ProtectedGate = ({ children }) => {
  */
 const AdminGate = ({ children }) => {
   const { user, loading } = useContext(AuthContext);
+  const location = useLocation();
 
   if (loading) {
     return (
@@ -84,7 +87,11 @@ const AdminGate = ({ children }) => {
     );
   }
 
-  if (!user) return <Navigate to="/login" replace />;
+  if (!user) {
+    const fullPath = location.pathname + location.search;
+    return <Navigate to={`/login?redirect=${encodeURIComponent(fullPath)}`} state={{ from: location }} replace />;
+  }
+
   const isAdminRole =
     user.role === 'admin' ||
     user.role === 'subAdmin' ||
@@ -110,11 +117,11 @@ export const router = createBrowserRouter([
       },
       {
         path: 'shop',
-        element: <Shop />
+        element: <ProtectedGate><Shop /></ProtectedGate>
       },
       {
         path: 'product/:id',
-        element: <ProductDetails />
+        element: <ProtectedGate><ProductDetails /></ProtectedGate>
       },
       {
         path: 'login',

@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useContext } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
+import { AuthContext } from "../../context/AuthContext";
 import api from "../../services/api";
 import { createIdempotencyKey, withIdempotencyKey } from "../../services/idempotency";
 import { formatCurrency } from "../../utils/formatCurrency";
@@ -36,6 +37,12 @@ const STATUS_STEPS = [
 export const OrderDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useContext(AuthContext);
+  const isAdmin =
+    user?.role === "admin" ||
+    user?.role === "subAdmin" ||
+    user?.role === "superadmin" ||
+    user?.role === "super_admin";
 
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -134,20 +141,32 @@ export const OrderDetails = () => {
       {/* Top Navigation */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
         <Link
-          to="/orders"
+          to={isAdmin ? "/admin/orders" : "/orders"}
           className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-brand-green-700 transition"
         >
           <ArrowLeft className="w-4 h-4" />
-          Back to All Orders
+          {isAdmin ? "Back to Admin Orders Desk" : "Back to All Orders"}
         </Link>
 
-        <Link
-          to={`/chat?orderId=${order._id}`}
-          className="inline-flex items-center justify-center gap-1.5 text-xs font-bold bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-3.5 py-2 rounded-xl shadow-xs transition"
-        >
-          <MessageSquare className="w-4 h-4 text-brand-green-600" />
-          Message Admin about Order
-        </Link>
+        <div className="flex items-center gap-2">
+          {isAdmin && (
+            <Link
+              to={`/admin/orders?order=${order.orderNumber}`}
+              className="inline-flex items-center justify-center gap-1.5 text-xs font-bold bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 px-3.5 py-2 rounded-xl shadow-xs transition"
+            >
+              <ExternalLink className="w-4 h-4 text-amber-700" />
+              Open in Admin Order Desk
+            </Link>
+          )}
+
+          <Link
+            to={`/chat?orderId=${order._id}`}
+            className="inline-flex items-center justify-center gap-1.5 text-xs font-bold bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-3.5 py-2 rounded-xl shadow-xs transition"
+          >
+            <MessageSquare className="w-4 h-4 text-brand-green-600" />
+            {isAdmin ? "Chat with Customer" : "Message Admin about Order"}
+          </Link>
+        </div>
       </div>
 
       {/* Header Banner */}

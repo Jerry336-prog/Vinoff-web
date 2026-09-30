@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import api from "../../services/api";
 import { createIdempotencyKey, withIdempotencyKey } from "../../services/idempotency";
 import { formatCurrency } from "../../utils/formatCurrency";
@@ -36,10 +36,19 @@ const ORDER_STATUSES = [
 ];
 
 export const Orders = () => {
+  const [searchParams] = useSearchParams();
+  const initialSearch = searchParams.get("order") || searchParams.get("search") || "";
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchTerm, setSearchTerm] = useState(initialSearch);
   const [statusFilter, setStatusFilter] = useState("All");
+
+  useEffect(() => {
+    const q = searchParams.get("order") || searchParams.get("search");
+    if (q) {
+      setSearchTerm(q);
+    }
+  }, [searchParams]);
 
   // Screenshot review modal
   const [selectedScreenshot, setSelectedScreenshot] = useState(null);

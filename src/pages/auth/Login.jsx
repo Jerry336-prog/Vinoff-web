@@ -16,7 +16,16 @@ export const Login = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const from = location.state?.from?.pathname;
+  const searchParams = new URLSearchParams(location.search);
+  const redirectParam = searchParams.get('redirect');
+  const fromState = location.state?.from;
+  const fromPath = typeof fromState === 'string'
+    ? fromState
+    : fromState?.pathname
+      ? `${fromState.pathname}${fromState.search || ''}`
+      : null;
+
+  const target = redirectParam || fromPath;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -35,8 +44,8 @@ export const Login = () => {
         logged.role === 'superadmin' ||
         logged.role === 'super_admin';
 
-      if (from) {
-        navigate(from, { replace: true });
+      if (target) {
+        navigate(target, { replace: true });
       } else if (isAdminRole) {
         navigate('/admin/dashboard', { replace: true });
       } else {
