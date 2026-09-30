@@ -642,9 +642,13 @@ export const Products = () => {
                   onChange={(e) => setCategory(e.target.value)}
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 focus:bg-white focus:ring-2 focus:ring-brand-green-500 outline-none"
                 >
-                  <option value="Toiletries">Toiletries</option>
-                  <option value="Household Cleaners">Household Cleaners</option>
-                  <option value="Laundry Care">Laundry Care</option>
+                  {categories
+                    .filter((c) => c && c !== "All")
+                    .map((cat) => (
+                      <option key={cat} value={cat}>
+                        {cat}
+                      </option>
+                    ))}
                 </select>
               </div>
 

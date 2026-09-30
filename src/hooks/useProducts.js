@@ -1,11 +1,38 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import api from '../services/api';
+
+export const STANDARD_CATEGORIES = [
+  "Toiletries",
+  "Household Cleaners",
+  "Cosmetics",
+  "Laundry Care",
+];
 
 export const useProducts = () => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [pagination, setPagination] = useState(null);
+  const [storeCategories, setStoreCategories] = useState([]);
+
+  useEffect(() => {
+    let isMounted = true;
+    api
+      .get("/api/settings/categories")
+      .then((res) => {
+        if (!isMounted) return;
+        const data = res.data?.data || res.data;
+        if (data?.categories && Array.isArray(data.categories)) {
+          setStoreCategories(data.categories);
+        }
+      })
+      .catch(() => {
+        // Fallback silently to STANDARD_CATEGORIES
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const fetchProducts = useCallback(async (params = {}) => {
     setLoading(true);
@@ -123,10 +150,18 @@ export const useProducts = () => {
     }
   };
 
-  const getCategories = () => {
-    const categories = products.map((p) => p.category).filter(Boolean);
-    return ['All', ...new Set(categories)];
-  };
+  const categories = useMemo(() => {
+    const cats = products.map((p) => p.category).filter(Boolean);
+    const merged = Array.from(
+      new Set([
+        ...STANDARD_CATEGORIES,
+        ...storeCategories,
+        ...cats,
+      ])
+    ).filter((c) => c && c !== "All" && !/beverage/i.test(c));
+
+    return ['All', ...merged];
+  }, [products, storeCategories]);
 
   return {
     products,
@@ -138,7 +173,7 @@ export const useProducts = () => {
     updateProduct,
     bulkUpdateOrderingFormat,
     deleteProduct,
-    categories: getCategories(),
+    categories,
   };
 };
 
