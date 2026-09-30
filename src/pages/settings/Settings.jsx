@@ -83,6 +83,7 @@ export const Settings = () => {
   const [newCategoryName, setNewCategoryName] = useState("");
   const [addingCategory, setAddingCategory] = useState(false);
   const [removingCategoryName, setRemovingCategoryName] = useState(null);
+  const [testingEmail, setTestingEmail] = useState(false);
 
   // =========================================================
   // 3. STORE LOCATION & WORKING STORE STATE (EDITABLE BY ADMIN)
@@ -403,8 +404,12 @@ export const Settings = () => {
     try {
       await api.delete(`/api/settings/categories/${encodeURIComponent(catName)}`);
       setAlertsForm((prev) => {
-        const nextThresholds = { ...prev.categoryThresholds };
-        delete nextThresholds[catName];
+        const nextThresholds = {};
+        Object.entries(prev.categoryThresholds || {}).forEach(([k, v]) => {
+          if (k.toLowerCase() !== catName.toLowerCase()) {
+            nextThresholds[k] = v;
+          }
+        });
         return {
           ...prev,
           categoryThresholds: nextThresholds,
@@ -526,15 +531,42 @@ export const Settings = () => {
       toast.warning("Please enter your WhatsApp phone number first.", "Phone Required");
       return;
     }
-    const cleanNumber = alertsForm.whatsappNumber.replace(/[^0-9]/g, "");
+    let cleanNumber = alertsForm.whatsappNumber.replace(/[^0-9]/g, "");
+    if (cleanNumber.startsWith("0") && cleanNumber.length === 11) {
+      cleanNumber = `234${cleanNumber.slice(1)}`;
+    } else if (!cleanNumber.startsWith("234") && cleanNumber.length === 10) {
+      cleanNumber = `234${cleanNumber}`;
+    }
+
+    if (!cleanNumber || cleanNumber.length < 10) {
+      toast.warning("Please enter a valid phone number (e.g. +234 803 000 0000).", "Invalid Phone");
+      return;
+    }
+
     const testText =
       `*🔔 VINOFF ORDER NOTIFICATION TEST*\n\n` +
       `Your automated WhatsApp order notification is working!\n` +
       `Whenever a wholesale order is placed, you will receive real-time order alerts here.\n\n` +
+      `Verified Phone: +${cleanNumber}\n` +
       `Time: ${new Date().toLocaleTimeString()} • Vinoff Wholesales Ltd`;
 
     const url = `https://api.whatsapp.com/send?phone=${cleanNumber}&text=${encodeURIComponent(testText)}`;
     window.open(url, "_blank");
+    toast.success(`Opening WhatsApp alert test for +${cleanNumber}...`, "WhatsApp Test");
+  };
+
+  // Test Email Ping
+  const handleTestEmail = async () => {
+    setTestingEmail(true);
+    try {
+      const res = await api.post("/api/settings/test-email");
+      toast.success(res.data?.message || "Test order alert email delivered successfully!", "Email Ping Delivered");
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message || "Failed to send test email";
+      toast.error(msg, "Email Ping Failed");
+    } finally {
+      setTestingEmail(false);
+    }
   };
 
   const getDeviceIcon = (deviceStr = "") => {
@@ -911,7 +943,7 @@ export const Settings = () => {
               <label className="text-xs font-bold text-slate-700 sm:col-span-1">
                 Store Owner WhatsApp Number
                 <span className="block text-[11px] font-normal text-slate-500">
-                  Include country code (e.g. +234 803 000 0000)
+                  Accepts local (080...) or international (+234...) format.
                 </span>
               </label>
               <div className="sm:col-span-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
@@ -919,13 +951,13 @@ export const Settings = () => {
                   type="text"
                   value={alertsForm.whatsappNumber}
                   onChange={(e) => setAlertsForm((prev) => ({ ...prev, whatsappNumber: e.target.value }))}
-                  placeholder="+234 803 000 0000"
+                  placeholder="+234 803 000 0000 or 0803 000 0000"
                   className="flex-1 text-xs sm:text-sm font-semibold p-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-green-500/20 outline-none"
                 />
                 <button
                   type="button"
                   onClick={handleTestWhatsApp}
-                  className="px-3.5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shrink-0 active:scale-95"
+                  className="px-3.5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shrink-0 active:scale-95 shadow-2xs"
                 >
                   <MessageCircle className="w-3.5 h-3.5" />
                   <span>Test WhatsApp</span>
@@ -933,8 +965,26 @@ export const Settings = () => {
               </div>
             </div>
 
-            <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-900 leading-relaxed">
-              <strong>Order Alert Dispatch:</strong> When customer finishes checkout, the order confirmation automatically connects with your WhatsApp number above. An instant email ping is also sent to your admin email address.
+            {/* Notification Test & Info Card */}
+            <div className="p-4 bg-emerald-50/60 border border-emerald-200/80 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+              <div className="space-y-0.5">
+                <span className="text-xs font-bold text-emerald-950 flex items-center gap-1.5">
+                  <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
+                  Live Order Dispatch Rules
+                </span>
+                <p className="text-[11px] text-emerald-800 leading-relaxed">
+                  Every order immediately sends an instant email alert to your admin inbox (<strong className="font-semibold">chinedujeremiah723@gmail.com</strong>) and opens the WhatsApp dispatch message for the store owner.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleTestEmail}
+                disabled={testingEmail}
+                className="px-3.5 py-2 bg-white hover:bg-emerald-50 text-emerald-800 border border-emerald-300 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shrink-0 shadow-2xs active:scale-95 disabled:opacity-50"
+              >
+                <Mail className="w-3.5 h-3.5 text-emerald-600" />
+                <span>{testingEmail ? "Sending Ping..." : "Send Test Email Ping"}</span>
+              </button>
             </div>
           </div>
 

@@ -151,12 +151,20 @@ export const useProducts = () => {
   };
 
   const categories = useMemo(() => {
-    const cats = products.map((p) => p.category).filter(Boolean);
+    const allowed = new Set([
+      ...STANDARD_CATEGORIES.map((c) => c.toLowerCase()),
+      ...storeCategories.map((c) => c.toLowerCase()),
+    ]);
+
+    const validProductCats = products
+      .map((p) => p.category)
+      .filter((c) => c && allowed.has(c.toLowerCase()));
+
     const merged = Array.from(
       new Set([
         ...STANDARD_CATEGORIES,
         ...storeCategories,
-        ...cats,
+        ...validProductCats,
       ])
     ).filter((c) => c && c !== "All" && !/beverage/i.test(c));
 
