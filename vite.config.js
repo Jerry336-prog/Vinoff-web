@@ -23,7 +23,6 @@ export default defineConfig({
         short_name: 'Vinoff',
         description: 'Vinoff online store and management',
         theme_color: '#ffffff',
-        background_color: '#ffffff',
         icons: [
           {
             src: '/pwa-192x192.png',
