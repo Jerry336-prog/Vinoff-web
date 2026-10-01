@@ -29,31 +29,31 @@ import { useProducts } from '../../hooks/useProducts';
 const STORE_IMAGES = [
   {
     id: 1,
-    url: '/store/store-2.jpg',
+    url: '/store/store-2.webp',
     title: 'Store Main Aisle & Stocked Shelves',
     caption: 'Overview of our fully stocked walk-in showroom featuring personal care, soaps, toothpastes, and wipes.',
   },
   {
     id: 2,
-    url: '/store/store-3.jpg',
+    url: '/store/store-3.webp',
     title: 'Wholesale Carton Warehouse Stacks',
     caption: 'Pallets and stacks of original wholesale cartons including LUX, Windolene, and Astonish ready for bulk pickup.',
   },
   {
     id: 3,
-    url: '/store/store-5.jpg',
+    url: '/store/store-5.webp',
     title: 'Premium Reed Diffusers & Fragrance Display',
     caption: 'Specialized fragrance shelves displaying Air Wick, Barcat, Ficol, and scented oils.',
   },
   {
     id: 4,
-    url: '/store/store-4.jpg',
+    url: '/store/store-4.webp',
     title: 'Air Fresheners & Stella Body Sprays',
     caption: 'High-demand Stella car sprays, room diffusers, and commercial sanitizers.',
   },
   {
     id: 5,
-    url: '/store/store-1.jpg',
+    url: '/store/store-1.webp',
     title: 'Toiletries & Cosmetics Counter Shelving',
     caption: 'Clean, organised glass display cabinets showcasing boxed toiletries, body sprays, and car fresheners.',
   },
@@ -121,7 +121,7 @@ TRADE-FAIR COMPLEX, BADAGRY EXPRESS WAY, LAGOS`;
         {/* Live Photo Image Background Container */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
           <img
-            src="/hero-toiletries-bg.jpg"
+            src="/hero-toiletries-bg.webp"
             alt="Vinoff Wholesale Warehouse Products"
             className="w-full h-full object-cover scale-105 animate-live-photo origin-center"
           />
@@ -282,7 +282,7 @@ TRADE-FAIR COMPLEX, BADAGRY EXPRESS WAY, LAGOS`;
                       }
                     }}
                     src="/store/VINOFF_CO_walkthrough.MP4"
-                    poster="/store/store-2.jpg"
+                    poster="/store/store-2.webp"
                     className="w-full h-full object-cover max-h-[420px]"
                     autoPlay
                     muted

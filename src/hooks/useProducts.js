@@ -50,7 +50,7 @@ export const useProducts = () => {
         return {
           ...p,
           id: p._id || p.id,
-          image: p.images?.[0]?.url || p.image || '/VinoffLogo.png',
+          image: p.images?.[0]?.url || p.image || '/VinoffLogo.webp',
           cartonPrice,
           unitPrice,
           unitsPerCarton: unitsPerCarton > 0 ? unitsPerCarton : 12,

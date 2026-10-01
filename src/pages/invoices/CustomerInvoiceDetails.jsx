@@ -423,7 +423,7 @@ export const CustomerInvoiceDetails = () => {
         <div className="flex flex-col sm:flex-row justify-between gap-4 sm:gap-6 border-b-2 border-brand-green-800 pb-6 sm:pb-8 relative z-10">
           <div>
             <div className="flex items-center gap-2.5 sm:gap-3">
-              <img src="/VinoffLogo.png" alt="Vinoff Logo" className="w-10 h-10 sm:w-14 sm:h-14 object-contain shrink-0" />
+              <img src="/VinoffLogo.webp" alt="Vinoff Logo" className="w-10 h-10 sm:w-14 sm:h-14 object-contain shrink-0" />
               <span className="text-lg sm:text-xl font-black text-brand-green-950 tracking-tight">
                 VINOFF <span className="text-brand-green-600">WHOLESALE</span>
               </span>

@@ -48,7 +48,7 @@ export const exportHistoryPDF = async (title, filename, headers, rows) => {
         <!-- Header -->
         <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #064e3b; padding-bottom: 16px; margin-bottom: 24px;">
           <div style="display: flex; align-items: center; gap: 12px;">
-            <img src="/VinoffLogo.png" style="width: 48px; height: 48px; object-fit: contain;" />
+            <img src="/VinoffLogo.webp" style="width: 48px; height: 48px; object-fit: contain;" />
             <div>
               <div style="font-size: 20px; font-weight: 900; color: #064e3b;">VINOFF WHOLESALES</div>
               <div style="font-size: 11px; color: #64748b; font-weight: 600;">OFFICIAL AUDIT REPORT • ${title.toUpperCase()}</div>

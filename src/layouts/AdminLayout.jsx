@@ -243,7 +243,7 @@ export const AdminLayout = () => {
         <div className="flex items-center justify-between h-16 px-5 bg-slate-950 border-b border-slate-800 shrink-0">
           <div className="flex items-center gap-3 min-w-0">
             <div className="w-9 h-9 bg-white rounded-full flex items-center justify-center p-1 shadow-sm shrink-0 ring-2 ring-white/20">
-              <img src="/VinoffLogo.png" alt="Vinoff Logo" className="w-7 h-7 object-contain" />
+              <img src="/VinoffLogo.webp" alt="Vinoff Logo" className="w-7 h-7 object-contain" />
             </div>
             <div className="truncate">
               <span className="font-bold text-sm tracking-tight text-white block">

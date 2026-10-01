@@ -95,7 +95,7 @@ export const MainLayout = () => {
             {/* Logo */}
             <div className="flex items-center">
               <Link to="/" className="flex items-center gap-3">
-                <img src="/VinoffLogo.png" alt="Vinoff Logo" className="w-12 h-12 md:w-14 md:h-14 object-contain shrink-0" />
+                <img src="/VinoffLogo.webp" alt="Vinoff Logo" className="w-12 h-12 md:w-14 md:h-14 object-contain shrink-0" />
                 <div>
                   <span className="font-bold text-lg tracking-tight text-brand-green-950 block leading-tight">
                     VINOFF{" "}

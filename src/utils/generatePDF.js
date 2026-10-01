@@ -56,7 +56,7 @@ const buildInvoiceHTML = ({
       <div style="border-bottom: 3px solid #064e3b; padding-bottom: 20px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: flex-start; box-sizing: border-box;">
         <div>
           <div style="display: flex; align-items: center; gap: 14px;">
-            <img src="/VinoffLogo.png" alt="Vinoff Logo" style="width: 56px; height: 56px; object-fit: contain;" />
+            <img src="/VinoffLogo.webp" alt="Vinoff Logo" style="width: 56px; height: 56px; object-fit: contain;" />
             <div style="font-size: 22px; font-weight: 900; color: #064e3b; letter-spacing: -0.5px;">
               VINOFF <span style="color: #047857;">WHOLESALE</span>
             </div>
@@ -631,7 +631,7 @@ export const downloadDailyExpensePDF = async (ledgerOrDate) => {
           <div style="border-bottom: 3px solid #064e3b; padding-bottom: 18px; margin-bottom: 22px; display: flex; justify-content: space-between; align-items: flex-start;">
             <div>
               <div style="display: flex; align-items: center; gap: 12px;">
-                <img src="/VinoffLogo.png" alt="Vinoff Logo" style="width: 52px; height: 52px; object-fit: contain;" />
+                <img src="/VinoffLogo.webp" alt="Vinoff Logo" style="width: 52px; height: 52px; object-fit: contain;" />
                 <div>
                   <div style="font-size: 22px; font-weight: 900; color: #064e3b; letter-spacing: -0.5px;">
                     VINOFF <span style="color: #047857;">&amp; CO. NIG. LTD</span>

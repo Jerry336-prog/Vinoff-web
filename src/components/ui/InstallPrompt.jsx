@@ -96,12 +96,12 @@ export const InstallPrompt = () => {
         {/* Header & Logo */}
         <div className="p-5 text-center">
           <img 
-            src="/Logo.png" 
+            src="/VinoffLogo.webp" 
             alt="Vinoff Logo" 
             className="w-14 h-14 mx-auto mb-3 object-contain"
             onError={(e) => {
               e.target.onerror = null;
-              e.target.src = '/Logo.png';
+              e.target.src = '/VinoffLogo.webp';
             }}
           />
           <h2 className="text-lg font-bold text-slate-800 tracking-tight leading-tight">
