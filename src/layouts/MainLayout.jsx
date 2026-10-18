@@ -209,23 +209,6 @@ export const MainLayout = () => {
                   >
                     Invoices
                   </Link>
-                  {isVipPartner && (
-                    <Link
-                      to="/credit-invoices"
-                      className={`flex items-center gap-1.5 transition-colors ${
-                        isActive("/credit-invoices")
-                          ? "text-brand-green-700 border-b-2 border-brand-green-600 pb-1 font-bold"
-                          : "text-slate-600 hover:text-brand-green-700"
-                      }`}
-                    >
-                      <span>VIP Credit</span>
-                      {activeCreditCount > 0 && (
-                        <span className="px-1.5 py-0.5 rounded-full bg-rose-600 text-white text-[9px] font-black leading-none">
-                          {activeCreditCount}
-                        </span>
-                      )}
-                    </Link>
-                  )}
                   <Link
                     to="/chat"
                     className={`relative flex items-center gap-1 transition-colors ${isActive("/chat") ? "text-brand-green-700 border-b-2 border-brand-green-600 pb-1" : "text-slate-600 hover:text-brand-green-700"}`}
