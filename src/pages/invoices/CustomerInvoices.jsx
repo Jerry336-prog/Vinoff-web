@@ -57,7 +57,11 @@ export const CustomerInvoices = () => {
     }
   };
 
-  const allowedStatuses = ["All", "Draft", "Pending", "Paid", "Cancelled"];
+  const allowedStatuses = ["All", "On Credit", "Pending", "Paid", "Draft", "Cancelled"];
+
+  const creditInvoicesCount = invoices.filter(
+    (inv) => (inv.isCredit || inv.status === "On Credit") && inv.status !== "Paid" && inv.status !== "Cancelled"
+  ).length;
 
   const filteredInvoices = invoices.filter((inv) => {
     const matchesSearch =
@@ -84,15 +88,28 @@ export const CustomerInvoices = () => {
           </p>
         </div>
 
-        <div className="relative w-full sm:w-64">
-          <input
-            type="text"
-            placeholder="Search invoice number..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-white border border-slate-200 rounded-xl py-2 pl-9 pr-4 text-xs font-semibold focus:ring-2 focus:ring-brand-green-500 outline-none"
-          />
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+        <div className="flex flex-wrap items-center gap-2.5">
+          <Link
+            to="/credit-invoices"
+            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-extrabold bg-gradient-to-r from-brand-green-900 to-slate-900 text-white shadow-xs hover:opacity-95 transition"
+          >
+            <span>VIP Credit Ledger</span>
+            {creditInvoicesCount > 0 && (
+              <span className="px-1.5 py-0.5 rounded-full text-[10px] font-black bg-rose-500 text-white">
+                {creditInvoicesCount} Owing
+              </span>
+            )}
+          </Link>
+          <div className="relative w-full sm:w-64">
+            <input
+              type="text"
+              placeholder="Search invoice number..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full bg-white border border-slate-200 rounded-xl py-2 pl-9 pr-4 text-xs font-semibold focus:ring-2 focus:ring-brand-green-500 outline-none"
+            />
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+          </div>
         </div>
       </div>
 
@@ -152,7 +169,12 @@ export const CustomerInvoices = () => {
                   >
                     <td className="py-4 px-5 font-mono font-black text-slate-900 flex items-center gap-2">
                       <FileText className="w-4 h-4 text-slate-400" />
-                      {inv.invoiceNumber}
+                      <span>{inv.invoiceNumber}</span>
+                      {(inv.isCredit || inv.status === "On Credit") && (
+                        <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-amber-100 text-amber-800 border border-amber-200">
+                          VIP Credit
+                        </span>
+                      )}
                     </td>
                     <td className="py-4 px-4 text-slate-500 font-medium">
                       {new Date(inv.createdAt).toLocaleDateString()}

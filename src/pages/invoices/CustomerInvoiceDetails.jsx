@@ -5,6 +5,7 @@ import { createIdempotencyKey, withIdempotencyKey } from "../../services/idempot
 import { formatCurrency } from "../../utils/formatCurrency";
 import Badge from "../../components/ui/Badge";
 import { AuthContext } from "../../context/AuthContext";
+import { useBusiness } from "../../context/BusinessContext";
 import {
   ArrowLeft,
   FileText,
@@ -26,6 +27,7 @@ import { unwrapApiList, unwrapApiRecord } from "../../utils/apiResponse";
 export const CustomerInvoiceDetails = () => {
   const { toast, showModal, showPrompt } = useToast();
   const { user } = useContext(AuthContext);
+  const { businessInfo, bankDetails: contextBankDetails } = useBusiness();
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
@@ -49,11 +51,17 @@ export const CustomerInvoiceDetails = () => {
 
   const [products, setProducts] = useState([]);
   const [bankDetails, setBankDetails] = useState({
-    bankName: "Guaranty Trust Bank (GTB)",
-    accountName: "Vinoff Wholesales Ltd",
-    accountNumber: "0123456789",
-    instructions: "",
+    bankName: contextBankDetails?.bankName || "Guaranty Trust Bank (GTB)",
+    accountName: contextBankDetails?.accountName || "Vinoff Wholesales Ltd",
+    accountNumber: contextBankDetails?.accountNumber || "0123456789",
+    instructions: contextBankDetails?.instructions || "",
   });
+
+  useEffect(() => {
+    if (contextBankDetails?.bankName) {
+      setBankDetails(contextBankDetails);
+    }
+  }, [contextBankDetails]);
 
   useEffect(() => {
     const fetchInvoice = async () => {
@@ -412,10 +420,10 @@ export const CustomerInvoiceDetails = () => {
         {/* Invoice Watermark Overlay */}
         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none select-none opacity-[0.06] -rotate-12 z-10 overflow-hidden">
           <p className="text-xl sm:text-4xl font-black text-brand-green-800 tracking-widest uppercase text-center leading-tight">
-            VINOFF &amp; CO.NIG.LTD
+            {businessInfo?.watermarkText || "VINOFF & CO.NIG.LTD"}
           </p>
           <p className="text-lg sm:text-3xl font-black text-brand-green-800 tracking-widest uppercase text-center leading-tight mt-3">
-            VINOFF &amp; CO.NIG.LTD
+            {businessInfo?.watermarkText || "VINOFF & CO.NIG.LTD"}
           </p>
         </div>
 
@@ -424,16 +432,27 @@ export const CustomerInvoiceDetails = () => {
           <div>
             <div className="flex items-center gap-2.5 sm:gap-3">
               <img src="/VinoffLogo.webp" alt="Vinoff Logo" className="w-10 h-10 sm:w-14 sm:h-14 object-contain shrink-0" />
-              <span className="text-lg sm:text-xl font-black text-brand-green-950 tracking-tight">
-                VINOFF <span className="text-brand-green-600">WHOLESALE</span>
+              <span className="text-lg sm:text-xl font-black text-brand-green-950 tracking-tight uppercase">
+                {(businessInfo?.brandTitle || "VINOFF WHOLESALES").split(/\s+/)[0]}{" "}
+                <span className="text-brand-green-600">
+                  {(businessInfo?.brandTitle || "VINOFF WHOLESALES").split(/\s+/).slice(1).join(" ") || "WHOLESALES"}
+                </span>
               </span>
             </div>
             <p className="text-xs text-slate-500 mt-2 font-medium">
-              Commercial Toiletries, Sanitizers & Industrial Detergents
+              {businessInfo?.tagline || "Commercial Toiletries, Sanitizers & Industrial Detergents"}
             </p>
-            <p className="text-xs text-slate-400 mt-0.5">
-              Email: sales@vinoff.com &bull; Tel: +234 80 1234 5678
+            <p className="text-xs text-slate-500 mt-0.5 font-semibold">
+              Email: {businessInfo?.emailContact || "sales@vinoff.com"} &bull; Tel: {businessInfo?.phoneContact || "+234 80 1234 5678"}
+              {businessInfo?.secondaryPhone ? ` / ${businessInfo.secondaryPhone}` : ""}
             </p>
+            {businessInfo?.shopAddress && (
+              <p className="text-[11px] text-slate-400 mt-0.5">
+                {[businessInfo.shopAddress, businessInfo.complexArea, businessInfo.cityState]
+                  .filter(Boolean)
+                  .join(", ")}
+              </p>
+            )}
           </div>
 
           <div className="text-left sm:text-right space-y-1">
@@ -762,6 +781,7 @@ export const CustomerInvoiceDetails = () => {
                 <select value={editForm.status} onChange={(e) => setEditForm({ ...editForm, status: e.target.value })} className="bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-brand-green-500">
                   <option>Draft</option>
                   <option>Pending</option>
+                  <option>On Credit</option>
                   <option>Paid</option>
                   <option>Cancelled</option>
                 </select>

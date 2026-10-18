@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useContext, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import api from "../../services/api";
+import { formatCurrency } from "../../utils/formatCurrency";
 import {
   Users,
   Search,
@@ -17,6 +18,8 @@ import {
   MapPin,
   MoreVertical,
   Eye,
+  Sparkles,
+  CreditCard,
 } from "lucide-react";
 import Avatar from "../../components/ui/Avatar";
 import Button from "../../components/ui/Button";
@@ -102,6 +105,51 @@ export const Customers = () => {
     });
   };
 
+  const handleVipCreditToggle = (e, targetUser) => {
+    if (e) e.stopPropagation();
+    const nextVipState = !targetUser.isVipCreditPartner;
+
+    showModal({
+      title: nextVipState ? "Grant VIP Credit Partner Status" : "Revoke VIP Credit Partner Status",
+      message: nextVipState
+        ? `Upgrade ${targetUser.firstName} ${targetUser.lastName} to a VIP Credit Partner? They will be able to place wholesale orders on credit and access the dedicated VIP Credit Invoices ledger.`
+        : `Revoke VIP Credit Partner privilege from ${targetUser.firstName} ${targetUser.lastName}? Any existing unpaid credit invoices will still remain on their balance until settled.`,
+      confirmText: nextVipState ? "Grant VIP Credit" : "Revoke VIP Credit",
+      cancelText: "Cancel",
+      type: nextVipState ? "info" : "warning",
+      onConfirm: async () => {
+        setUpdatingId(targetUser._id);
+        try {
+          const res = await api.patch(`/api/admin/customers/${targetUser._id}/vip-credit`, {
+            isVipCreditPartner: nextVipState,
+          });
+          const updatedCustomer = res.data?.data?.customer || res.data?.customer || res.data;
+          setUsers((prev) =>
+            prev.map((u) =>
+              u._id === targetUser._id
+                ? {
+                    ...u,
+                    isVipCreditPartner: nextVipState,
+                    outstandingCredit: updatedCustomer?.outstandingCredit ?? u.outstandingCredit ?? 0,
+                  }
+                : u
+            )
+          );
+          toast.success(
+            nextVipState
+              ? `${targetUser.firstName} ${targetUser.lastName} is now a VIP Credit Partner!`
+              : `VIP Credit Partner status revoked for ${targetUser.firstName} ${targetUser.lastName}`,
+            "VIP Credit Updated"
+          );
+        } catch (err) {
+          toast.error(err.message || "Failed to update VIP Credit Partner status", "Update Failed");
+        } finally {
+          setUpdatingId(null);
+        }
+      },
+    });
+  };
+
   const handleRoleChange = (e, targetUser, newRole) => {
     if (e) e.stopPropagation();
     const isPromoting = newRole === "admin";
@@ -147,16 +195,23 @@ export const Customers = () => {
     const matchesSearch =
       fullName.includes(term) || company.includes(term) || email.includes(term);
 
+    const isOwing = Number(u.outstandingCredit || 0) > 0 || Boolean(u.isOwingCredit);
+
     const matchesStatus =
       statusFilter === "all" ||
       (statusFilter === "admins" && (u.role === "admin" || u.role === "subAdmin" || u.role === "superadmin")) ||
       (statusFilter === "customers" && u.role === "customer") ||
+      (statusFilter === "vip" && Boolean(u.isVipCreditPartner)) ||
+      (statusFilter === "owing" && isOwing) ||
       (statusFilter === "active" && u.accountStatus !== "suspended") ||
       (statusFilter === "suspended" && u.accountStatus === "suspended") ||
       (statusFilter === "updated" && u.profileUpdatedAt);
 
     return matchesSearch && matchesStatus;
   });
+
+  const vipCount = users.filter((u) => u.isVipCreditPartner).length;
+  const owingCount = users.filter((u) => Number(u.outstandingCredit || 0) > 0 || u.isOwingCredit).length;
 
   return (
     <div className="space-y-5 sm:space-y-6 px-1 sm:px-0">
@@ -168,7 +223,7 @@ export const Customers = () => {
             User & Account Registry
           </h1>
           <p className="text-xs text-slate-500 font-medium mt-0.5 leading-relaxed">
-            Manage buyer outlets & admin accounts, promote staff, and enforce system security controls.
+            Manage buyer outlets, VIP Credit Partners, admin accounts, and enforce system security controls.
           </p>
         </div>
 
@@ -197,6 +252,34 @@ export const Customers = () => {
           }`}
         >
           All Accounts ({users.length})
+        </button>
+        <button
+          onClick={() => setStatusFilter("vip")}
+          className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap shrink-0 ${
+            statusFilter === "vip"
+              ? "bg-amber-600 text-white shadow-xs"
+              : "bg-white text-amber-900 hover:bg-amber-50 border border-amber-200"
+          }`}
+        >
+          <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+          <span>VIP Credit Partners</span>
+          <span className="text-[10px] px-2 py-0.2 bg-amber-100 text-amber-900 rounded-full font-extrabold">
+            {vipCount}
+          </span>
+        </button>
+        <button
+          onClick={() => setStatusFilter("owing")}
+          className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap shrink-0 ${
+            statusFilter === "owing"
+              ? "bg-rose-600 text-white shadow-xs"
+              : "bg-white text-rose-900 hover:bg-rose-50 border border-rose-200"
+          }`}
+        >
+          <span className="w-2 h-2 rounded-full bg-red-600 animate-pulse" />
+          <span>Owing Credit</span>
+          <span className="text-[10px] px-2 py-0.2 bg-rose-100 text-rose-900 rounded-full font-extrabold">
+            {owingCount}
+          </span>
         </button>
         <button
           onClick={() => setStatusFilter("admins")}
@@ -267,6 +350,8 @@ export const Customers = () => {
               const hasProfileUpdate = Boolean(u.profileUpdatedAt);
               const isSuperadminRole = u.role === "superadmin" || u.role === "super_admin";
               const isAdminRole = u.role === "admin" || u.role === "subAdmin";
+              const owingAmount = Number(u.outstandingCredit || 0);
+              const isOwing = owingAmount > 0 || Boolean(u.isOwingCredit);
 
               return (
                 <div
@@ -276,18 +361,37 @@ export const Customers = () => {
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-3 min-w-0">
-                      <Avatar
-                        src={getAvatarUrl(u)}
-                        alt={`${u.firstName || "User"} ${u.lastName || ""}`.trim()}
-                        size={40}
-                        fallback={getInitials(u, "U")}
-                        className="rounded-xl bg-brand-green-100 text-brand-green-900 shrink-0 border border-brand-green-200"
-                      />
+                      <div className="relative shrink-0">
+                        <Avatar
+                          src={getAvatarUrl(u)}
+                          alt={`${u.firstName || "User"} ${u.lastName || ""}`.trim()}
+                          size={40}
+                          fallback={getInitials(u, "U")}
+                          className="rounded-xl bg-brand-green-100 text-brand-green-900 shrink-0 border border-brand-green-200"
+                        />
+                        {isOwing && (
+                          <span
+                            className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-red-600 border-2 border-white shadow-xs"
+                            title={`Owing Credit: ${formatCurrency(owingAmount)}`}
+                          />
+                        )}
+                      </div>
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5 flex-wrap">
-                          <p className="font-extrabold text-slate-900 text-xs leading-tight truncate">
-                            {u.firstName} {u.lastName}
+                          <p className="font-extrabold text-slate-900 text-xs leading-tight truncate flex items-center gap-1.5">
+                            <span>{u.firstName} {u.lastName}</span>
+                            {isOwing && (
+                              <span
+                                className="inline-block w-2 h-2 rounded-full bg-red-600 shrink-0"
+                                title={`Owing VIP Credit: ${formatCurrency(owingAmount)}`}
+                              />
+                            )}
                           </p>
+                          {u.isVipCreditPartner && (
+                            <span className="inline-flex items-center gap-0.5 text-[9px] font-black bg-amber-100 text-amber-900 border border-amber-300 px-1.5 py-0.2 rounded-full">
+                              VIP Credit Partner
+                            </span>
+                          )}
                           {hasProfileUpdate && (
                             <span className="inline-flex items-center text-[9px] font-extrabold bg-emerald-100 text-emerald-900 px-1.5 py-0.2 rounded-full">
                               Updated
@@ -297,6 +401,11 @@ export const Customers = () => {
                         <p className="text-[10px] text-brand-green-700 font-bold uppercase truncate mt-0.5">
                           {u.profile?.companyName || "Independent Outlet"}
                         </p>
+                        {isOwing && (
+                          <p className="text-[10px] font-black text-red-600 mt-0.5">
+                            ● Owing Credit: {formatCurrency(owingAmount)}
+                          </p>
+                        )}
                       </div>
                     </div>
 
@@ -313,7 +422,7 @@ export const Customers = () => {
                       </button>
 
                       {openMenuId === u._id && (
-                        <div className="absolute right-0 top-8 w-48 bg-white rounded-2xl shadow-xl border border-slate-200 py-1.5 z-40 text-left">
+                        <div className="absolute right-0 top-8 w-52 bg-white rounded-2xl shadow-xl border border-slate-200 py-1.5 z-40 text-left">
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
@@ -324,6 +433,19 @@ export const Customers = () => {
                           >
                             <Eye className="w-4 h-4 text-brand-green-600" /> View Details
                           </button>
+
+                          {!isSuperadminRole && !isAdminRole && (
+                            <button
+                              onClick={(e) => {
+                                setOpenMenuId(null);
+                                handleVipCreditToggle(e, u);
+                              }}
+                              className="w-full text-left px-4 py-2 text-xs font-bold text-amber-800 hover:bg-amber-50 flex items-center gap-2"
+                            >
+                              <Sparkles className="w-4 h-4 text-amber-600" />
+                              {u.isVipCreditPartner ? "Revoke VIP Credit" : "Make VIP Credit Partner"}
+                            </button>
+                          )}
 
                           {isSuperAdmin && !isSuperadminRole && u._id !== currentUser?._id && (
                             <>
@@ -428,7 +550,7 @@ export const Customers = () => {
                 <thead>
                   <tr className="text-slate-400 font-extrabold border-b border-slate-100 bg-slate-50/80 uppercase tracking-wider text-[10px]">
                     <th className="py-4 px-5">User / Outlet Name</th>
-                    <th className="py-4 px-4">System Role</th>
+                    <th className="py-4 px-4">System Role & Credit Tier</th>
                     <th className="py-4 px-4">Contact Info</th>
                     <th className="py-4 px-4">Location</th>
                     <th className="py-4 px-4 text-center">Status</th>
@@ -441,6 +563,8 @@ export const Customers = () => {
                     const hasProfileUpdate = Boolean(u.profileUpdatedAt);
                     const isSuperadminRole = u.role === "superadmin" || u.role === "super_admin";
                     const isAdminRole = u.role === "admin" || u.role === "subAdmin";
+                    const owingAmount = Number(u.outstandingCredit || 0);
+                    const isOwing = owingAmount > 0 || Boolean(u.isOwingCredit);
 
                     return (
                       <tr
@@ -450,17 +574,31 @@ export const Customers = () => {
                       >
                         <td className="py-4 px-5">
                           <div className="flex items-center gap-3">
-                            <Avatar
-                              src={getAvatarUrl(u)}
-                              alt={`${u.firstName || "User"} ${u.lastName || ""}`.trim()}
-                              size={42}
-                              fallback={getInitials(u, "U")}
-                              className="rounded-xl bg-brand-green-100 text-brand-green-900 shrink-0 border border-brand-green-200"
-                            />
+                            <div className="relative shrink-0">
+                              <Avatar
+                                src={getAvatarUrl(u)}
+                                alt={`${u.firstName || "User"} ${u.lastName || ""}`.trim()}
+                                size={42}
+                                fallback={getInitials(u, "U")}
+                                className="rounded-xl bg-brand-green-100 text-brand-green-900 shrink-0 border border-brand-green-200"
+                              />
+                              {isOwing && (
+                                <span
+                                  className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-red-600 border-2 border-white shadow-xs"
+                                  title={`Owing VIP Credit: ${formatCurrency(owingAmount)}`}
+                                />
+                              )}
+                            </div>
                             <div className="space-y-0.5">
                               <div className="flex items-center gap-2">
-                                <p className="font-extrabold text-slate-900 leading-tight">
-                                  {u.firstName} {u.lastName}
+                                <p className="font-extrabold text-slate-900 leading-tight flex items-center gap-1.5">
+                                  <span>{u.firstName} {u.lastName}</span>
+                                  {isOwing && (
+                                    <span
+                                      className="inline-block w-2 h-2 rounded-full bg-red-600 shrink-0"
+                                      title={`Owing VIP Credit: ${formatCurrency(owingAmount)}`}
+                                    />
+                                  )}
                                 </p>
                                 {hasProfileUpdate && (
                                   <span className="inline-flex items-center text-[9px] font-extrabold bg-emerald-100 text-emerald-900 px-2 py-0.5 rounded-full">
@@ -471,26 +609,39 @@ export const Customers = () => {
                               <p className="text-[11px] text-slate-400 font-bold uppercase tracking-tight">
                                 {u.profile?.companyName || "Independent Outlet"}
                               </p>
+                              {isOwing && (
+                                <p className="text-[10px] font-black text-red-600">
+                                  ● Owing Credit: {formatCurrency(owingAmount)}
+                                </p>
+                              )}
                             </div>
                           </div>
                         </td>
 
                         <td className="py-4 px-4 whitespace-nowrap">
-                          {isSuperadminRole ? (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-black bg-amber-100 text-amber-900 border border-amber-300 px-2.5 py-0.5 rounded-full">
-                              <Crown className="w-3 h-3 text-amber-600 fill-amber-500" />
-                              SUPERADMIN
-                            </span>
-                          ) : isAdminRole ? (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-purple-100 text-purple-900 border border-purple-200 px-2.5 py-0.5 rounded-full">
-                              <Shield className="w-3 h-3 text-purple-600" />
-                              ADMIN
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center text-[10px] font-semibold bg-slate-100 text-slate-600 border border-slate-200 px-2.5 py-0.5 rounded-full">
-                              CUSTOMER
-                            </span>
-                          )}
+                          <div className="flex flex-col items-start gap-1">
+                            {isSuperadminRole ? (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-black bg-amber-100 text-amber-900 border border-amber-300 px-2.5 py-0.5 rounded-full">
+                                <Crown className="w-3 h-3 text-amber-600 fill-amber-500" />
+                                SUPERADMIN
+                              </span>
+                            ) : isAdminRole ? (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-purple-100 text-purple-900 border border-purple-200 px-2.5 py-0.5 rounded-full">
+                                <Shield className="w-3 h-3 text-purple-600" />
+                                ADMIN
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center text-[10px] font-semibold bg-slate-100 text-slate-600 border border-slate-200 px-2.5 py-0.5 rounded-full">
+                                CUSTOMER
+                              </span>
+                            )}
+                            {u.isVipCreditPartner && (
+                              <span className="inline-flex items-center gap-1 text-[9px] font-black bg-amber-50 text-amber-900 border border-amber-300 px-2 py-0.5 rounded-full">
+                                <Sparkles className="w-2.5 h-2.5 text-amber-600" />
+                                VIP CREDIT PARTNER
+                              </span>
+                            )}
+                          </div>
                         </td>
 
                         <td className="py-4 px-4 space-y-0.5 whitespace-nowrap">
@@ -550,7 +701,7 @@ export const Customers = () => {
                             </button>
 
                             {openMenuId === u._id && (
-                              <div className="absolute right-0 mt-1 w-48 bg-white rounded-2xl shadow-xl border border-slate-200 py-1.5 z-40 animate-fadeIn text-left">
+                              <div className="absolute right-0 mt-1 w-52 bg-white rounded-2xl shadow-xl border border-slate-200 py-1.5 z-40 animate-fadeIn text-left">
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();
@@ -561,6 +712,19 @@ export const Customers = () => {
                                 >
                                   <Eye className="w-4 h-4 text-brand-green-600" /> View Details
                                 </button>
+
+                                {!isSuperadminRole && !isAdminRole && (
+                                  <button
+                                    onClick={(e) => {
+                                      setOpenMenuId(null);
+                                      handleVipCreditToggle(e, u);
+                                    }}
+                                    className="w-full text-left px-4 py-2 text-xs font-bold text-amber-800 hover:bg-amber-50 flex items-center gap-2"
+                                  >
+                                    <Sparkles className="w-4 h-4 text-amber-600" />
+                                    {u.isVipCreditPartner ? "Revoke VIP Credit" : "Make VIP Credit Partner"}
+                                  </button>
+                                )}
 
                                 {isSuperAdmin && !isSuperadminRole && u._id !== currentUser?._id && (
                                   <>

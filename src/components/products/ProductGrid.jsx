@@ -16,7 +16,7 @@ export const ProductGrid = ({ products = [], loading = false }) => {
         ))}
       </div>
     );
-  }
+  }m
 
   if (products.length === 0) {
     return (

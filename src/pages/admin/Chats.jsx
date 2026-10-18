@@ -247,22 +247,46 @@ export const Chats = () => {
               </h3>
               <div className="bg-white border border-slate-200 rounded-2xl p-3 space-y-2 shadow-xs">
                 <div className="flex items-center gap-2.5">
-                  <Avatar
-                    src={activeRoom.avatarUrl}
-                    alt={activeRoom.customerName}
-                    size={38}
-                    fallback={getInitials(activeRoom.customer || activeRoom, "C")}
-                    className="rounded-xl border border-brand-green-100 shrink-0"
-                  />
+                  <div className="relative shrink-0">
+                    <Avatar
+                      src={activeRoom.avatarUrl}
+                      alt={activeRoom.customerName}
+                      size={38}
+                      fallback={getInitials(activeRoom.customer || activeRoom, "C")}
+                      className="rounded-xl border border-brand-green-100 shrink-0"
+                    />
+                    {(Number(activeRoom.customer?.outstandingCredit || 0) > 0 ||
+                      customerInvoices.some((i) => (i.isCredit || i.status === "On Credit") && i.status !== "Paid" && i.status !== "Cancelled")) && (
+                      <span
+                        className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-red-600 border-2 border-white shadow-xs"
+                        title="Owing VIP Credit"
+                      />
+                    )}
+                  </div>
                   <div className="min-w-0 flex-1">
-                    <p className="font-bold text-xs text-slate-900 leading-tight truncate">
-                      {activeRoom.customerName}
+                    <p className="font-bold text-xs text-slate-900 leading-tight truncate flex items-center gap-1.5">
+                      <span className="truncate">{activeRoom.customerName}</span>
+                      {(Number(activeRoom.customer?.outstandingCredit || 0) > 0 ||
+                        customerInvoices.some((i) => (i.isCredit || i.status === "On Credit") && i.status !== "Paid" && i.status !== "Cancelled")) && (
+                        <span
+                          className="inline-block w-2 h-2 rounded-full bg-red-600 shrink-0"
+                          title="Owing VIP Credit"
+                        />
+                      )}
                     </p>
                     <p className="text-[10px] text-brand-green-700 font-bold truncate">
                       {activeRoom.businessName}
                     </p>
                   </div>
                 </div>
+                {activeRoom.customer?.isVipCreditPartner && (
+                  <div className="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-xl px-2.5 py-1.5 text-[10px]">
+                    <span className="font-black text-amber-900 uppercase">VIP Credit Owing:</span>
+                    <strong className="font-mono font-black text-rose-700">
+                      {formatCurrency(activeRoom.customer?.outstandingCredit || 0)}
+                    </strong>
+                  </div>
+                )}
                 <p className="text-[11px] text-slate-500 truncate">
                   {activeRoom.customer?.email}
                 </p>

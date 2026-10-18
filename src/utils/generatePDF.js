@@ -4,6 +4,12 @@ import api from "../services/api";
 import { formatCurrency } from "./formatCurrency";
 import { toast } from "../context/ToastContext";
 import { unwrapApiRecord } from "./apiResponse";
+import {
+  getCachedBusinessInfo,
+  fetchLiveBusinessInfo,
+  getCachedBankDetails,
+  fetchLiveBankDetails,
+} from "../context/BusinessContext";
 
 /**
  * Helper to build standard Vinoff Commercial Invoice HTML for canvas rendering
@@ -33,21 +39,36 @@ const buildInvoiceHTML = ({
   accountName,
   accountNumber,
   bankInstructions,
-}) => `
+  businessName,
+  brandTitle,
+  tagline,
+  watermarkText,
+  emailContact,
+  phoneContact,
+  secondaryPhone,
+  storeAddress,
+}) => {
+  const wm = watermarkText || "VINOFF & CO.NIG.LTD";
+  const bTitle = (brandTitle || "VINOFF WHOLESALES").trim();
+  const bParts = bTitle.split(/\s+/);
+  const bPrimary = bParts[0] || "VINOFF";
+  const bSecondary = bParts.slice(1).join(" ") || "WHOLESALES";
+
+  return `
   <div style="position: relative; overflow: hidden; background-color: #ffffff;">
     <!-- Overlay Watermark -->
     <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column; align-items: center; justify-content: space-around; pointer-events: none; opacity: 0.11; transform: rotate(-22deg); z-index: 10; text-align: center; padding: 100px 0;">
       <div style="margin: 40px 0;">
-        <div style="font-size: 46px; font-weight: 900; color: #047857; letter-spacing: 3px; text-transform: uppercase; white-space: nowrap; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">VINOFF &amp; CO.NIG.LTD</div>
-        <div style="font-size: 38px; font-weight: 900; color: #047857; letter-spacing: 3px; text-transform: uppercase; white-space: nowrap; margin-top: 10px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">VINOFF &amp; CO.NIG.LTD</div>
+        <div style="font-size: 46px; font-weight: 900; color: #047857; letter-spacing: 3px; text-transform: uppercase; white-space: nowrap; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">${wm}</div>
+        <div style="font-size: 38px; font-weight: 900; color: #047857; letter-spacing: 3px; text-transform: uppercase; white-space: nowrap; margin-top: 10px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">${wm}</div>
       </div>
       <div style="margin: 40px 0;">
-        <div style="font-size: 46px; font-weight: 900; color: #047857; letter-spacing: 3px; text-transform: uppercase; white-space: nowrap; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">VINOFF &amp; CO.NIG.LTD</div>
-        <div style="font-size: 38px; font-weight: 900; color: #047857; letter-spacing: 3px; text-transform: uppercase; white-space: nowrap; margin-top: 10px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">VINOFF &amp; CO.NIG.LTD</div>
+        <div style="font-size: 46px; font-weight: 900; color: #047857; letter-spacing: 3px; text-transform: uppercase; white-space: nowrap; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">${wm}</div>
+        <div style="font-size: 38px; font-weight: 900; color: #047857; letter-spacing: 3px; text-transform: uppercase; white-space: nowrap; margin-top: 10px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">${wm}</div>
       </div>
       <div style="margin: 40px 0;">
-        <div style="font-size: 46px; font-weight: 900; color: #047857; letter-spacing: 3px; text-transform: uppercase; white-space: nowrap; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">VINOFF &amp; CO.NIG.LTD</div>
-        <div style="font-size: 38px; font-weight: 900; color: #047857; letter-spacing: 3px; text-transform: uppercase; white-space: nowrap; margin-top: 10px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">VINOFF &amp; CO.NIG.LTD</div>
+        <div style="font-size: 46px; font-weight: 900; color: #047857; letter-spacing: 3px; text-transform: uppercase; white-space: nowrap; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">${wm}</div>
+        <div style="font-size: 38px; font-weight: 900; color: #047857; letter-spacing: 3px; text-transform: uppercase; white-space: nowrap; margin-top: 10px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">${wm}</div>
       </div>
     </div>
 
@@ -57,16 +78,21 @@ const buildInvoiceHTML = ({
         <div>
           <div style="display: flex; align-items: center; gap: 14px;">
             <img src="/VinoffLogo.webp" alt="Vinoff Logo" style="width: 56px; height: 56px; object-fit: contain;" />
-            <div style="font-size: 22px; font-weight: 900; color: #064e3b; letter-spacing: -0.5px;">
-              VINOFF <span style="color: #047857;">WHOLESALE</span>
+            <div style="font-size: 22px; font-weight: 900; color: #064e3b; letter-spacing: -0.5px; text-transform: uppercase;">
+              ${bPrimary} <span style="color: #047857;">${bSecondary}</span>
             </div>
           </div>
           <div style="font-size: 11px; color: #64748b; font-weight: 500; margin-top: 6px;">
-            Commercial Toiletries, Sanitizers & Industrial Detergents
+            ${tagline || "Commercial Toiletries, Sanitizers & Industrial Detergents"}
           </div>
-          <div style="font-size: 11px; color: #94a3b8; margin-top: 2px;">
-            Email: sales@vinoff.com &bull; Tel: +234 80 1234 5678
+          <div style="font-size: 11px; color: #475569; font-weight: 600; margin-top: 3px;">
+            Email: ${emailContact || "sales@vinoff.com"} &bull; Tel: ${phoneContact || "+234 80 1234 5678"}${secondaryPhone ? ` / ${secondaryPhone}` : ""}
           </div>
+          ${
+            storeAddress
+              ? `<div style="font-size: 10px; color: #94a3b8; margin-top: 2px;">${storeAddress}</div>`
+              : ""
+          }
         </div>
 
         <div style="display: flex; flex-direction: column; align-items: flex-end; text-align: right; box-sizing: border-box;">
@@ -121,7 +147,7 @@ const buildInvoiceHTML = ({
             ${orderRef ? `#${orderRef}` : "Direct Wholesale Issuance"}
           </div>
           <div style="font-size: 11px; color: #64748b; margin-top: 4px;">
-            Platform: Vinoff Commercial Portal
+            Platform: ${businessName || "Vinoff Wholesales Ltd"}
           </div>
         </div>
       </div>
@@ -166,7 +192,7 @@ const buildInvoiceHTML = ({
           </div>
           <div style="font-size: 11px; color: #334155; line-height: 1.6;">
             <div>Bank: <strong>${bankName || "Guaranty Trust Bank (GTB)"}</strong></div>
-            <div>Account Name: <strong>${accountName || "Vinoff Wholesales Ltd"}</strong></div>
+            <div>Account Name: <strong>${accountName || businessName || "Vinoff Wholesales Ltd"}</strong></div>
             <div>Account Number: <strong style="font-family: monospace; font-size: 12px; color: #047857;">${accountNumber || "0123456789"}</strong></div>
           </div>
           ${
@@ -215,11 +241,12 @@ const buildInvoiceHTML = ({
       </div>
 
       <div style="border-top: 1px solid #f1f5f9; padding-top: 18px; text-align: center; font-size: 10px; color: #94a3b8;">
-        Official Commercial Invoice &bull; Thank you for your partnership with Vinoff Wholesale E-Commerce.
+        Official Commercial Invoice &bull; Thank you for your partnership with ${businessName || "Vinoff Wholesales Ltd"}.
       </div>
     </div>
   </div>
 `;
+};
 
 /**
  * Adds canvas to jsPDF supporting multiple pages for long documents with high visual quality and minimal file size.
@@ -273,6 +300,9 @@ const appendCanvasToJsPDF = (pdf, canvas) => {
  * Helper to prepare normalized invoice parameters
  */
 const extractInvoiceParams = (invData) => {
+  const cachedBiz = getCachedBusinessInfo();
+  const cachedBank = getCachedBankDetails();
+
   const invoiceNumber = invData.invoiceNumber || "INV-000";
   const issuedDate = new Date(invData.date || invData.createdAt || Date.now()).toLocaleDateString();
   const dueDate = invData.dueDate ? new Date(invData.dueDate).toLocaleDateString() : "On Receipt";
@@ -367,36 +397,49 @@ const extractInvoiceParams = (invData) => {
     deliveryFee,
     total,
     notes,
-    bankName: "",
-    accountName: "",
-    accountNumber: "",
-    bankInstructions: "",
+    bankName: cachedBank?.bankName || "",
+    accountName: cachedBank?.accountName || "",
+    accountNumber: cachedBank?.accountNumber || "",
+    bankInstructions: cachedBank?.instructions || "",
+    businessName: cachedBiz?.businessName || "Vinoff Wholesales Ltd",
+    brandTitle: cachedBiz?.brandTitle || "VINOFF WHOLESALES",
+    tagline: cachedBiz?.tagline || "Commercial Toiletries, Sanitizers & Industrial Detergents",
+    watermarkText: cachedBiz?.watermarkText || "VINOFF & CO.NIG.LTD",
+    emailContact: cachedBiz?.emailContact || "sales@vinoff.com",
+    phoneContact: cachedBiz?.phoneContact || "+234 80 1234 5678",
+    secondaryPhone: cachedBiz?.secondaryPhone || "",
+    storeAddress: [cachedBiz?.shopAddress, cachedBiz?.complexArea, cachedBiz?.cityState].filter(Boolean).join(", "),
   };
 };
 
 /**
- * Fetches bank details from the API with a short-lived in-memory cache to avoid redundant requests.
+ * Fetches live bank and business details from the API / shared cache
  */
-let _cachedBankDetails = null;
-let _bankDetailsFetchedAt = 0;
-const fetchBankDetails = async () => {
-  const now = Date.now();
-  // Cache for 5 minutes
-  if (_cachedBankDetails && now - _bankDetailsFetchedAt < 5 * 60 * 1000) {
-    return _cachedBankDetails;
+const applyLiveBusinessAndBankParams = async (params) => {
+  const [bizData, bankData] = await Promise.all([
+    fetchLiveBusinessInfo().catch(() => getCachedBusinessInfo()),
+    fetchLiveBankDetails().catch(() => getCachedBankDetails()),
+  ]);
+
+  if (bizData) {
+    params.businessName = bizData.businessName || params.businessName;
+    params.brandTitle = bizData.brandTitle || params.brandTitle;
+    params.tagline = bizData.tagline || params.tagline;
+    params.watermarkText = bizData.watermarkText || params.watermarkText;
+    params.emailContact = bizData.emailContact || params.emailContact;
+    params.phoneContact = bizData.phoneContact || params.phoneContact;
+    params.secondaryPhone = bizData.secondaryPhone ?? params.secondaryPhone;
+    params.storeAddress = [bizData.shopAddress, bizData.complexArea, bizData.cityState]
+      .filter(Boolean)
+      .join(", ");
   }
-  try {
-    const res = await api.get("/api/settings/bank-details");
-    const data = res.data?.data || res.data || res;
-    if (data?.bankName) {
-      _cachedBankDetails = data;
-      _bankDetailsFetchedAt = now;
-      return data;
-    }
-  } catch (e) {
-    console.warn("Could not fetch bank details for PDF:", e);
+
+  if (bankData) {
+    params.bankName = bankData.bankName || params.bankName;
+    params.accountName = bankData.accountName || params.accountName;
+    params.accountNumber = bankData.accountNumber || params.accountNumber;
+    params.bankInstructions = bankData.instructions || "";
   }
-  return null;
 };
 
 /**
@@ -426,15 +469,7 @@ export const downloadInvoicePDF = async (invoiceOrId) => {
     }
 
     const params = extractInvoiceParams(invData);
-
-    // Fetch live bank details and merge into params
-    const bankData = await fetchBankDetails();
-    if (bankData) {
-      params.bankName = bankData.bankName || params.bankName;
-      params.accountName = bankData.accountName || params.accountName;
-      params.accountNumber = bankData.accountNumber || params.accountNumber;
-      params.bankInstructions = bankData.instructions || "";
-    }
+    await applyLiveBusinessAndBankParams(params);
 
     const container = document.createElement("div");
     container.style.position = "fixed";
@@ -499,15 +534,7 @@ export const createInvoicePDFFile = async (invoiceOrId) => {
   if (!invData) throw new Error("Invoice data unavailable");
 
   const params = extractInvoiceParams(invData);
-
-  // Fetch live bank details and merge into params
-  const bankData = await fetchBankDetails();
-  if (bankData) {
-    params.bankName = bankData.bankName || params.bankName;
-    params.accountName = bankData.accountName || params.accountName;
-    params.accountNumber = bankData.accountNumber || params.accountNumber;
-    params.bankInstructions = bankData.instructions || "";
-  }
+  await applyLiveBusinessAndBankParams(params);
 
   const container = document.createElement("div");
   container.style.position = "fixed";
@@ -595,6 +622,13 @@ export const downloadDailyExpensePDF = async (ledgerOrDate) => {
       throw new Error("Expense ledger details could not be retrieved.");
     }
 
+    const bizData = (await fetchLiveBusinessInfo().catch(() => null)) || getCachedBusinessInfo();
+    const wmText = bizData?.watermarkText || "VINOFF OFFICIAL AUDIT";
+    const bTitle = (bizData?.brandTitle || "VINOFF & CO. NIG. LTD").trim();
+    const bParts = bTitle.split(/\s+/);
+    const bPrimary = bParts[0] || "VINOFF";
+    const bSecondary = bParts.slice(1).join(" ") || "& CO. NIG. LTD";
+
     const dateStr = ledger.date || new Date().toISOString().split("T")[0];
     const adminName = ledger.loggedByAdmin?.name || ledger.loggedByAdmin?.email || "System Superadmin";
     const lineItems = Array.isArray(ledger.lineItems) ? ledger.lineItems : [];
@@ -621,9 +655,9 @@ export const downloadDailyExpensePDF = async (ledgerOrDate) => {
       <div style="position: relative; overflow: hidden; background-color: #ffffff;">
         <!-- Watermark -->
         <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column; align-items: center; justify-content: space-around; pointer-events: none; opacity: 0.07; transform: rotate(-22deg); z-index: 10; text-align: center; padding: 80px 0;">
-          <div style="margin: 40px 0; font-size: 42px; font-weight: 900; color: #047857; letter-spacing: 4px; text-transform: uppercase;">VINOFF OFFICIAL AUDIT</div>
-          <div style="margin: 40px 0; font-size: 42px; font-weight: 900; color: #047857; letter-spacing: 4px; text-transform: uppercase;">VINOFF OFFICIAL AUDIT</div>
-          <div style="margin: 40px 0; font-size: 42px; font-weight: 900; color: #047857; letter-spacing: 4px; text-transform: uppercase;">VINOFF OFFICIAL AUDIT</div>
+          <div style="margin: 40px 0; font-size: 42px; font-weight: 900; color: #047857; letter-spacing: 4px; text-transform: uppercase;">${wmText}</div>
+          <div style="margin: 40px 0; font-size: 42px; font-weight: 900; color: #047857; letter-spacing: 4px; text-transform: uppercase;">${wmText}</div>
+          <div style="margin: 40px 0; font-size: 42px; font-weight: 900; color: #047857; letter-spacing: 4px; text-transform: uppercase;">${wmText}</div>
         </div>
 
         <div style="position: relative; z-index: 1;">
@@ -633,8 +667,8 @@ export const downloadDailyExpensePDF = async (ledgerOrDate) => {
               <div style="display: flex; align-items: center; gap: 12px;">
                 <img src="/VinoffLogo.webp" alt="Vinoff Logo" style="width: 52px; height: 52px; object-fit: contain;" />
                 <div>
-                  <div style="font-size: 22px; font-weight: 900; color: #064e3b; letter-spacing: -0.5px;">
-                    VINOFF <span style="color: #047857;">&amp; CO. NIG. LTD</span>
+                  <div style="font-size: 22px; font-weight: 900; color: #064e3b; letter-spacing: -0.5px; text-transform: uppercase;">
+                    ${bPrimary} <span style="color: #047857;">${bSecondary}</span>
                   </div>
                   <div style="font-size: 11px; color: #64748b; font-weight: 600;">
                     Daily Financial Operations &amp; Expense Report
@@ -642,7 +676,7 @@ export const downloadDailyExpensePDF = async (ledgerOrDate) => {
                 </div>
               </div>
               <div style="font-size: 10px; color: #94a3b8; margin-top: 6px;">
-                Generated: ${new Date().toLocaleString()} &bull; Official Daily Statement
+                Generated: ${new Date().toLocaleString()} &bull; ${bizData?.emailContact || "sales@vinoff.com"} &bull; ${bizData?.phoneContact || "+234 80 1234 5678"}
               </div>
             </div>
 

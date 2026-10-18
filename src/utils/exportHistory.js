@@ -1,5 +1,6 @@
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
+import { getCachedBusinessInfo, fetchLiveBusinessInfo } from "../context/BusinessContext";
 
 export const exportHistoryCSV = (filename, headers, rows) => {
   const csvContent =
@@ -23,6 +24,12 @@ export const exportHistoryCSV = (filename, headers, rows) => {
 };
 
 export const exportHistoryPDF = async (title, filename, headers, rows) => {
+  const biz = (await fetchLiveBusinessInfo().catch(() => null)) || getCachedBusinessInfo();
+  const wm = biz?.watermarkText || "VINOFF & CO.NIG.LTD";
+  const brandTitle = biz?.brandTitle || "VINOFF WHOLESALES";
+  const businessName = biz?.businessName || "Vinoff Wholesales Ltd";
+  const contactLine = [biz?.emailContact, biz?.phoneContact].filter(Boolean).join(" • ");
+
   const container = document.createElement("div");
   container.style.position = "fixed";
   container.style.left = "-9999px";
@@ -39,9 +46,9 @@ export const exportHistoryPDF = async (title, filename, headers, rows) => {
     <div style="position: relative; overflow: hidden; background-color: #ffffff;">
       <!-- Watermark Overlay -->
       <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column; align-items: center; justify-content: space-around; pointer-events: none; opacity: 0.10; transform: rotate(-22deg); z-index: 10; text-align: center;">
-        <div style="font-size: 48px; font-weight: 900; color: #047857; letter-spacing: 3px;">VINOFF &amp; CO.NIG.LTD</div>
-        <div style="font-size: 48px; font-weight: 900; color: #047857; letter-spacing: 3px;">VINOFF &amp; CO.NIG.LTD</div>
-        <div style="font-size: 48px; font-weight: 900; color: #047857; letter-spacing: 3px;">VINOFF &amp; CO.NIG.LTD</div>
+        <div style="font-size: 48px; font-weight: 900; color: #047857; letter-spacing: 3px; text-transform: uppercase;">${wm}</div>
+        <div style="font-size: 48px; font-weight: 900; color: #047857; letter-spacing: 3px; text-transform: uppercase;">${wm}</div>
+        <div style="font-size: 48px; font-weight: 900; color: #047857; letter-spacing: 3px; text-transform: uppercase;">${wm}</div>
       </div>
 
       <div style="position: relative; z-index: 1;">
@@ -50,13 +57,14 @@ export const exportHistoryPDF = async (title, filename, headers, rows) => {
           <div style="display: flex; align-items: center; gap: 12px;">
             <img src="/VinoffLogo.webp" style="width: 48px; height: 48px; object-fit: contain;" />
             <div>
-              <div style="font-size: 20px; font-weight: 900; color: #064e3b;">VINOFF WHOLESALES</div>
+              <div style="font-size: 20px; font-weight: 900; color: #064e3b; text-transform: uppercase;">${brandTitle}</div>
               <div style="font-size: 11px; color: #64748b; font-weight: 600;">OFFICIAL AUDIT REPORT • ${title.toUpperCase()}</div>
+              ${contactLine ? `<div style="font-size: 10px; color: #94a3b8; margin-top: 2px;">${contactLine}</div>` : ""}
             </div>
           </div>
           <div style="text-align: right; font-size: 11px; color: #64748b;">
             <div>Generated: <strong>${new Date().toLocaleString()}</strong></div>
-            <div>Platform: Vinoff Commercial System</div>
+            <div>Platform: ${businessName}</div>
           </div>
         </div>
 
@@ -96,7 +104,7 @@ export const exportHistoryPDF = async (title, filename, headers, rows) => {
 
         <!-- Footer -->
         <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid #e2e8f0; text-align: center; font-size: 10px; color: #94a3b8;">
-          Confidential Audit Log • VINOFF &amp; CO.NIG.LTD • Total Records: ${rows.length}
+          Confidential Audit Log • ${wm} • Total Records: ${rows.length}
         </div>
       </div>
     </div>

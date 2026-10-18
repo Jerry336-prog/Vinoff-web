@@ -19,6 +19,15 @@ export const getStatusColors = (status) => {
         border: 'border-emerald-200 dark:border-emerald-800/60',
       };
       
+    case 'on credit':
+    case 'vip credit':
+    case 'credit':
+      return {
+        bg: 'bg-rose-50 dark:bg-rose-950/30',
+        text: 'text-rose-700 dark:text-rose-400',
+        border: 'border-rose-200 dark:border-rose-800/60',
+      };
+
     case 'pending':
     case 'pending payment':
     case 'awaiting confirmation':

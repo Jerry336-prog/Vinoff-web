@@ -16,6 +16,7 @@ import OrdersList from '../pages/orders/OrdersList';
 import OrderDetails from '../pages/orders/OrderDetails';
 import CustomerInvoices from '../pages/invoices/CustomerInvoices';
 import CustomerInvoiceDetails from '../pages/invoices/CustomerInvoiceDetails';
+import CreditInvoices from '../pages/invoices/CreditInvoices';
 import NotificationsPage from '../pages/notifications/NotificationsPage';
 import Settings from '../pages/settings/Settings';
 
@@ -158,6 +159,10 @@ export const router = createBrowserRouter([
       {
         path: 'invoices',
         element: <ProtectedGate><CustomerInvoices /></ProtectedGate>
+      },
+      {
+        path: 'credit-invoices',
+        element: <ProtectedGate><CreditInvoices /></ProtectedGate>
       },
       {
         path: 'invoices/:id',

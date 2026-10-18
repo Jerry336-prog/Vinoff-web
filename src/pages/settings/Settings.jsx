@@ -2,6 +2,7 @@ import React, { useState, useEffect, useContext } from "react";
 import api from "../../services/api";
 import { AuthContext } from "../../context/AuthContext";
 import { useToast } from "../../context/ToastContext";
+import { useBusiness } from "../../context/BusinessContext";
 import { unwrapApiList, unwrapApiRecord } from "../../utils/apiResponse";
 import { createIdempotencyKey, withIdempotencyKey } from "../../services/idempotency";
 import { playNotificationChime, playSwitchSound } from "../../utils/soundEffects";
@@ -44,6 +45,7 @@ import {
 export const Settings = () => {
   const { user, isAdmin } = useContext(AuthContext);
   const { toast } = useToast();
+  const { businessInfo, bankDetails, updateBusinessInfoState, updateBankDetailsState } = useBusiness();
 
   const isSuperAdmin = user?.role === "superadmin";
 
@@ -83,15 +85,27 @@ export const Settings = () => {
   const [testingEmail, setTestingEmail] = useState(false);
 
   // =========================================================
-  // 3. STORE LOCATION & WORKING STORE STATE (EDITABLE BY ADMIN)
+  // 3. BUSINESS ACCOUNT & STORE LOCATION STATE (EDITABLE BY ADMIN)
   // =========================================================
   const [locationForm, setLocationForm] = useState({
-    shopAddress: "KADUNA PLAZA 1, BLOCK A, SHOP 22",
-    complexArea: "INT’L CENTRE FOR COMMERCE, TRADE-FAIR COMPLEX",
-    cityState: "BADAGRY EXPRESS WAY, LAGOS, NIGERIA",
-    operatingHours: "Monday – Saturday: 8:00 AM – 5:30 PM",
-    phoneContact: "+234 803 000 0000",
-    walkthroughVideoUrl: "/VINOFF_C0_walkthrough.MP4",
+    businessName: businessInfo?.businessName || "Vinoff Wholesales Ltd",
+    brandTitle: businessInfo?.brandTitle || "VINOFF WHOLESALES",
+    tagline: businessInfo?.tagline || "Commercial Toiletries, Sanitizers & Industrial Detergents",
+    headerSubtitle: businessInfo?.headerSubtitle || "Toiletries & Household",
+    watermarkText: businessInfo?.watermarkText || "VINOFF & CO.NIG.LTD",
+    emailContact: businessInfo?.emailContact || "sales@vinoff.com",
+    supportEmail: businessInfo?.supportEmail || "support@vinoff.com",
+    phoneContact: businessInfo?.phoneContact || "+234 80 1234 5678",
+    secondaryPhone: businessInfo?.secondaryPhone || "+234 803 000 0000",
+    shopAddress: businessInfo?.shopAddress || "KADUNA PLAZA 1, BLOCK A, SHOP 22",
+    complexArea: businessInfo?.complexArea || "INT’L CENTRE FOR COMMERCE, TRADE-FAIR COMPLEX",
+    cityState: businessInfo?.cityState || "BADAGRY EXPRESS WAY, LAGOS, NIGERIA",
+    operatingHours: businessInfo?.operatingHours || "Monday – Saturday: 8:00 AM – 6:00 PM",
+    googleMapsUrl: businessInfo?.googleMapsUrl || "https://maps.google.com/?q=Trade+Fair+Complex+Badagry+Expressway+Lagos",
+    walkthroughVideoUrl: businessInfo?.walkthroughVideoUrl || "/store/VINOFF_CO_walkthrough.MP4",
+    footerNote:
+      businessInfo?.footerNote ||
+      "Wire payments transfer slips proof must be submitted in support chats to begin packing and logistics.",
   });
   const [loadingLocation, setLoadingLocation] = useState(false);
   const [savingLocation, setSavingLocation] = useState(false);
@@ -108,10 +122,10 @@ export const Settings = () => {
   // 5. COMPANY BANK ACCOUNT STATE (ADMIN)
   // =========================================================
   const [bankForm, setBankForm] = useState({
-    bankName: "Guaranty Trust Bank (GTB)",
-    accountName: "Vinoff Wholesales Ltd",
-    accountNumber: "0123456789",
-    instructions: "Please use your Order # or Invoice # as the transfer payment narration.",
+    bankName: bankDetails?.bankName || "Guaranty Trust Bank (GTB)",
+    accountName: bankDetails?.accountName || "Vinoff Wholesales Ltd",
+    accountNumber: bankDetails?.accountNumber || "0123456789",
+    instructions: bankDetails?.instructions || "Please use your Order # or Invoice # as the transfer payment narration.",
   });
   const [loadingBank, setLoadingBank] = useState(false);
   const [savingBank, setSavingBank] = useState(false);
@@ -141,22 +155,40 @@ export const Settings = () => {
     fetchStoreStatus();
   }, []);
 
-  // Fetch Store Location
+  // Fetch Store Location & Business Info
   useEffect(() => {
     const fetchLocation = async () => {
       setLoadingLocation(true);
       try {
         const res = await api.get("/api/settings/store-location");
         const record = unwrapApiRecord(res) || res.data?.data || res.data;
-        if (record && record.shopAddress) {
-          setLocationForm({
+        if (record && (record.shopAddress || record.businessName)) {
+          const nextInfo = {
+            businessName: record.businessName || "Vinoff Wholesales Ltd",
+            brandTitle: record.brandTitle || "VINOFF WHOLESALES",
+            tagline: record.tagline || "Commercial Toiletries, Sanitizers & Industrial Detergents",
+            headerSubtitle: record.headerSubtitle || "Toiletries & Household",
+            watermarkText: record.watermarkText || "VINOFF & CO.NIG.LTD",
+            emailContact: record.emailContact || "sales@vinoff.com",
+            supportEmail: record.supportEmail || "support@vinoff.com",
+            phoneContact: record.phoneContact || "+234 80 1234 5678",
+            secondaryPhone: record.secondaryPhone ?? "+234 803 000 0000",
             shopAddress: record.shopAddress || "KADUNA PLAZA 1, BLOCK A, SHOP 22",
             complexArea: record.complexArea || "INT’L CENTRE FOR COMMERCE, TRADE-FAIR COMPLEX",
             cityState: record.cityState || "BADAGRY EXPRESS WAY, LAGOS, NIGERIA",
-            operatingHours: record.operatingHours || "Monday – Saturday: 8:00 AM – 5:30 PM",
-            phoneContact: record.phoneContact || "+234 803 000 0000",
-            walkthroughVideoUrl: record.walkthroughVideoUrl || "/VINOFF_C0_walkthrough.MP4",
-          });
+            operatingHours: record.operatingHours || "Monday – Saturday: 8:00 AM – 6:00 PM",
+            googleMapsUrl:
+              record.googleMapsUrl || "https://maps.google.com/?q=Trade+Fair+Complex+Badagry+Expressway+Lagos",
+            walkthroughVideoUrl:
+              record.walkthroughVideoUrl === "/VINOFF_C0_walkthrough.MP4"
+                ? "/store/VINOFF_CO_walkthrough.MP4"
+                : record.walkthroughVideoUrl || "/store/VINOFF_CO_walkthrough.MP4",
+            footerNote:
+              record.footerNote ||
+              "Wire payments transfer slips proof must be submitted in support chats to begin packing and logistics.",
+          };
+          setLocationForm(nextInfo);
+          updateBusinessInfoState(nextInfo);
         }
       } catch (err) {
         console.error("Failed to load store location:", err);
@@ -165,7 +197,7 @@ export const Settings = () => {
       }
     };
     fetchLocation();
-  }, []);
+  }, [updateBusinessInfoState]);
 
   // Fetch Alerts & Notifications (Admin)
   useEffect(() => {
@@ -222,12 +254,14 @@ export const Settings = () => {
         const res = await api.get("/api/settings/bank-details");
         const record = unwrapApiRecord(res) || res.data || res;
         if (record && record.bankName) {
-          setBankForm({
+          const nextBank = {
             bankName: record.bankName || "",
             accountName: record.accountName || "",
             accountNumber: record.accountNumber || "",
             instructions: record.instructions || "",
-          });
+          };
+          setBankForm(nextBank);
+          updateBankDetailsState(nextBank);
         }
       } catch (err) {
         console.error("Failed to load bank details:", err);
@@ -236,7 +270,7 @@ export const Settings = () => {
       }
     };
     fetchBankDetails();
-  }, [isAdmin]);
+  }, [isAdmin, updateBankDetailsState]);
 
   // Fetch Sessions
   const fetchSessions = async () => {
@@ -419,7 +453,7 @@ export const Settings = () => {
     }
   };
 
-  // Save Store Location (Admin & Super Admin)
+  // Save Business Account & Store Location (Admin & Super Admin)
   const handleSaveLocation = async (e) => {
     e?.preventDefault?.();
     setSavingLocation(true);
@@ -430,13 +464,16 @@ export const Settings = () => {
         withIdempotencyKey(createIdempotencyKey("update-store-location"))
       );
       const data = unwrapApiRecord(res) || res.data?.data || res.data;
-      if (data) {
-        setLocationForm((prev) => ({ ...prev, ...data }));
-      }
-      toast.success("Physical store location and pickup details updated!", "Location Saved");
+      const merged = data ? { ...locationForm, ...data } : locationForm;
+      setLocationForm(merged);
+      updateBusinessInfoState(merged);
+      toast.success(
+        "Business account details, contact numbers, invoice headers, and store address updated live across the website!",
+        "Business Info Saved"
+      );
     } catch (err) {
-      const message = err.response?.data?.message || err.message || "Failed to update store location";
-      toast.error(message, "Location Error");
+      const message = err.response?.data?.message || err.message || "Failed to update business & store details";
+      toast.error(message, "Update Error");
     } finally {
       setSavingLocation(false);
     }
@@ -445,18 +482,22 @@ export const Settings = () => {
   // Save Bank Details
   const handleSaveBankDetails = async (e) => {
     e.preventDefault();
-    if (!isSuperAdmin) {
-      toast.warning("Only Super Admin accounts can modify company bank details.", "Access Restricted");
+    if (!isAdmin) {
+      toast.warning("Only Admin accounts can modify company bank details.", "Access Restricted");
       return;
     }
     setSavingBank(true);
     try {
-      await api.put(
+      const res = await api.put(
         "/api/settings/bank-details",
         bankForm,
         withIdempotencyKey(createIdempotencyKey("update-bank-details"))
       );
-      toast.success("Company bank details updated & published live!", "Bank Info Saved");
+      const data = unwrapApiRecord(res) || res.data?.data || res.data;
+      const merged = data && data.bankName ? { ...bankForm, ...data } : bankForm;
+      setBankForm(merged);
+      updateBankDetailsState(merged);
+      toast.success("Company bank details updated & published live across checkout and invoices!", "Bank Info Saved");
     } catch (err) {
       const message = err.response?.data?.message || err.message || "Failed to update bank details";
       toast.error(message, "Update Error");
@@ -562,7 +603,7 @@ export const Settings = () => {
                 Settings &amp; Platform Controls
               </h1>
               <p className="text-[11px] sm:text-xs text-slate-400 mt-0.5 sm:mt-1 leading-relaxed line-clamp-2 sm:line-clamp-none">
-                Configure store operational status, warehouse location, real category carton alerts, and device sessions.
+                Configure store operational status, business account &amp; invoice details, warehouse location, carton alerts, and device sessions.
               </p>
             </div>
           </div>
@@ -588,7 +629,7 @@ export const Settings = () => {
           )}
         </div>
 
-        {/* Tab Navigation Bar (Announcements & Account Info removed) */}
+        {/* Tab Navigation Bar */}
         <div className="flex items-center gap-1.5 sm:gap-2 border-t border-slate-800/80 pt-3.5 sm:pt-5 mt-4 sm:mt-6 overflow-x-auto no-scrollbar scroll-smooth">
           {[
             ...(isAdmin
@@ -597,7 +638,7 @@ export const Settings = () => {
                   { id: "alerts", label: "Alerts & Notifications", icon: BellRing },
                 ]
               : []),
-            { id: "store", label: "Store Location", icon: MapPin },
+            { id: "store", label: isAdmin ? "Business & Store Info" : "Store & Contact Info", icon: Building },
             { id: "sessions", label: `Active Devices (${sessions.length || 1})`, icon: Smartphone },
             ...(isAdmin
               ? [{ id: "bank_details", label: "Bank Account Details", icon: Landmark }]
@@ -975,128 +1016,338 @@ export const Settings = () => {
       )}
 
       {/* ========================================================= */}
-      {/* TAB 3: STORE LOCATION & WORKING STORE (EDITABLE BY ADMIN) */}
+      {/* TAB 3: BUSINESS ACCOUNT, CONTACT & STORE INFO (EDITABLE BY ADMIN) */}
       {/* ========================================================= */}
       {activeTab === "store" && (
         <div className="bg-white border border-slate-200/90 rounded-2xl sm:rounded-3xl p-4 sm:p-7 shadow-xs space-y-6">
           <div className="border-b border-slate-100 pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div>
               <h2 className="text-xs sm:text-sm font-black uppercase tracking-wider text-slate-800 flex items-center gap-2">
-                <MapPin className="w-4 h-4 text-brand-green-600" /> Physical Warehouse &amp; Store Location
+                <Building className="w-4 h-4 text-brand-green-600" /> Business Account, Contact &amp; Physical Store Info
               </h2>
-              <p className="text-[11px] sm:text-xs text-slate-500 mt-0.5">
-                Physical trade plaza store details at Trade Fair Complex, Lagos for direct customer pick-ups and walkthrough directions.
+              <p className="text-[11px] sm:text-xs text-slate-500 mt-0.5 leading-relaxed">
+                {isAdmin
+                  ? "Edit your company identity, phone numbers, emails, invoice watermark, and physical warehouse address. Changes update live across the homepage, footer, invoices, and PDF downloads."
+                  : "Official physical trade plaza store details, contact phone numbers, and directions for direct pick-ups."}
               </p>
             </div>
 
             {isAdmin && (
               <span className="self-start sm:self-auto inline-flex items-center gap-1.5 text-xs font-bold text-brand-green-700 bg-brand-green-50 px-2.5 py-1 rounded-xl border border-brand-green-200">
-                <Edit3 className="w-3.5 h-3.5 text-brand-green-600" /> Admin Editable
+                <Edit3 className="w-3.5 h-3.5 text-brand-green-600" /> Admin Editable (Live Sync)
               </span>
             )}
           </div>
 
           {/* Editable Form for Admin & Super Admin */}
           {isAdmin ? (
-            <form onSubmit={handleSaveLocation} className="space-y-4 bg-slate-50/70 border border-slate-200/80 rounded-2xl p-4 sm:p-5">
-              <span className="text-xs font-black uppercase tracking-wider text-slate-700 block">
-                Edit Warehouse &amp; Store Details:
-              </span>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-700">Shop &amp; Block Address</label>
-                  <input
-                    type="text"
-                    value={locationForm.shopAddress}
-                    onChange={(e) => setLocationForm((prev) => ({ ...prev, shopAddress: e.target.value }))}
-                    placeholder="KADUNA PLAZA 1, BLOCK A, SHOP 22"
-                    className="w-full text-xs sm:text-sm p-2.5 bg-white border border-slate-200 rounded-xl focus:border-brand-green-500 focus:ring-2 focus:ring-brand-green-500/20 outline-none font-semibold text-slate-800"
-                  />
+            <form onSubmit={handleSaveLocation} className="space-y-6">
+              {/* Section 1: Business Identity & Invoice Branding */}
+              <div className="space-y-4 bg-slate-50/70 border border-slate-200/80 rounded-2xl p-4 sm:p-5">
+                <div className="flex items-center justify-between border-b border-slate-200/70 pb-2.5">
+                  <div>
+                    <span className="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+                      <Building className="w-3.5 h-3.5 text-brand-green-600" /> 1. Business Identity &amp; Invoice Branding
+                    </span>
+                    <p className="text-[11px] text-slate-500 mt-0.5">
+                      Shown in the website header, footer, official invoices, and exported PDF reports.
+                    </p>
+                  </div>
                 </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-700">Complex / Market Area</label>
-                  <input
-                    type="text"
-                    value={locationForm.complexArea}
-                    onChange={(e) => setLocationForm((prev) => ({ ...prev, complexArea: e.target.value }))}
-                    placeholder="INT’L CENTRE FOR COMMERCE, TRADE-FAIR COMPLEX"
-                    className="w-full text-xs sm:text-sm p-2.5 bg-white border border-slate-200 rounded-xl focus:border-brand-green-500 focus:ring-2 focus:ring-brand-green-500/20 outline-none font-semibold text-slate-800"
-                  />
-                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-700">Official Business / Legal Name</label>
+                    <input
+                      type="text"
+                      value={locationForm.businessName}
+                      onChange={(e) => setLocationForm((prev) => ({ ...prev, businessName: e.target.value }))}
+                      placeholder="Vinoff Wholesales Ltd"
+                      className="w-full text-xs sm:text-sm p-2.5 bg-white border border-slate-200 rounded-xl focus:border-brand-green-500 focus:ring-2 focus:ring-brand-green-500/20 outline-none font-semibold text-slate-800"
+                    />
+                  </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-700">City, State &amp; Expressway</label>
-                  <input
-                    type="text"
-                    value={locationForm.cityState}
-                    onChange={(e) => setLocationForm((prev) => ({ ...prev, cityState: e.target.value }))}
-                    placeholder="BADAGRY EXPRESS WAY, LAGOS, NIGERIA"
-                    className="w-full text-xs sm:text-sm p-2.5 bg-white border border-slate-200 rounded-xl focus:border-brand-green-500 focus:ring-2 focus:ring-brand-green-500/20 outline-none font-semibold text-slate-800"
-                  />
-                </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-700">Website &amp; Invoice Brand Title</label>
+                    <input
+                      type="text"
+                      value={locationForm.brandTitle}
+                      onChange={(e) => setLocationForm((prev) => ({ ...prev, brandTitle: e.target.value }))}
+                      placeholder="VINOFF WHOLESALES"
+                      className="w-full text-xs sm:text-sm p-2.5 bg-white border border-slate-200 rounded-xl focus:border-brand-green-500 focus:ring-2 focus:ring-brand-green-500/20 outline-none font-black text-slate-800 uppercase"
+                    />
+                  </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-700">Operating &amp; Pickup Hours</label>
-                  <input
-                    type="text"
-                    value={locationForm.operatingHours}
-                    onChange={(e) => setLocationForm((prev) => ({ ...prev, operatingHours: e.target.value }))}
-                    placeholder="Monday – Saturday: 8:00 AM – 5:30 PM"
-                    className="w-full text-xs sm:text-sm p-2.5 bg-white border border-slate-200 rounded-xl focus:border-brand-green-500 focus:ring-2 focus:ring-brand-green-500/20 outline-none font-semibold text-slate-800"
-                  />
-                </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-700">Header Subtitle</label>
+                    <input
+                      type="text"
+                      value={locationForm.headerSubtitle}
+                      onChange={(e) => setLocationForm((prev) => ({ ...prev, headerSubtitle: e.target.value }))}
+                      placeholder="Toiletries & Household"
+                      className="w-full text-xs sm:text-sm p-2.5 bg-white border border-slate-200 rounded-xl focus:border-brand-green-500 focus:ring-2 focus:ring-brand-green-500/20 outline-none font-semibold text-slate-800"
+                    />
+                  </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-700">Pickup Driver Contact Phone</label>
-                  <input
-                    type="text"
-                    value={locationForm.phoneContact}
-                    onChange={(e) => setLocationForm((prev) => ({ ...prev, phoneContact: e.target.value }))}
-                    placeholder="+234 803 000 0000"
-                    className="w-full text-xs sm:text-sm p-2.5 bg-white border border-slate-200 rounded-xl focus:border-brand-green-500 focus:ring-2 focus:ring-brand-green-500/20 outline-none font-semibold text-slate-800"
-                  />
-                </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-700">Invoice Watermark Text</label>
+                    <input
+                      type="text"
+                      value={locationForm.watermarkText}
+                      onChange={(e) => setLocationForm((prev) => ({ ...prev, watermarkText: e.target.value }))}
+                      placeholder="VINOFF & CO.NIG.LTD"
+                      className="w-full text-xs sm:text-sm p-2.5 bg-white border border-slate-200 rounded-xl focus:border-brand-green-500 focus:ring-2 focus:ring-brand-green-500/20 outline-none font-mono font-bold text-slate-800 uppercase"
+                    />
+                  </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-700">Video Walkthrough URL</label>
-                  <input
-                    type="text"
-                    value={locationForm.walkthroughVideoUrl}
-                    onChange={(e) => setLocationForm((prev) => ({ ...prev, walkthroughVideoUrl: e.target.value }))}
-                    placeholder="/VINOFF_C0_walkthrough.MP4"
-                    className="w-full text-xs sm:text-sm p-2.5 bg-white border border-slate-200 rounded-xl focus:border-brand-green-500 focus:ring-2 focus:ring-brand-green-500/20 outline-none font-mono text-slate-800"
-                  />
+                  <div className="space-y-1.5 sm:col-span-2">
+                    <label className="text-xs font-bold text-slate-700">Business Tagline / Invoice Subtitle</label>
+                    <input
+                      type="text"
+                      value={locationForm.tagline}
+                      onChange={(e) => setLocationForm((prev) => ({ ...prev, tagline: e.target.value }))}
+                      placeholder="Commercial Toiletries, Sanitizers & Industrial Detergents"
+                      className="w-full text-xs sm:text-sm p-2.5 bg-white border border-slate-200 rounded-xl focus:border-brand-green-500 focus:ring-2 focus:ring-brand-green-500/20 outline-none font-semibold text-slate-800"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5 sm:col-span-2">
+                    <label className="text-xs font-bold text-slate-700">Footer Logistics / Payment Note</label>
+                    <input
+                      type="text"
+                      value={locationForm.footerNote}
+                      onChange={(e) => setLocationForm((prev) => ({ ...prev, footerNote: e.target.value }))}
+                      placeholder="Wire payments transfer slips proof must be submitted in support chats to begin packing and logistics."
+                      className="w-full text-xs sm:text-sm p-2.5 bg-white border border-slate-200 rounded-xl focus:border-brand-green-500 focus:ring-2 focus:ring-brand-green-500/20 outline-none font-medium text-slate-800"
+                    />
+                  </div>
                 </div>
               </div>
 
-              <div className="pt-2 flex justify-end">
+              {/* Section 2: Phone Numbers & Email Contacts */}
+              <div className="space-y-4 bg-slate-50/70 border border-slate-200/80 rounded-2xl p-4 sm:p-5">
+                <div className="flex items-center justify-between border-b border-slate-200/70 pb-2.5">
+                  <div>
+                    <span className="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+                      <Phone className="w-3.5 h-3.5 text-brand-green-600" /> 2. Business Phone Numbers &amp; Email Addresses
+                    </span>
+                    <p className="text-[11px] text-slate-500 mt-0.5">
+                      Displayed on all customer invoices, PDF receipts, website footer, homepage contact cards, and login support.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-700">Primary Business / Invoice Phone</label>
+                    <input
+                      type="text"
+                      value={locationForm.phoneContact}
+                      onChange={(e) => setLocationForm((prev) => ({ ...prev, phoneContact: e.target.value }))}
+                      placeholder="+234 80 1234 5678"
+                      className="w-full text-xs sm:text-sm p-2.5 bg-white border border-slate-200 rounded-xl focus:border-brand-green-500 focus:ring-2 focus:ring-brand-green-500/20 outline-none font-semibold text-slate-800"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-700">Secondary / Pickup Driver Phone (Optional)</label>
+                    <input
+                      type="text"
+                      value={locationForm.secondaryPhone}
+                      onChange={(e) => setLocationForm((prev) => ({ ...prev, secondaryPhone: e.target.value }))}
+                      placeholder="+234 803 000 0000"
+                      className="w-full text-xs sm:text-sm p-2.5 bg-white border border-slate-200 rounded-xl focus:border-brand-green-500 focus:ring-2 focus:ring-brand-green-500/20 outline-none font-semibold text-slate-800"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-700">Primary Sales &amp; Invoice Email</label>
+                    <input
+                      type="email"
+                      value={locationForm.emailContact}
+                      onChange={(e) => setLocationForm((prev) => ({ ...prev, emailContact: e.target.value }))}
+                      placeholder="sales@vinoff.com"
+                      className="w-full text-xs sm:text-sm p-2.5 bg-white border border-slate-200 rounded-xl focus:border-brand-green-500 focus:ring-2 focus:ring-brand-green-500/20 outline-none font-semibold text-slate-800"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-700">Customer Support / Helpdesk Email</label>
+                    <input
+                      type="email"
+                      value={locationForm.supportEmail}
+                      onChange={(e) => setLocationForm((prev) => ({ ...prev, supportEmail: e.target.value }))}
+                      placeholder="support@vinoff.com"
+                      className="w-full text-xs sm:text-sm p-2.5 bg-white border border-slate-200 rounded-xl focus:border-brand-green-500 focus:ring-2 focus:ring-brand-green-500/20 outline-none font-semibold text-slate-800"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 3: Physical Warehouse & Store Location */}
+              <div className="space-y-4 bg-slate-50/70 border border-slate-200/80 rounded-2xl p-4 sm:p-5">
+                <div className="flex items-center justify-between border-b border-slate-200/70 pb-2.5">
+                  <div>
+                    <span className="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+                      <MapPin className="w-3.5 h-3.5 text-brand-green-600" /> 3. Physical Warehouse Address &amp; Operating Hours
+                    </span>
+                    <p className="text-[11px] text-slate-500 mt-0.5">
+                      Shown on the homepage walk-in banner, website footer, customer invoices, and order confirmation emails.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-700">Shop &amp; Block Address</label>
+                    <input
+                      type="text"
+                      value={locationForm.shopAddress}
+                      onChange={(e) => setLocationForm((prev) => ({ ...prev, shopAddress: e.target.value }))}
+                      placeholder="KADUNA PLAZA 1, BLOCK A, SHOP 22"
+                      className="w-full text-xs sm:text-sm p-2.5 bg-white border border-slate-200 rounded-xl focus:border-brand-green-500 focus:ring-2 focus:ring-brand-green-500/20 outline-none font-semibold text-slate-800"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-700">Complex / Market Area</label>
+                    <input
+                      type="text"
+                      value={locationForm.complexArea}
+                      onChange={(e) => setLocationForm((prev) => ({ ...prev, complexArea: e.target.value }))}
+                      placeholder="INT’L CENTRE FOR COMMERCE, TRADE-FAIR COMPLEX"
+                      className="w-full text-xs sm:text-sm p-2.5 bg-white border border-slate-200 rounded-xl focus:border-brand-green-500 focus:ring-2 focus:ring-brand-green-500/20 outline-none font-semibold text-slate-800"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-700">City, State &amp; Expressway</label>
+                    <input
+                      type="text"
+                      value={locationForm.cityState}
+                      onChange={(e) => setLocationForm((prev) => ({ ...prev, cityState: e.target.value }))}
+                      placeholder="BADAGRY EXPRESS WAY, LAGOS, NIGERIA"
+                      className="w-full text-xs sm:text-sm p-2.5 bg-white border border-slate-200 rounded-xl focus:border-brand-green-500 focus:ring-2 focus:ring-brand-green-500/20 outline-none font-semibold text-slate-800"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-700">Operating &amp; Pickup Hours</label>
+                    <input
+                      type="text"
+                      value={locationForm.operatingHours}
+                      onChange={(e) => setLocationForm((prev) => ({ ...prev, operatingHours: e.target.value }))}
+                      placeholder="Monday – Saturday: 8:00 AM – 6:00 PM"
+                      className="w-full text-xs sm:text-sm p-2.5 bg-white border border-slate-200 rounded-xl focus:border-brand-green-500 focus:ring-2 focus:ring-brand-green-500/20 outline-none font-semibold text-slate-800"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-700">Google Maps Link URL</label>
+                    <input
+                      type="text"
+                      value={locationForm.googleMapsUrl}
+                      onChange={(e) => setLocationForm((prev) => ({ ...prev, googleMapsUrl: e.target.value }))}
+                      placeholder="https://maps.google.com/?q=Trade+Fair+Complex+Badagry+Expressway+Lagos"
+                      className="w-full text-xs sm:text-sm p-2.5 bg-white border border-slate-200 rounded-xl focus:border-brand-green-500 focus:ring-2 focus:ring-brand-green-500/20 outline-none font-mono text-slate-800"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-700">Video Walkthrough URL</label>
+                    <input
+                      type="text"
+                      value={locationForm.walkthroughVideoUrl}
+                      onChange={(e) => setLocationForm((prev) => ({ ...prev, walkthroughVideoUrl: e.target.value }))}
+                      placeholder="/store/VINOFF_CO_walkthrough.MP4"
+                      className="w-full text-xs sm:text-sm p-2.5 bg-white border border-slate-200 rounded-xl focus:border-brand-green-500 focus:ring-2 focus:ring-brand-green-500/20 outline-none font-mono text-slate-800"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-1 flex justify-end">
                 <button
                   type="submit"
                   disabled={savingLocation}
                   className="px-5 py-2.5 bg-brand-green-600 hover:bg-brand-green-700 text-white rounded-xl text-xs sm:text-sm font-bold shadow-xs transition flex items-center gap-2 disabled:opacity-50"
                 >
                   <Save className={`w-4 h-4 ${savingLocation ? "animate-spin" : ""}`} />
-                  <span>{savingLocation ? "Saving..." : "Save Location Details"}</span>
+                  <span>{savingLocation ? "Saving Changes..." : "Save Business & Store Details"}</span>
                 </button>
               </div>
             </form>
           ) : null}
 
-          {/* Live Address Display Card */}
-          <div className="bg-gradient-to-br from-slate-900 to-slate-950 text-white rounded-xl sm:rounded-2xl p-4 sm:p-5 space-y-2 border border-slate-800 shadow-xs">
-            <span className="text-[10px] font-extrabold uppercase text-brand-yellow-400 tracking-wider block">
-              Official Physical Store Address
-            </span>
-            <p className="text-xs sm:text-sm font-black leading-relaxed text-slate-100">
-              {locationForm.shopAddress}<br />
-              {locationForm.complexArea}<br />
-              {locationForm.cityState}
-            </p>
-            <div className="pt-2 flex flex-wrap gap-4 text-[11px] text-slate-300 font-medium">
-              <span>🕒 {locationForm.operatingHours}</span>
-              <span>📞 {locationForm.phoneContact}</span>
+          {/* Live Previews Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* Live Website & Store Address Display Card */}
+            <div className="bg-gradient-to-br from-slate-900 to-slate-950 text-white rounded-xl sm:rounded-2xl p-4 sm:p-5 space-y-2.5 border border-slate-800 shadow-xs flex flex-col justify-between">
+              <div className="space-y-2">
+                <span className="text-[10px] font-extrabold uppercase text-brand-yellow-400 tracking-wider block">
+                  Live Website &amp; Physical Store Card Preview
+                </span>
+                <div>
+                  <p className="text-sm sm:text-base font-black text-white tracking-tight">
+                    {locationForm.businessName || "Vinoff Wholesales Ltd"}
+                  </p>
+                  <p className="text-[11px] text-emerald-400 font-semibold">
+                    {locationForm.tagline}
+                  </p>
+                </div>
+                <p className="text-xs sm:text-sm font-black leading-relaxed text-slate-100 pt-1">
+                  {locationForm.shopAddress}<br />
+                  {locationForm.complexArea}<br />
+                  {locationForm.cityState}
+                </p>
+              </div>
+              <div className="pt-3 border-t border-slate-800/80 flex flex-wrap gap-x-4 gap-y-1.5 text-[11px] text-slate-300 font-medium">
+                <span>🕒 {locationForm.operatingHours}</span>
+                <span>📞 {locationForm.phoneContact}{locationForm.secondaryPhone ? ` / ${locationForm.secondaryPhone}` : ""}</span>
+                <span>✉️ {locationForm.emailContact}</span>
+              </div>
+            </div>
+
+            {/* Live Invoice Header Preview Card */}
+            <div className="bg-white border-2 border-slate-200 rounded-xl sm:rounded-2xl p-4 sm:p-5 relative overflow-hidden flex flex-col justify-between shadow-2xs">
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none overflow-hidden">
+                <span className="text-slate-900/[0.04] font-black text-2xl sm:text-3xl tracking-widest uppercase -rotate-12 whitespace-nowrap">
+                  {locationForm.watermarkText || "VINOFF & CO.NIG.LTD"}
+                </span>
+              </div>
+              <div className="relative z-10 space-y-2">
+                <span className="text-[10px] font-extrabold uppercase text-brand-green-700 tracking-wider block">
+                  Live Invoice Header &amp; Watermark Preview
+                </span>
+                <div className="flex items-start gap-3 pt-1">
+                  <img
+                    src="/logo.webp"
+                    alt="Logo"
+                    className="w-10 h-10 rounded-xl object-contain border border-slate-200 bg-white p-1 shrink-0"
+                  />
+                  <div className="min-w-0">
+                    <h4 className="text-sm sm:text-base font-black text-slate-900 tracking-tight uppercase truncate">
+                      {locationForm.brandTitle || "VINOFF WHOLESALES"}
+                    </h4>
+                    <p className="text-[11px] text-slate-500 font-medium truncate">
+                      {locationForm.tagline}
+                    </p>
+                    <p className="text-[10px] text-slate-500 font-semibold mt-1">
+                      Email: {locationForm.emailContact} • Tel: {locationForm.phoneContact}
+                      {locationForm.secondaryPhone ? ` / ${locationForm.secondaryPhone}` : ""}
+                    </p>
+                    <p className="text-[10px] text-slate-400 font-medium mt-0.5">
+                      {[locationForm.shopAddress, locationForm.complexArea, locationForm.cityState]
+                        .filter(Boolean)
+                        .join(", ")}
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div className="relative z-10 pt-3 mt-3 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-400 font-semibold">
+                <span>Watermark: {locationForm.watermarkText}</span>
+                <span className="text-emerald-700 font-bold">Synced to PDF &amp; Print</span>
+              </div>
             </div>
           </div>
 
@@ -1107,7 +1358,7 @@ export const Settings = () => {
             </h3>
             <div className="rounded-xl sm:rounded-2xl overflow-hidden border border-slate-200 bg-slate-950 shadow-sm max-w-2xl mx-auto w-full aspect-video sm:aspect-auto">
               <video
-                src={locationForm.walkthroughVideoUrl || "/VINOFF_C0_walkthrough.MP4"}
+                src={locationForm.walkthroughVideoUrl || "/store/VINOFF_CO_walkthrough.MP4"}
                 controls
                 autoPlay
                 muted
@@ -1118,7 +1369,7 @@ export const Settings = () => {
               </video>
             </div>
             <p className="text-[11px] text-slate-500 text-center font-medium">
-              Direct video instructions guiding drivers and shoppers straight to Shop 22, Kaduna Plaza 1, Trade Fair Complex.
+              Direct video instructions guiding drivers and shoppers straight to {locationForm.shopAddress}, {locationForm.complexArea}.
             </p>
           </div>
         </div>
@@ -1265,15 +1516,9 @@ export const Settings = () => {
               </p>
             </div>
 
-            {isSuperAdmin ? (
-              <span className="self-start sm:self-auto inline-flex items-center gap-1.5 text-[11px] sm:text-xs font-extrabold text-emerald-800 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-xl shadow-2xs">
-                <Shield className="w-3.5 h-3.5 text-emerald-600" /> Super Admin Access (Edit Rights)
-              </span>
-            ) : (
-              <span className="self-start sm:self-auto inline-flex items-center gap-1.5 text-[11px] sm:text-xs font-bold text-slate-600 bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-xl">
-                <Lock className="w-3.5 h-3.5 text-slate-400" /> Read-Only (Super Admin Required)
-              </span>
-            )}
+            <span className="self-start sm:self-auto inline-flex items-center gap-1.5 text-[11px] sm:text-xs font-extrabold text-emerald-800 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-xl shadow-2xs">
+              <Shield className="w-3.5 h-3.5 text-emerald-600" /> Admin Access (Edit Rights)
+            </span>
           </div>
 
           <form onSubmit={handleSaveBankDetails} className="space-y-4">
@@ -1282,7 +1527,7 @@ export const Settings = () => {
                 <label className="text-xs font-bold text-slate-700">Bank Name</label>
                 <input
                   type="text"
-                  disabled={!isSuperAdmin || savingBank}
+                  disabled={!isAdmin || savingBank}
                   value={bankForm.bankName}
                   onChange={(e) => setBankForm((prev) => ({ ...prev, bankName: e.target.value }))}
                   placeholder="e.g. Guaranty Trust Bank (GTB)"
@@ -1294,7 +1539,7 @@ export const Settings = () => {
                 <label className="text-xs font-bold text-slate-700">Account Number</label>
                 <input
                   type="text"
-                  disabled={!isSuperAdmin || savingBank}
+                  disabled={!isAdmin || savingBank}
                   value={bankForm.accountNumber}
                   onChange={(e) => setBankForm((prev) => ({ ...prev, accountNumber: e.target.value }))}
                   placeholder="e.g. 0123456789"
@@ -1306,7 +1551,7 @@ export const Settings = () => {
                 <label className="text-xs font-bold text-slate-700">Account Name (Beneficiary)</label>
                 <input
                   type="text"
-                  disabled={!isSuperAdmin || savingBank}
+                  disabled={!isAdmin || savingBank}
                   value={bankForm.accountName}
                   onChange={(e) => setBankForm((prev) => ({ ...prev, accountName: e.target.value }))}
                   placeholder="e.g. Vinoff Wholesales Ltd"
@@ -1318,7 +1563,7 @@ export const Settings = () => {
                 <label className="text-xs font-bold text-slate-700">Payment Narration Instructions</label>
                 <textarea
                   rows={2}
-                  disabled={!isSuperAdmin || savingBank}
+                  disabled={!isAdmin || savingBank}
                   value={bankForm.instructions}
                   onChange={(e) => setBankForm((prev) => ({ ...prev, instructions: e.target.value }))}
                   placeholder="e.g. Please use your Order # or Invoice # as the transfer payment narration."
@@ -1327,7 +1572,7 @@ export const Settings = () => {
               </div>
             </div>
 
-            {isSuperAdmin && (
+            {isAdmin && (
               <div className="pt-2 flex justify-end">
                 <button
                   type="submit"

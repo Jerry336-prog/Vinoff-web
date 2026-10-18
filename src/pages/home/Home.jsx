@@ -24,6 +24,7 @@ import {
 import Button from '../../components/ui/Button';
 import ProductCard from '../../components/products/ProductCard';
 import { AuthContext } from '../../context/AuthContext';
+import { useBusiness } from '../../context/BusinessContext';
 import { useProducts } from '../../hooks/useProducts';
 
 const STORE_IMAGES = [
@@ -61,6 +62,7 @@ const STORE_IMAGES = [
 
 export const Home = () => {
   const { user } = useContext(AuthContext);
+  const { businessInfo, bankDetails } = useBusiness();
   const { products, loading } = useProducts();
   const navigate = useNavigate();
 
@@ -75,9 +77,13 @@ export const Home = () => {
   const [videoError, setVideoError] = useState(false);
   const videoRef = useRef(null);
 
-  const STORE_ADDRESS = `KADUNA PLAZA 1, BLOCK A, SHOP 22
-INT'L CENTRE FOR COMMERCE
-TRADE-FAIR COMPLEX, BADAGRY EXPRESS WAY, LAGOS`;
+  const STORE_ADDRESS = [
+    businessInfo?.shopAddress || "KADUNA PLAZA 1, BLOCK A, SHOP 22",
+    businessInfo?.complexArea || "INT'L CENTRE FOR COMMERCE, TRADE-FAIR COMPLEX",
+    businessInfo?.cityState || "BADAGRY EXPRESS WAY, LAGOS, NIGERIA",
+  ]
+    .filter(Boolean)
+    .join("\n");
 
   const handleCopyAddress = () => {
     navigator.clipboard.writeText(STORE_ADDRESS);
@@ -93,7 +99,7 @@ TRADE-FAIR COMPLEX, BADAGRY EXPRESS WAY, LAGOS`;
   const faqs = [
     {
       q: "Where is your physical walk-in store located?",
-      a: "Our physical wholesale shop is located at Kaduna Plaza 1, Block A, Shop 22, International Centre for Commerce, Trade-Fair Complex, Badagry Expressway, Lagos. You can visit us in person during business hours to inspect stocks or make walk-in bulk purchases!",
+      a: `Our physical wholesale shop is located at ${businessInfo?.shopAddress || "Kaduna Plaza 1, Block A, Shop 22"}, ${businessInfo?.complexArea || "International Centre for Commerce, Trade-Fair Complex"}, ${businessInfo?.cityState || "Badagry Expressway, Lagos"}. You can visit us in person during business hours (${businessInfo?.operatingHours || "Monday – Saturday: 8:00 AM – 6:00 PM"}) or call ${businessInfo?.phoneContact || "+234 80 1234 5678"}!`,
     },
     {
       q: "What products do you supply in bulk?",
@@ -105,11 +111,11 @@ TRADE-FAIR COMPLEX, BADAGRY EXPRESS WAY, LAGOS`;
     },
     {
       q: "How does payment verification work?",
-      a: "Payments are made via direct bank transfer to Vinoff Wholesales Ltd (GTB Account). After transfer, upload your payment receipt screenshot directly in your support chat for instant admin verification.",
+      a: `Payments are made via direct bank transfer to ${bankDetails?.accountName || businessInfo?.businessName || "Vinoff Wholesales Ltd"} (${bankDetails?.bankName || "GTB Account"}). After transfer, upload your payment receipt screenshot directly in your support chat for instant admin verification.`,
     },
     {
       q: "Can I get an official watermarked invoice for my business?",
-      a: "Yes! Every order and invoice issued on our portal includes an official PDF download complete with itemized pricing, GTB bank details, and the official VINOFF & CO.NIG.LTD watermark.",
+      a: `Yes! Every order and invoice issued on our portal includes an official PDF download complete with itemized pricing, bank details, and the official ${businessInfo?.watermarkText || "VINOFF & CO.NIG.LTD"} watermark.`,
     },
   ];
 
@@ -137,7 +143,7 @@ TRADE-FAIR COMPLEX, BADAGRY EXPRESS WAY, LAGOS`;
           </h1>
 
           <p className="text-xs sm:text-sm md:text-base text-slate-300 leading-relaxed max-w-2xl">
-            Vinoff Wholesales supplies high-demand commercial toiletries, toothpastes, toothbrushes, air fresheners, body sprays, bath soaps, sponges, sanitizers, and detergents by the carton or unit.
+            {businessInfo?.businessName || "Vinoff Wholesales"} supplies high-demand commercial toiletries, toothpastes, toothbrushes, air fresheners, body sprays, bath soaps, sponges, sanitizers, and detergents by the carton or unit.
           </p>
 
 
@@ -170,7 +176,7 @@ TRADE-FAIR COMPLEX, BADAGRY EXPRESS WAY, LAGOS`;
               Visit Our Wholesale Shop In Person
             </h2>
             <p className="text-xs text-slate-500 mt-1 max-w-xl">
-              Inspect our full stock of toiletries, oral care, air fresheners, soaps, and wholesale cartons live at our Trade Fair Complex store in Lagos.
+              Inspect our full stock of toiletries, oral care, air fresheners, soaps, and wholesale cartons live at our store.
             </p>
           </div>
 
@@ -183,7 +189,7 @@ TRADE-FAIR COMPLEX, BADAGRY EXPRESS WAY, LAGOS`;
               {copiedAddress ? 'Address Copied!' : 'Copy Address'}
             </button>
             <a
-              href="https://maps.google.com/?q=Trade+Fair+Complex+Badagry+Expressway+Lagos"
+              href={businessInfo?.googleMapsUrl || "https://maps.google.com/?q=Trade+Fair+Complex+Badagry+Expressway+Lagos"}
               target="_blank"
               rel="noreferrer"
               className="inline-flex items-center gap-1.5 bg-brand-green-700 hover:bg-brand-green-800 text-white px-4 py-2 rounded-xl text-xs font-bold transition shadow-sm"
@@ -199,18 +205,32 @@ TRADE-FAIR COMPLEX, BADAGRY EXPRESS WAY, LAGOS`;
           <div className="space-y-2 flex-1">
             <div className="flex items-center gap-2 text-brand-yellow-400 text-xs font-extrabold tracking-wider uppercase">
               <MapPin className="w-4 h-4 shrink-0" />
-              Walk-in Store Address:
+              Walk-in Store Address &amp; Direct Contact:
             </div>
             <p className="text-sm sm:text-base font-black tracking-tight leading-relaxed font-mono text-white">
-              KADUNA PLAZA 1, BLOCK A, SHOP 22<br />
-              <span className="text-slate-300 font-semibold text-xs sm:text-sm">INT’L CENTRE FOR COMMERCE, TRADE-FAIR COMPLEX, BADAGRY EXPRESS WAY, LAGOS</span>
+              {businessInfo?.shopAddress || "KADUNA PLAZA 1, BLOCK A, SHOP 22"}<br />
+              <span className="text-slate-300 font-semibold text-xs sm:text-sm">
+                {[businessInfo?.complexArea, businessInfo?.cityState]
+                  .filter(Boolean)
+                  .join(", ")}
+              </span>
             </p>
+            <div className="pt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-emerald-300 font-bold">
+              {businessInfo?.phoneContact && (
+                <span>
+                  📞 {businessInfo.phoneContact}
+                  {businessInfo.secondaryPhone ? ` / ${businessInfo.secondaryPhone}` : ""}
+                </span>
+              )}
+              {businessInfo?.emailContact && <span>✉️ {businessInfo.emailContact}</span>}
+            </div>
           </div>
 
           <div className="bg-white/10 backdrop-blur-md rounded-xl p-4 border border-white/20 shrink-0 text-center space-y-1">
             <span className="text-[10px] font-black uppercase tracking-wider text-slate-300 block">Operating Hours</span>
-            <p className="text-xs font-extrabold text-brand-yellow-400">Monday &ndash; Saturday</p>
-            <p className="text-[11px] font-medium text-white">8:00 AM &ndash; 6:00 PM</p>
+            <p className="text-xs font-extrabold text-brand-yellow-400">
+              {businessInfo?.operatingHours || "Monday – Saturday: 8:00 AM – 6:00 PM"}
+            </p>
           </div>
         </div>
 
@@ -264,7 +284,7 @@ TRADE-FAIR COMPLEX, BADAGRY EXPRESS WAY, LAGOS`;
               </h3>
             </div>
             <p className="text-xs text-slate-500">
-              Watch step-by-step video directions from Badagry Expressway into Kaduna Plaza 1.
+              Watch step-by-step video directions to {businessInfo?.shopAddress || "Kaduna Plaza 1, Shop 22"}.
             </p>
           </div>
 
@@ -281,7 +301,7 @@ TRADE-FAIR COMPLEX, BADAGRY EXPRESS WAY, LAGOS`;
                         el.volume = 0;
                       }
                     }}
-                    src="/store/VINOFF_CO_walkthrough.MP4"
+                    src={businessInfo?.walkthroughVideoUrl || "/store/VINOFF_CO_walkthrough.MP4"}
                     poster="/store/store-2.webp"
                     className="w-full h-full object-cover max-h-[420px]"
                     autoPlay

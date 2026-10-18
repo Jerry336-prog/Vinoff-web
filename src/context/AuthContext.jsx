@@ -11,6 +11,7 @@ const normalizeUser = (rawUser) => {
   const lastName = rawUser.lastName || "";
   const companyName = rawUser.profile?.companyName || rawUser.companyName || "";
   const avatarUrl = getAvatarUrl(rawUser);
+  const outstandingCredit = Number(rawUser.outstandingCredit || 0);
 
   return {
     ...rawUser,
@@ -20,6 +21,9 @@ const normalizeUser = (rawUser) => {
     businessName: companyName,
     avatarUrl,
     photoURL: avatarUrl,
+    isVipCreditPartner: Boolean(rawUser.isVipCreditPartner),
+    outstandingCredit,
+    isOwingCredit: outstandingCredit > 0,
   };
 };
 

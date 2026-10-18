@@ -22,6 +22,8 @@ import {
   ExternalLink,
   Download,
   Shield,
+  Sparkles,
+  CreditCard,
 } from "lucide-react";
 import Button from "../../components/ui/Button";
 import Avatar from "../../components/ui/Avatar";
@@ -112,6 +114,45 @@ export const CustomerDetail = () => {
     });
   };
 
+  const handleVipCreditToggle = () => {
+    if (!customer) return;
+    const nextVipState = !customer.isVipCreditPartner;
+
+    showModal({
+      title: nextVipState ? "Grant VIP Credit Partner Status" : "Revoke VIP Credit Partner Status",
+      message: nextVipState
+        ? `Upgrade ${customer.firstName} ${customer.lastName} to a VIP Credit Partner? They will be able to place orders on credit and track their credit invoices in NGN.`
+        : `Revoke VIP Credit Partner status from ${customer.firstName} ${customer.lastName}?`,
+      confirmText: nextVipState ? "Grant VIP Credit" : "Revoke VIP Credit",
+      cancelText: "Cancel",
+      type: nextVipState ? "info" : "warning",
+      onConfirm: async () => {
+        setStatusUpdating(true);
+        try {
+          const res = await api.patch(`/api/admin/customers/${customer._id}/vip-credit`, {
+            isVipCreditPartner: nextVipState,
+          });
+          const updatedCustomer = res.data?.data?.customer || res.data?.customer || res.data;
+          setCustomer((prev) => ({
+            ...prev,
+            isVipCreditPartner: nextVipState,
+            outstandingCredit: updatedCustomer?.outstandingCredit ?? prev.outstandingCredit ?? 0,
+          }));
+          toast.success(
+            nextVipState
+              ? `${customer.firstName} ${customer.lastName} is now a VIP Credit Partner!`
+              : `VIP Credit Partner status revoked.`,
+            "VIP Credit Updated"
+          );
+        } catch (err) {
+          toast.error(err.message || "Failed to update VIP Credit Partner status", "Update Failed");
+        } finally {
+          setStatusUpdating(false);
+        }
+      },
+    });
+  };
+
   if (loading) {
     return (
       <div className="p-12 text-center bg-white border border-slate-200 rounded-3xl animate-pulse text-xs text-slate-400">
@@ -134,6 +175,11 @@ export const CustomerDetail = () => {
 
   const hasProfileUpdate = Boolean(customer.profileUpdatedAt);
   const isSuspended = customer.accountStatus === "suspended";
+  const computedOutstanding = invoices
+    .filter((inv) => (inv.isCredit || inv.status === "On Credit") && inv.status !== "Paid" && inv.status !== "Cancelled")
+    .reduce((sum, inv) => sum + Number(inv.total ?? inv.totalAmount ?? 0), 0);
+  const owingAmount = Math.max(Number(customer.outstandingCredit || 0), computedOutstanding);
+  const isOwing = owingAmount > 0 || Boolean(customer.isOwingCredit);
 
   return (
     <div className="space-y-5 sm:space-y-6 max-w-5xl mx-auto px-1 sm:px-0">
@@ -147,7 +193,24 @@ export const CustomerDetail = () => {
           Back to Customer Registry
         </Link>
 
-        <div className="flex items-center gap-2 w-full sm:w-auto">
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+          {customer.role === "customer" && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleVipCreditToggle}
+              isLoading={statusUpdating}
+              icon={Sparkles}
+              className={`flex-1 sm:flex-initial justify-center rounded-xl text-xs py-2 ${
+                customer.isVipCreditPartner
+                  ? "bg-amber-50 text-amber-900 border-amber-300 hover:bg-amber-100"
+                  : "text-slate-700 border-slate-200 hover:bg-slate-50"
+              }`}
+            >
+              {customer.isVipCreditPartner ? "Revoke VIP Credit" : "Grant VIP Credit"}
+            </Button>
+          )}
+
           <Button
             size="sm"
             variant={isSuspended ? "primary" : "outline"}
@@ -181,19 +244,39 @@ export const CustomerDetail = () => {
       <div className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-3xl p-4 sm:p-8 shadow-xs">
         <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-5">
           <div className="flex items-start gap-3.5 sm:gap-4">
-            <Avatar
-              src={getAvatarUrl(customer)}
-              alt={`${customer.firstName || "Customer"} ${customer.lastName || ""}`.trim()}
-              size={56}
-              fallback={getInitials(customer, "C")}
-              className="rounded-2xl bg-brand-green-100 text-brand-green-900 border-2 border-brand-green-200 shadow-xs text-base shrink-0"
-            />
+            <div className="relative shrink-0">
+              <Avatar
+                src={getAvatarUrl(customer)}
+                alt={`${customer.firstName || "Customer"} ${customer.lastName || ""}`.trim()}
+                size={56}
+                fallback={getInitials(customer, "C")}
+                className="rounded-2xl bg-brand-green-100 text-brand-green-900 border-2 border-brand-green-200 shadow-xs text-base shrink-0"
+              />
+              {isOwing && (
+                <span
+                  className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-red-600 border-2 border-white shadow-xs"
+                  title={`Owing VIP Credit: ${formatCurrency(owingAmount)}`}
+                />
+              )}
+            </div>
 
             <div className="space-y-1 min-w-0">
               <div className="flex flex-wrap items-center gap-2">
-                <h1 className="text-lg sm:text-2xl font-black text-slate-900 tracking-tight leading-tight">
-                  {customer.firstName} {customer.lastName}
+                <h1 className="text-lg sm:text-2xl font-black text-slate-900 tracking-tight leading-tight flex items-center gap-2">
+                  <span>{customer.firstName} {customer.lastName}</span>
+                  {isOwing && (
+                    <span
+                      className="inline-block w-2.5 h-2.5 rounded-full bg-red-600 shrink-0"
+                      title={`Owing VIP Credit: ${formatCurrency(owingAmount)}`}
+                    />
+                  )}
                 </h1>
+                {customer.isVipCreditPartner && (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-black bg-amber-100 text-amber-900 px-2.5 py-0.5 rounded-full border border-amber-300">
+                    <Sparkles className="w-3 h-3 text-amber-600" />
+                    VIP CREDIT PARTNER
+                  </span>
+                )}
                 {hasProfileUpdate && (
                   <span className="inline-flex items-center text-[10px] font-bold bg-emerald-100/80 text-emerald-900 px-2.5 py-0.5 rounded-full border border-emerald-200/50">
                     Profile Updated
@@ -220,16 +303,36 @@ export const CustomerDetail = () => {
             </div>
           </div>
 
-          {hasProfileUpdate && (
-            <div className="bg-emerald-50 border border-emerald-200/80 rounded-2xl p-3 text-xs text-emerald-900 space-y-1 shrink-0">
-              <p className="font-extrabold flex items-center gap-1 text-emerald-800">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Recent Profile Update
-              </p>
-              <p className="text-[11px] text-emerald-700">
-                Modified on {new Date(customer.profileUpdatedAt).toLocaleString()}
-              </p>
-            </div>
-          )}
+          <div className="flex flex-wrap items-center gap-3 shrink-0">
+            {(customer.isVipCreditPartner || isOwing) && (
+              <div
+                className={`rounded-2xl p-3.5 text-xs border space-y-0.5 ${
+                  isOwing
+                    ? "bg-rose-50/90 border-rose-200 text-rose-950"
+                    : "bg-amber-50/80 border-amber-200 text-amber-950"
+                }`}
+              >
+                <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider">
+                  <span className={`w-2 h-2 rounded-full ${isOwing ? "bg-red-600 animate-pulse" : "bg-emerald-500"}`} />
+                  <span>{isOwing ? "Outstanding VIP Credit Owing" : "VIP Credit Facility Clear"}</span>
+                </div>
+                <p className="text-lg font-black font-mono">
+                  {formatCurrency(owingAmount)}
+                </p>
+              </div>
+            )}
+
+            {hasProfileUpdate && (
+              <div className="bg-emerald-50 border border-emerald-200/80 rounded-2xl p-3 text-xs text-emerald-900 space-y-1 shrink-0">
+                <p className="font-extrabold flex items-center gap-1 text-emerald-800">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Recent Profile Update
+                </p>
+                <p className="text-[11px] text-emerald-700">
+                  Modified on {new Date(customer.profileUpdatedAt).toLocaleString()}
+                </p>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Navigation Tabs */}

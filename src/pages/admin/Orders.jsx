@@ -201,7 +201,11 @@ export const Orders = () => {
           {filteredOrders.map((order) => {
             const hasScreenshot = Boolean(order.paymentScreenshot?.url);
             const isAwaitingConfirmation = order.status === "Awaiting Confirmation";
-            const isPendingPayment = order.status === "Pending Payment";
+            const isCreditOrder = order.isCreditOrder || order.paymentStatus === "On Credit";
+            const isCustomerOwing =
+              Number(order.customer?.outstandingCredit || 0) > 0 ||
+              Boolean(order.customer?.isOwingCredit) ||
+              order.paymentStatus === "On Credit";
             const customerId = order.customer?._id || order.customer?.id || order.customerId;
 
             return (
@@ -216,6 +220,11 @@ export const Orders = () => {
                         {order.orderNumber}
                       </span>
                       <Badge status={order.status} className="text-[10px]" />
+                      {isCreditOrder && (
+                        <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-rose-100 text-rose-800 border border-rose-200">
+                          VIP Credit ({order.paymentStatus || "On Credit"})
+                        </span>
+                      )}
                       {hasScreenshot && (
                         <button
                           onClick={() => setSelectedScreenshot(order.paymentScreenshot)}
@@ -225,18 +234,26 @@ export const Orders = () => {
                         </button>
                       )}
                     </div>
-                    <p className="text-xs text-slate-500 font-medium leading-relaxed">
-                      Placed on: {new Date(order.createdAt).toLocaleString()} &bull;{' '}
-                      <span className="font-bold text-slate-700">
+                    <p className="text-xs text-slate-500 font-medium leading-relaxed flex flex-wrap items-center gap-1.5">
+                      <span>Placed on: {new Date(order.createdAt).toLocaleString()} &bull;</span>
+                      <span className="font-bold text-slate-700 inline-flex items-center gap-1">
                         {order.customer?.firstName} {order.customer?.lastName}
-                      </span>{' '}
-                      {order.customer?.profile?.companyName ? `(${order.customer.profile.companyName})` : ''}
+                        {isCustomerOwing && (
+                          <span
+                            className="inline-block w-2 h-2 rounded-full bg-red-600 shrink-0"
+                            title="VIP Customer Owing Credit"
+                          />
+                        )}
+                      </span>
+                      {order.customer?.profile?.companyName ? (
+                        <span>({order.customer.profile.companyName})</span>
+                      ) : null}
                     </p>
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
                     {/* Confirm Payment Action */}
-                    {isAwaitingConfirmation && (
+                    {(isAwaitingConfirmation || order.paymentStatus === "On Credit") && (
                       <Button
                         size="sm"
                         variant="primary"
@@ -245,7 +262,7 @@ export const Orders = () => {
                         onClick={() => handleConfirmPayment(order._id)}
                         className="rounded-xl text-xs bg-emerald-600 hover:bg-emerald-700 shadow-xs py-1.5 flex-1 sm:flex-initial justify-center"
                       >
-                        Confirm Payment
+                        {order.paymentStatus === "On Credit" ? "Settle Credit & Confirm" : "Confirm Payment"}
                       </Button>
                     )}
 

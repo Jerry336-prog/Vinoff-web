@@ -1,12 +1,14 @@
 import React, { useState, useContext } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { AuthContext } from '../../context/AuthContext';
+import { useBusiness } from '../../context/BusinessContext';
 import { LogIn, Key, Mail, ShieldAlert } from 'lucide-react';
 import Button from '../../components/ui/Button';
 import { useToast } from '../../context/ToastContext';
 
 export const Login = () => {
   const { login } = useContext(AuthContext);
+  const { businessInfo } = useBusiness();
   const { showModal } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
@@ -104,8 +106,7 @@ export const Login = () => {
                 onClick={() =>
                   showModal({
                     title: "Password Reset Support",
-                    message:
-                      "For security verification, wholesale account credentials must be reset through an authorized Vinoff support desk. Please contact support@vinoff.com or speak with administration via the support chat.",
+                    message: `For security verification, wholesale account credentials must be reset through an authorized support desk. Please contact ${businessInfo?.supportEmail || businessInfo?.emailContact || "support@vinoff.com"}${businessInfo?.phoneContact ? ` (${businessInfo.phoneContact})` : ""} or speak with administration via the support chat.`,
                     confirmText: "Got it",
                     type: "info",
                   })

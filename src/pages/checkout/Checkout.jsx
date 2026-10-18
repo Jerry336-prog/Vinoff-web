@@ -2,6 +2,7 @@ import React, { useContext, useState, useEffect, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { CartContext } from "../../context/CartContext";
 import { AuthContext } from "../../context/AuthContext";
+import { useBusiness } from "../../context/BusinessContext";
 import api from "../../services/api";
 import { createIdempotencyKey, withIdempotencyKey } from "../../services/idempotency";
 import { formatCurrency } from "../../utils/formatCurrency";
@@ -25,9 +26,11 @@ import Card from "../../components/ui/Card";
 
 export const Checkout = () => {
   const { cartItems, clearCart, subtotal } = useContext(CartContext);
-  const { user } = useContext(AuthContext);
+  const { user, refreshUser } = useContext(AuthContext);
+  const { businessInfo, bankDetails: contextBankDetails } = useBusiness();
   const navigate = useNavigate();
 
+  const [paymentMethod, setPaymentMethod] = useState("bank_transfer");
   const [screenshotFile, setScreenshotFile] = useState(null);
   const [screenshotPreview, setScreenshotPreview] = useState("");
   const [deliveryAddress, setDeliveryAddress] = useState("");
@@ -39,11 +42,17 @@ export const Checkout = () => {
   const paymentSubmissionKeyRef = useRef(null);
 
   const [bankDetails, setBankDetails] = useState({
-    bankName: "Guaranty Trust Bank (GTB)",
-    accountName: "Vinoff Wholesales Ltd",
-    accountNumber: "0123456789",
-    instructions: "",
+    bankName: contextBankDetails?.bankName || "Guaranty Trust Bank (GTB)",
+    accountName: contextBankDetails?.accountName || "Vinoff Wholesales Ltd",
+    accountNumber: contextBankDetails?.accountNumber || "0123456789",
+    instructions: contextBankDetails?.instructions || "",
   });
+
+  useEffect(() => {
+    if (contextBankDetails?.bankName) {
+      setBankDetails(contextBankDetails);
+    }
+  }, [contextBankDetails]);
 
   useEffect(() => {
     if (user?.profile?.address) {
@@ -124,10 +133,14 @@ export const Checkout = () => {
         name: item.name,
       }));
 
+      const isCreditOrder = Boolean(user?.isVipCreditPartner && paymentMethod === "credit");
+
       const payload = {
         items,
         deliveryAddress: deliveryAddress || user?.profile?.address || "Warehouse Pickup",
         notes: notes.trim(),
+        isCreditOrder,
+        paymentMethod: isCreditOrder ? "credit" : "bank_transfer",
       };
 
       // 2. Post order
@@ -140,8 +153,8 @@ export const Checkout = () => {
         playNotificationChime();
       } catch (_) {}
 
-      // 3. If customer attached a payment screenshot, upload it now
-      if (screenshotFile && createdOrder?._id) {
+      // 3. If customer attached a payment screenshot (and not a credit order), upload it now
+      if (!isCreditOrder && screenshotFile && createdOrder?._id) {
         try {
           const formData = new FormData();
           formData.append("screenshot", screenshotFile);
@@ -162,6 +175,7 @@ export const Checkout = () => {
       }
 
       clearCart();
+      refreshUser?.();
     } catch (err) {
       console.error("Order submission failed:", err);
       setErrorMsg(err.message || "Failed to place order. Please verify quantities and try again.");
@@ -171,6 +185,10 @@ export const Checkout = () => {
   };
 
   if (orderConfirmed) {
+    const isCreditConfirmed =
+      orderConfirmed.paymentStatus === "On Credit" ||
+      orderConfirmed.isCreditOrder ||
+      orderConfirmed.paymentMethod === "credit";
     const isAwaitingConfirmation =
       orderConfirmed.status === "Awaiting Confirmation" ||
       orderConfirmed.paymentStatus === "Submitted";
@@ -184,22 +202,26 @@ export const Checkout = () => {
 
           <div className="space-y-2">
             <h2 className="font-extrabold text-slate-900 text-2xl tracking-tight">
-              Order Placed Successfully!
+              {isCreditConfirmed ? "VIP Credit Order Approved!" : "Order Placed Successfully!"}
             </h2>
             <p className="text-xs font-mono font-bold text-brand-green-800 bg-brand-green-50 px-3.5 py-1.5 rounded-full inline-block">
               Order #{orderConfirmed.orderNumber || orderConfirmed._id}
             </p>
             <div className="pt-2">
               <span className={`inline-flex items-center gap-1 text-xs font-bold px-3 py-1 rounded-full ${
-                isAwaitingConfirmation
+                isCreditConfirmed
+                  ? "bg-rose-100 text-rose-800 border border-rose-200"
+                  : isAwaitingConfirmation
                   ? "bg-amber-100 text-amber-800"
                   : "bg-blue-100 text-blue-800"
               }`}>
-                ● Status: {orderConfirmed.status || "Pending Payment"}
+                ● Status: {isCreditConfirmed ? "Processing (On VIP Credit)" : (orderConfirmed.status || "Pending Payment")}
               </span>
             </div>
             <p className="text-xs text-slate-500 leading-relaxed max-w-md mx-auto pt-2">
-              {isAwaitingConfirmation
+              {isCreditConfirmed
+                ? "Your wholesale order has been placed on your VIP Credit Partner facility and added to your active Credit Invoices ledger. Packaging has started immediately."
+                : isAwaitingConfirmation
                 ? "Your payment screenshot has been uploaded. Our accounting admin will confirm the transaction shortly."
                 : "Your order is currently in 'Pending Payment' status. Please upload your transfer screenshot to initiate packaging."}
             </p>
@@ -214,14 +236,25 @@ export const Checkout = () => {
             >
               View Order Details
             </Button>
-            <Button
-              variant="outline"
-              className="w-full sm:w-auto px-6 py-3.5 text-sm font-bold rounded-2xl text-slate-700 border-slate-200"
-              onClick={() => navigate("/chat")}
-              icon={MessageSquare}
-            >
-              Support Chat
-            </Button>
+            {isCreditConfirmed ? (
+              <Button
+                variant="outline"
+                className="w-full sm:w-auto px-6 py-3.5 text-sm font-bold rounded-2xl text-rose-700 border-rose-200 hover:bg-rose-50"
+                onClick={() => navigate("/credit-invoices")}
+                icon={FileText}
+              >
+                View Credit Ledger
+              </Button>
+            ) : (
+              <Button
+                variant="outline"
+                className="w-full sm:w-auto px-6 py-3.5 text-sm font-bold rounded-2xl text-slate-700 border-slate-200"
+                onClick={() => navigate("/chat")}
+                icon={MessageSquare}
+              >
+                Support Chat
+              </Button>
+            )}
           </div>
         </div>
       </div>
@@ -324,51 +357,132 @@ export const Checkout = () => {
           <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-4">
             <h3 className="text-xs font-black uppercase tracking-wider text-slate-400 border-b border-slate-100 pb-3 flex items-center gap-2">
               <Landmark className="w-4 h-4 text-brand-yellow-600" />
-              Bank Transfer Information
+              {user?.isVipCreditPartner ? "Payment & Credit Options" : "Bank Transfer Information"}
             </h3>
 
-            <div className="bg-brand-green-50/70 border border-brand-green-100 rounded-2xl p-4 text-xs space-y-1.5">
-              <p className="font-extrabold text-brand-green-950">{bankDetails.bankName}</p>
-              <div className="flex justify-between text-brand-green-900">
-                <span>Account Name:</span>
-                <strong className="font-mono">{bankDetails.accountName}</strong>
-              </div>
-              <div className="flex justify-between text-brand-green-900">
-                <span>Account Number:</span>
-                <strong className="font-mono text-sm font-black">{bankDetails.accountNumber}</strong>
-              </div>
-              {bankDetails.instructions && (
-                <p className="text-brand-green-700 pt-1 italic text-[11px]">{bankDetails.instructions}</p>
-              )}
-            </div>
-
-            {/* Optional screenshot upload during checkout */}
-            <div className="space-y-2 pt-1">
-              <label className="text-[10px] font-extrabold uppercase text-slate-500 tracking-wider block">
-                Attach Payment Screenshot (Optional now, or upload later)
-              </label>
-              <div className="border-2 border-dashed border-slate-200 hover:border-brand-green-500 rounded-2xl p-3 text-center transition bg-slate-50">
-                <input
-                  type="file"
-                  id="checkout-screenshot"
-                  accept="image/*"
-                  onChange={handleScreenshotSelect}
-                  className="hidden"
-                />
-                <label htmlFor="checkout-screenshot" className="cursor-pointer block text-center">
-                  <Upload className="w-5 h-5 text-slate-400 mx-auto mb-1" />
-                  <span className="text-xs font-bold text-slate-700 block truncate">
-                    {screenshotFile ? screenshotFile.name : "Select Screenshot"}
-                  </span>
+            {user?.isVipCreditPartner && (
+              <div className="space-y-2">
+                <label className="text-[10px] font-extrabold uppercase text-slate-500 tracking-wider block">
+                  Select Settlement Method
                 </label>
-              </div>
+                <div className="grid grid-cols-1 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod("credit")}
+                    className={`w-full text-left p-3.5 rounded-2xl border transition-all flex items-start justify-between gap-2 ${
+                      paymentMethod === "credit"
+                        ? "bg-amber-50/90 border-amber-400 ring-2 ring-amber-400/25 shadow-xs"
+                        : "bg-slate-50 border-slate-200 hover:bg-slate-100"
+                    }`}
+                  >
+                    <div>
+                      <span className="inline-flex items-center gap-1.5 text-xs font-black text-slate-900">
+                        <span className="w-2 h-2 rounded-full bg-amber-500" />
+                        Order on VIP Credit Facility
+                      </span>
+                      <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">
+                        Instant wholesale fulfillment. Amount is added to your Credit Invoices ledger in NGN.
+                      </p>
+                    </div>
+                    <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-amber-200/80 text-amber-950 shrink-0">
+                      VIP Partner
+                    </span>
+                  </button>
 
-              {screenshotPreview && (
-                <div className="rounded-xl overflow-hidden border border-slate-200 max-h-24">
-                  <img src={screenshotPreview} alt="Screenshot preview" className="w-full h-full object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod("bank_transfer")}
+                    className={`w-full text-left p-3.5 rounded-2xl border transition-all flex items-start justify-between gap-2 ${
+                      paymentMethod === "bank_transfer"
+                        ? "bg-brand-green-50/90 border-brand-green-500 ring-2 ring-brand-green-500/20 shadow-xs"
+                        : "bg-slate-50 border-slate-200 hover:bg-slate-100"
+                    }`}
+                  >
+                    <div>
+                      <span className="inline-flex items-center gap-1.5 text-xs font-black text-slate-900">
+                        <span className="w-2 h-2 rounded-full bg-brand-green-600" />
+                        Direct Bank Transfer
+                      </span>
+                      <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">
+                        Pay immediately via commercial bank wire and attach your transfer slip.
+                      </p>
+                    </div>
+                  </button>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
+
+            {paymentMethod === "credit" && user?.isVipCreditPartner ? (
+              <div className="bg-gradient-to-br from-slate-900 via-brand-green-950 to-slate-900 text-white rounded-2xl p-4 text-xs space-y-2 border border-amber-400/30 shadow-md">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-extrabold uppercase tracking-widest text-amber-300">
+                    VIP Credit Partner Summary
+                  </span>
+                  <span className="text-[10px] font-bold bg-white/10 px-2 py-0.5 rounded-full text-emerald-200">
+                    Active Facility
+                  </span>
+                </div>
+                <div className="flex justify-between text-slate-300 pt-1">
+                  <span>Current Credit Owing:</span>
+                  <strong className="font-mono text-white">{formatCurrency(user?.outstandingCredit || 0)}</strong>
+                </div>
+                <div className="flex justify-between text-slate-300">
+                  <span>This Credit Order:</span>
+                  <strong className="font-mono text-amber-300">+{formatCurrency(estimatedTotal)}</strong>
+                </div>
+                <div className="flex justify-between text-white font-black pt-2 border-t border-white/10 text-xs">
+                  <span>New Credit Balance:</span>
+                  <strong className="font-mono text-amber-300">
+                    {formatCurrency(Number(user?.outstandingCredit || 0) + Number(estimatedTotal || 0))}
+                  </strong>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="bg-brand-green-50/70 border border-brand-green-100 rounded-2xl p-4 text-xs space-y-1.5">
+                  <p className="font-extrabold text-brand-green-950">{bankDetails.bankName}</p>
+                  <div className="flex justify-between text-brand-green-900">
+                    <span>Account Name:</span>
+                    <strong className="font-mono">{bankDetails.accountName}</strong>
+                  </div>
+                  <div className="flex justify-between text-brand-green-900">
+                    <span>Account Number:</span>
+                    <strong className="font-mono text-sm font-black">{bankDetails.accountNumber}</strong>
+                  </div>
+                  {bankDetails.instructions && (
+                    <p className="text-brand-green-700 pt-1 italic text-[11px]">{bankDetails.instructions}</p>
+                  )}
+                </div>
+
+                {/* Optional screenshot upload during checkout */}
+                <div className="space-y-2 pt-1">
+                  <label className="text-[10px] font-extrabold uppercase text-slate-500 tracking-wider block">
+                    Attach Payment Screenshot (Optional now, or upload later)
+                  </label>
+                  <div className="border-2 border-dashed border-slate-200 hover:border-brand-green-500 rounded-2xl p-3 text-center transition bg-slate-50">
+                    <input
+                      type="file"
+                      id="checkout-screenshot"
+                      accept="image/*"
+                      onChange={handleScreenshotSelect}
+                      className="hidden"
+                    />
+                    <label htmlFor="checkout-screenshot" className="cursor-pointer block text-center">
+                      <Upload className="w-5 h-5 text-slate-400 mx-auto mb-1" />
+                      <span className="text-xs font-bold text-slate-700 block truncate">
+                        {screenshotFile ? screenshotFile.name : "Select Screenshot"}
+                      </span>
+                    </label>
+                  </div>
+
+                  {screenshotPreview && (
+                    <div className="rounded-xl overflow-hidden border border-slate-200 max-h-24">
+                      <img src={screenshotPreview} alt="Screenshot preview" className="w-full h-full object-cover" />
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
 
             {/* Order Price Summary */}
             <div className="border-t border-slate-100 pt-4 space-y-2 text-xs">
@@ -409,6 +523,8 @@ export const Checkout = () => {
             >
               {storeStatus?.isOpen === false
                 ? "Checkout Paused (Store in Vacation Mode)"
+                : paymentMethod === "credit" && user?.isVipCreditPartner
+                ? "Place Order on VIP Credit"
                 : "Confirm Wholesale Order"}
             </Button>
           </div>

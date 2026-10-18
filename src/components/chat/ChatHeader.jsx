@@ -22,6 +22,10 @@ export const ChatHeader = ({
   };
 
   const effectiveAvatar = getAvatarUrl(room?.customer) || getAvatarUrl(room);
+  const isOwingCredit =
+    isAdmin &&
+    (Number(room?.customer?.outstandingCredit || 0) > 0 ||
+      Boolean(room?.customer?.isOwingCredit));
 
   return (
     <div className="px-4 py-3 sm:px-6 sm:py-4.5 bg-white border-b border-slate-200 flex items-center justify-between shadow-sm">
@@ -36,17 +40,31 @@ export const ChatHeader = ({
             <ArrowLeft className="w-4 h-4" />
           </button>
         )}
-        <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl overflow-hidden border flex-shrink-0">
-          <Avatar
-            src={effectiveAvatar}
-            alt={room?.customerName || "avatar"}
-            size={40}
-            fallback={getInitials(room?.customer || room, "C")}
-          />
+        <div className="relative flex-shrink-0">
+          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl overflow-hidden border">
+            <Avatar
+              src={effectiveAvatar}
+              alt={room?.customerName || "avatar"}
+              size={40}
+              fallback={getInitials(room?.customer || room, "C")}
+            />
+          </div>
+          {isOwingCredit && (
+            <span
+              className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-red-600 border-2 border-white shadow-xs"
+              title="VIP Customer Owing Credit"
+            />
+          )}
         </div>
         <div className="min-w-0">
-          <h3 className="font-bold text-slate-800 text-xs sm:text-sm leading-tight max-w-[85px] xs:max-w-[120px] sm:max-w-none truncate">
-            {room.customerName}
+          <h3 className="font-bold text-slate-800 text-xs sm:text-sm leading-tight max-w-[110px] xs:max-w-[140px] sm:max-w-none truncate flex items-center gap-1.5">
+            <span className="truncate">{room.customerName}</span>
+            {isOwingCredit && (
+              <span
+                className="inline-block w-2 h-2 rounded-full bg-red-600 shrink-0"
+                title="VIP Customer Owing Credit"
+              />
+            )}
           </h3>
           <p className="text-[9px] sm:text-[10px] text-slate-500 font-semibold uppercase tracking-wider mt-0.5 max-w-[85px] xs:max-w-[120px] sm:max-w-none truncate">
             {room.businessName}

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useContext } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { AuthContext } from "../../context/AuthContext";
+import { useBusiness } from "../../context/BusinessContext";
 import api from "../../services/api";
 import { createIdempotencyKey, withIdempotencyKey } from "../../services/idempotency";
 import { formatCurrency } from "../../utils/formatCurrency";
@@ -38,6 +39,7 @@ export const OrderDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useContext(AuthContext);
+  const { businessInfo, bankDetails } = useBusiness();
   const isAdmin =
     user?.role === "admin" ||
     user?.role === "subAdmin" ||
@@ -181,6 +183,11 @@ export const OrderDetails = () => {
                 {order.orderNumber}
               </h1>
               <Badge status={order.status} className="text-xs" />
+              {(order.isCreditOrder || order.paymentStatus === "On Credit") && (
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-rose-100 text-rose-800 border border-rose-200">
+                  VIP Credit Order
+                </span>
+              )}
             </div>
             <p className="text-xs text-slate-500 mt-1 flex items-center gap-1.5">
               <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
@@ -375,8 +382,23 @@ export const OrderDetails = () => {
             ) : (
               <div className="space-y-3">
                 <p className="text-xs text-slate-500">
-                  Please transfer <strong className="text-slate-900">{formatCurrency(order.totalAmount)}</strong> to the Vinoff commercial bank account, then upload your transaction screenshot below.
+                  Please transfer <strong className="text-slate-900">{formatCurrency(order.totalAmount)}</strong> to the{" "}
+                  {businessInfo?.businessName || "Vinoff"} commercial bank account below, then upload your transaction screenshot:
                 </p>
+
+                {bankDetails?.bankName && (
+                  <div className="bg-brand-green-50/70 border border-brand-green-100 rounded-2xl p-3.5 text-xs space-y-1">
+                    <p className="font-extrabold text-brand-green-950">{bankDetails.bankName}</p>
+                    <div className="flex justify-between text-brand-green-900">
+                      <span>Account Name:</span>
+                      <strong className="font-mono">{bankDetails.accountName}</strong>
+                    </div>
+                    <div className="flex justify-between text-brand-green-900">
+                      <span>Account Number:</span>
+                      <strong className="font-mono text-sm font-black">{bankDetails.accountNumber}</strong>
+                    </div>
+                  </div>
+                )}
 
                 <div className="border-2 border-dashed border-slate-200 hover:border-brand-green-500 rounded-2xl p-4 text-center transition bg-slate-50">
                   <input

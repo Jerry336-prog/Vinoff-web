@@ -28,7 +28,7 @@ import { downloadInvoicePDF } from "../../utils/generatePDF";
 import { toast } from "../../context/ToastContext";
 import { unwrapApiList, unwrapApiRecord } from "../../utils/apiResponse";
 
-const ALLOWED_STATUSES = ["Draft", "Pending", "Paid", "Cancelled"];
+const ALLOWED_STATUSES = ["On Credit", "Pending", "Paid", "Draft", "Cancelled"];
 
 export const Invoices = () => {
   const navigate = useNavigate();
@@ -210,6 +210,7 @@ export const Invoices = () => {
         notes: createForm.notes,
         dueDate: createForm.dueDate || undefined,
         status: createForm.status,
+        isCredit: createForm.status === "On Credit",
         issuedBy: adminName,
       };
 
@@ -237,6 +238,14 @@ export const Invoices = () => {
     }
   };
 
+  const creditInvoices = invoices.filter((inv) => inv.isCredit || inv.status === "On Credit");
+  const unpaidCreditTotal = creditInvoices
+    .filter((inv) => inv.status !== "Paid" && inv.status !== "Cancelled")
+    .reduce((sum, inv) => sum + Number(inv.total ?? inv.totalAmount ?? 0), 0);
+  const settledCreditTotal = creditInvoices
+    .filter((inv) => inv.status === "Paid")
+    .reduce((sum, inv) => sum + Number(inv.total ?? inv.totalAmount ?? 0), 0);
+
   const filtered = invoices.filter((inv) => {
     const term = searchTerm.toLowerCase();
     const matchesSearch =
@@ -247,7 +256,9 @@ export const Invoices = () => {
       inv.customer?.profile?.companyName?.toLowerCase().includes(term);
 
     const matchesStatus =
-      statusFilter === "All" || inv.status === statusFilter;
+      statusFilter === "All" ||
+      (statusFilter === "Credit Invoices" && (inv.isCredit || inv.status === "On Credit")) ||
+      inv.status === statusFilter;
 
     return matchesSearch && matchesStatus;
   });
@@ -262,7 +273,7 @@ export const Invoices = () => {
             Wholesale Invoicing System
           </h1>
           <p className="text-xs text-slate-500 font-medium mt-0.5">
-            Issue automated and custom wholesale invoices with strict compliance: Draft, Pending, Paid, Cancelled.
+            Issue automated and custom wholesale invoices, manage VIP Credit Invoices, and track settlements.
           </p>
         </div>
 
@@ -290,22 +301,72 @@ export const Invoices = () => {
         </div>
       </div>
 
-      {/* Strict Filter Tabs */}
-      <div className="flex items-center gap-2">
-        {["All", ...ALLOWED_STATUSES].map((st) => (
-          <button
-            key={st}
-            onClick={() => setStatusFilter(st)}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition ${
-              statusFilter === st
-                ? "bg-brand-green-600 text-white shadow-sm"
-                : "bg-white text-slate-600 hover:bg-slate-50 border border-slate-200"
-            }`}
-          >
-            {st}
-          </button>
-        ))}
+      {/* Filter Tabs including Credit Invoices Tab */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+        {["All", "Credit Invoices", ...ALLOWED_STATUSES].map((st) => {
+          const isCreditTab = st === "Credit Invoices" || st === "On Credit";
+          const isActive = statusFilter === st;
+          return (
+            <button
+              key={st}
+              onClick={() => setStatusFilter(st)}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap flex items-center gap-1.5 ${
+                isActive
+                  ? isCreditTab
+                    ? "bg-rose-600 text-white shadow-sm"
+                    : "bg-brand-green-600 text-white shadow-sm"
+                  : isCreditTab
+                  ? "bg-rose-50 text-rose-800 hover:bg-rose-100 border border-rose-200"
+                  : "bg-white text-slate-600 hover:bg-slate-50 border border-slate-200"
+              }`}
+            >
+              {st === "Credit Invoices" && <span className="w-2 h-2 rounded-full bg-current" />}
+              <span>{st}</span>
+              {st === "Credit Invoices" && creditInvoices.length > 0 && (
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-extrabold ${
+                  isActive ? "bg-white/20 text-white" : "bg-rose-200/80 text-rose-950"
+                }`}>
+                  {creditInvoices.length}
+                </span>
+              )}
+            </button>
+          );
+        })}
       </div>
+
+      {/* Credit Invoices Summary Banner when viewing Credit Invoices or On Credit */}
+      {(statusFilter === "Credit Invoices" || statusFilter === "On Credit") && (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 bg-gradient-to-r from-slate-900 via-brand-green-950 to-slate-900 text-white rounded-3xl p-5 shadow-md">
+          <div>
+            <span className="text-[10px] font-black uppercase tracking-widest text-rose-300 flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+              Active Unpaid Credit (NGN)
+            </span>
+            <p className="text-xl sm:text-2xl font-black font-mono text-white mt-1">
+              {formatCurrency(unpaidCreditTotal)}
+            </p>
+            <p className="text-[11px] text-slate-300 mt-0.5">
+              {creditInvoices.filter((i) => i.status !== "Paid" && i.status !== "Cancelled").length} open credit invoice(s)
+            </p>
+          </div>
+          <div>
+            <span className="text-[10px] font-black uppercase tracking-widest text-emerald-300">
+              Settled Credit Realized into Revenue
+            </span>
+            <p className="text-xl sm:text-2xl font-black font-mono text-emerald-300 mt-1">
+              {formatCurrency(settledCreditTotal)}
+            </p>
+            <p className="text-[11px] text-slate-300 mt-0.5">
+              {creditInvoices.filter((i) => i.status === "Paid").length} settled credit invoice(s)
+            </p>
+          </div>
+          <div className="flex flex-col justify-center sm:items-end text-xs text-slate-300">
+            <p className="leading-relaxed sm:text-right">
+              Marking a credit invoice as <strong className="text-white">Paid</strong> automatically deducts its balance from the VIP Partner's owing credit and adds it to realized revenue.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Invoices Table */}
       {loading ? (
@@ -342,6 +403,10 @@ export const Invoices = () => {
                     (typeof inv.createdBy === "object"
                       ? (inv.createdBy?.name || `${inv.createdBy?.firstName || ""} ${inv.createdBy?.lastName || ""}`.trim())
                       : inv.createdBy);
+                  const customerOwing =
+                    Number(inv.customer?.outstandingCredit || 0) > 0 ||
+                    Boolean(inv.customer?.isOwingCredit) ||
+                    inv.status === "On Credit";
 
                   return (
                     <tr
@@ -349,14 +414,33 @@ export const Invoices = () => {
                       onClick={() => navigate(`/admin/invoices/${inv._id || inv.id}`)}
                       className="hover:bg-slate-50/70 transition cursor-pointer"
                     >
-                      <td className="py-4 px-5 font-mono font-black text-slate-900 flex items-center gap-2">
-                        <FileText className="w-4 h-4 text-slate-400" />
-                        {inv.invoiceNumber}
+                      <td className="py-4 px-5 font-mono font-black text-slate-900">
+                        <div className="flex items-center gap-2">
+                          <FileText className="w-4 h-4 text-slate-400 shrink-0" />
+                          <span>{inv.invoiceNumber}</span>
+                          {(inv.isCredit || inv.status === "On Credit") && (
+                            <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-amber-100 text-amber-900 border border-amber-200">
+                              VIP Credit
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="py-4 px-4">
-                        <p className="font-bold text-slate-900 leading-tight">
-                          {inv.customer?.firstName} {inv.customer?.lastName}
-                        </p>
+                        <div className="flex items-center gap-1.5">
+                          <p className="font-bold text-slate-900 leading-tight">
+                            {inv.customer?.firstName} {inv.customer?.lastName}
+                          </p>
+                          {customerOwing && (
+                            <span
+                              className="inline-block w-2 h-2 rounded-full bg-red-600 shrink-0"
+                              title={`VIP Customer Owing Credit${
+                                inv.customer?.outstandingCredit
+                                  ? `: ${formatCurrency(inv.customer.outstandingCredit)}`
+                                  : ""
+                              }`}
+                            />
+                          )}
+                        </div>
                         <p className="text-[10px] text-slate-400 uppercase font-semibold">
                           {inv.customer?.profile?.companyName || "Commercial Buyer"}
                         </p>
@@ -379,14 +463,14 @@ export const Invoices = () => {
                       </td>
                       <td className="py-4 px-5 text-right">
                         <div className="flex items-center justify-end gap-2">
-                          {inv.status === "Pending" && (
+                          {(inv.status === "Pending" || inv.status === "On Credit") && (
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleStatusUpdate(inv._id || inv.id, "Paid");
                               }}
                               className="p-1.5 hover:bg-emerald-50 text-emerald-600 rounded-lg transition"
-                              title="Mark as Paid & Stamp Admin Name"
+                              title="Mark as Paid, Settle Credit & Stamp Admin Name"
                             >
                               <CheckCircle2 className="w-4 h-4" />
                             </button>
@@ -624,6 +708,7 @@ export const Invoices = () => {
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-xs font-semibold focus:ring-2 focus:ring-brand-green-500 outline-none"
                   >
                     <option value="Pending">Pending</option>
+                    <option value="On Credit">On Credit (VIP Credit Invoice)</option>
                     <option value="Draft">Draft</option>
                     <option value="Paid">Paid</option>
                   </select>

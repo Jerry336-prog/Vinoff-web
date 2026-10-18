@@ -66,6 +66,9 @@ export const ChatSidebar = ({
                 ? room.messages[room.messages.length - 1]
                 : null);
             const avatarSrc = room.avatarUrl || getAvatarUrl(room.customer) || getAvatarUrl(room);
+            const isOwingCredit =
+              Number(room.customer?.outstandingCredit || 0) > 0 ||
+              Boolean(room.customer?.isOwingCredit);
 
             return (
               <button
@@ -78,22 +81,36 @@ export const ChatSidebar = ({
                 }`}
               >
                 {/* User Avatar */}
-                <div
-                  className={`w-9 h-9 rounded-xl overflow-hidden border flex-shrink-0 transition-colors ${isActive ? "bg-brand-green-100 border-brand-green-200/50" : "bg-slate-100 border-slate-200/50"}`}
-                >
-                  <Avatar
-                    src={avatarSrc}
-                    alt={room.customerName || "avatar"}
-                    size={36}
-                    fallback={getInitials(room.customer || room, "C")}
-                  />
+                <div className="relative flex-shrink-0">
+                  <div
+                    className={`w-9 h-9 rounded-xl overflow-hidden border transition-colors ${isActive ? "bg-brand-green-100 border-brand-green-200/50" : "bg-slate-100 border-slate-200/50"}`}
+                  >
+                    <Avatar
+                      src={avatarSrc}
+                      alt={room.customerName || "avatar"}
+                      size={36}
+                      fallback={getInitials(room.customer || room, "C")}
+                    />
+                  </div>
+                  {isOwingCredit && (
+                    <span
+                      className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-red-600 border-2 border-white shadow-xs"
+                      title="VIP Customer Owing Credit"
+                    />
+                  )}
                 </div>
 
                 {/* Message Meta Info */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-1">
-                    <h4 className="font-extrabold text-slate-800 text-[11px] truncate">
-                      {room.customerName}
+                    <h4 className="font-extrabold text-slate-800 text-[11px] truncate flex items-center gap-1">
+                      <span className="truncate">{room.customerName}</span>
+                      {isOwingCredit && (
+                        <span
+                          className="inline-block w-1.5 h-1.5 rounded-full bg-red-600 shrink-0"
+                          title="VIP Customer Owing Credit"
+                        />
+                      )}
                     </h4>
                     <span className="text-[8px] text-slate-400 font-medium shrink-0">
                       {lastMessage

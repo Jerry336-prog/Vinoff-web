@@ -4,6 +4,7 @@ import { AuthContext } from "../context/AuthContext";
 import { CartContext } from "../context/CartContext";
 import { ChatContext } from "../context/ChatContext";
 import { NotificationContext } from "../context/NotificationContext";
+import { useBusiness } from "../context/BusinessContext";
 import { formatCurrency } from "../utils/formatCurrency";
 import ProfileDrawer from "../components/profile/ProfileDrawer";
 import Avatar from "../components/ui/Avatar";
@@ -20,7 +21,15 @@ import {
   Settings,
   Package,
   ArrowLeft,
+  Phone,
+  Mail,
+  MapPin,
+  Clock,
+  Crown,
+  CreditCard,
 } from "lucide-react";
+import api from "../services/api";
+import { unwrapApiList } from "../utils/apiResponse";
 import { trackPageView } from "../utils/trafficTracker";
 import StoreNoticeBanner from "../components/common/StoreNoticeBanner";
 
@@ -29,10 +38,59 @@ export const MainLayout = () => {
   const { cartCount, subtotal } = useContext(CartContext);
   const { activeRoom, rooms } = useContext(ChatContext);
   const { unreadCount: unreadNotifications } = useContext(NotificationContext);
+  const { businessInfo } = useBusiness();
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [profileDrawerOpen, setProfileDrawerOpen] = useState(false);
+  const [liveCreditTotal, setLiveCreditTotal] = useState(
+    Number(user?.outstandingCredit || 0)
+  );
+  const [activeCreditCount, setActiveCreditCount] = useState(0);
+
+  const isVipPartner = Boolean(
+    user?.isVipCreditPartner || Number(user?.outstandingCredit || 0) > 0 || liveCreditTotal > 0
+  );
+
+  // Sync live unpaid credit total from customer's invoices so header is always 100% accurate
+  useEffect(() => {
+    if (!user) {
+      setLiveCreditTotal(0);
+      setActiveCreditCount(0);
+      return;
+    }
+
+    setLiveCreditTotal(Number(user.outstandingCredit || 0));
+
+    if (user.role === "customer" || user.isVipCreditPartner) {
+      api
+        .get("/api/invoices?limit=100")
+        .then((res) => {
+          const list = unwrapApiList(res);
+          if (Array.isArray(list)) {
+            const unpaidCredits = list.filter(
+              (inv) =>
+                (inv.isCredit === true || inv.status === "On Credit") &&
+                inv.status !== "Paid" &&
+                inv.status !== "Cancelled"
+            );
+            const sum = unpaidCredits.reduce(
+              (acc, inv) => acc + Number(inv.total || inv.totalAmount || 0),
+              0
+            );
+            setLiveCreditTotal(sum);
+            setActiveCreditCount(unpaidCredits.length);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [user, location.pathname]);
+
+  // Split brandTitle for two-tone styling (e.g. "VINOFF WHOLESALES")
+  const brandTitleRaw = (businessInfo?.brandTitle || "VINOFF WHOLESALES").trim();
+  const brandWords = brandTitleRaw.split(/\s+/);
+  const brandPrimary = brandWords[0] || "VINOFF";
+  const brandSecondary = brandWords.slice(1).join(" ");
 
   // Check if profile was requested via query param
   useEffect(() => {
@@ -97,12 +155,12 @@ export const MainLayout = () => {
               <Link to="/" className="flex items-center gap-3">
                 <img src="/VinoffLogo.webp" alt="Vinoff Logo" className="w-12 h-12 md:w-14 md:h-14 object-contain shrink-0" />
                 <div>
-                  <span className="font-bold text-lg tracking-tight text-brand-green-950 block leading-tight">
-                    VINOFF{" "}
-                    <span className="text-brand-green-600">WHOLESALES</span>
+                  <span className="font-bold text-lg tracking-tight text-brand-green-950 block leading-tight uppercase">
+                    {brandPrimary}{" "}
+                    {brandSecondary && <span className="text-brand-green-600">{brandSecondary}</span>}
                   </span>
                   <span className="text-[10px] text-slate-500 font-medium tracking-widest uppercase block -mt-0.5">
-                    Toiletries & Household
+                    {businessInfo?.headerSubtitle || "Toiletries & Household"}
                   </span>
                 </div>
               </Link>
@@ -162,6 +220,50 @@ export const MainLayout = () => {
                 </Link>
               )}
 
+              {/* VIP Credit Partner Header Glassmorphic Credit Pill */}
+              {user && isVipPartner && (
+                <Link
+                  to="/credit-invoices"
+                  title="View VIP Credit Invoices & Balance"
+                  className={`group relative flex items-center gap-2.5 px-3.5 py-1.5 rounded-2xl backdrop-blur-xl transition-all shadow-sm border ${
+                    isActive("/credit-invoices")
+                      ? "bg-gradient-to-r from-brand-green-900/95 via-slate-900/95 to-brand-green-950/95 text-white border-brand-yellow-400/50 ring-2 ring-brand-yellow-400/30"
+                      : liveCreditTotal > 0
+                      ? "bg-gradient-to-r from-rose-500/10 via-amber-500/10 to-brand-green-500/10 hover:from-rose-500/15 hover:to-brand-green-500/20 border-rose-300/60 text-slate-900"
+                      : "bg-gradient-to-r from-brand-green-500/10 via-emerald-500/10 to-amber-500/10 hover:from-brand-green-500/20 border-brand-green-300/60 text-slate-900"
+                  }`}
+                >
+                  <div className="w-7 h-7 rounded-xl bg-amber-400/20 border border-amber-400/40 flex items-center justify-center shrink-0">
+                    <Crown className="w-3.5 h-3.5 text-amber-500 fill-amber-400" />
+                  </div>
+                  <div className="text-left leading-tight">
+                    <span
+                      className={`text-[9px] font-black uppercase tracking-wider flex items-center gap-1 ${
+                        isActive("/credit-invoices") ? "text-brand-yellow-300" : "text-slate-500"
+                      }`}
+                    >
+                      <span>VIP Credit</span>
+                      {activeCreditCount > 0 && (
+                        <span className="px-1.5 py-0.2 rounded-full bg-rose-500 text-white text-[8px] font-black">
+                          {activeCreditCount}
+                        </span>
+                      )}
+                    </span>
+                    <span
+                      className={`text-xs font-black font-mono block ${
+                        isActive("/credit-invoices")
+                          ? "text-white"
+                          : liveCreditTotal > 0
+                          ? "text-rose-700"
+                          : "text-brand-green-800"
+                      }`}
+                    >
+                      {formatCurrency(liveCreditTotal)}
+                    </span>
+                  </div>
+                </Link>
+              )}
+
               {user && (
                 <Link
                   to="/notifications"
@@ -196,11 +298,14 @@ export const MainLayout = () => {
                     onClick={() => setProfileDrawerOpen(true)}
                     className="text-right hover:opacity-80 transition group cursor-pointer"
                   >
-                    <p className="text-xs font-bold text-slate-800 group-hover:text-brand-green-700 transition-colors">
-                      {user.name}
+                    <p className="text-xs font-bold text-slate-800 group-hover:text-brand-green-700 transition-colors flex items-center justify-end gap-1">
+                      <span>{user.name}</span>
+                      {isVipPartner && (
+                        <Crown className="w-3 h-3 text-amber-500 fill-amber-400 shrink-0" title="VIP Credit Partner" />
+                      )}
                     </p>
                     <p className="text-[9px] text-slate-500 uppercase tracking-wider font-semibold">
-                      {user.businessName || "Wholesale Buyer"}
+                      {isVipPartner ? "VIP Credit Partner" : user.businessName || "Wholesale Buyer"}
                     </p>
                   </button>
                   <button
@@ -244,6 +349,16 @@ export const MainLayout = () => {
 
             {/* Mobile Menu Action */}
             <div className="md:hidden flex items-center gap-2">
+              {user && isVipPartner && (
+                <Link
+                  to="/credit-invoices"
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500/15 to-rose-500/15 backdrop-blur-md border border-amber-400/40 text-xs font-black font-mono text-rose-800 shadow-2xs"
+                  title="VIP Credit Balance"
+                >
+                  <Crown className="w-3.5 h-3.5 text-amber-500 fill-amber-400 shrink-0" />
+                  <span>{formatCurrency(liveCreditTotal)}</span>
+                </Link>
+              )}
               <Link
                 to="/cart"
                 className="relative p-2 text-slate-600 hover:text-brand-green-700 bg-slate-100 rounded-lg transition-all"
@@ -272,6 +387,33 @@ export const MainLayout = () => {
         {/* Mobile Navigation Dropdown Menu */}
         {mobileMenuOpen && (
           <div className="md:hidden bg-white border-b border-slate-200 px-4 pt-3 pb-5 space-y-2 shadow-lg animate-fade-in">
+            {user && isVipPartner && (
+              <Link
+                to="/credit-invoices"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center justify-between px-3.5 py-3 rounded-2xl bg-gradient-to-r from-brand-green-950 via-slate-900 to-brand-green-900 text-white border border-amber-400/30 shadow-md mb-2"
+              >
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-amber-400/20 border border-amber-400/40 flex items-center justify-center">
+                    <Crown className="w-4 h-4 text-amber-400 fill-amber-400" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-wider text-brand-yellow-300">
+                      VIP Credit Facility
+                    </p>
+                    <p className="text-xs font-bold text-slate-200">
+                      {activeCreditCount} Active Credit Invoice(s)
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <span className="text-[9px] uppercase text-slate-300 block">Total Credit</span>
+                  <span className="text-sm font-black font-mono text-rose-300">
+                    {formatCurrency(liveCreditTotal)}
+                  </span>
+                </div>
+              </Link>
+            )}
             <Link
               to="/"
               onClick={() => setMobileMenuOpen(false)}
@@ -422,14 +564,56 @@ export const MainLayout = () => {
       <footer className="bg-slate-900 text-slate-400 border-t border-slate-800 py-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div>
-              <span className="font-bold text-lg tracking-tight text-white block leading-tight">
-                VINOFF <span className="text-brand-green-400">WHOLESALES</span>
-              </span>
-              <span className="text-[10px] text-slate-500 font-medium tracking-widest uppercase block mt-1">
-                Professional B2B supplier for toiletries & household
-                sanitization products
-              </span>
+            <div className="space-y-3">
+              <div>
+                <span className="font-bold text-lg tracking-tight text-white block leading-tight uppercase">
+                  {brandPrimary}{" "}
+                  {brandSecondary && <span className="text-brand-green-400">{brandSecondary}</span>}
+                </span>
+                <span className="text-[10px] text-slate-400 font-medium tracking-widest uppercase block mt-1">
+                  {businessInfo?.tagline ||
+                    "Commercial Toiletries, Sanitizers & Industrial Detergents"}
+                </span>
+              </div>
+
+              <div className="space-y-1.5 text-xs text-slate-400 pt-1">
+                {businessInfo?.shopAddress && (
+                  <p className="flex items-start gap-2 leading-relaxed">
+                    <MapPin className="w-3.5 h-3.5 text-brand-green-400 shrink-0 mt-0.5" />
+                    <span>
+                      {businessInfo.shopAddress}
+                      {businessInfo.complexArea ? `, ${businessInfo.complexArea}` : ""}
+                      {businessInfo.cityState ? `, ${businessInfo.cityState}` : ""}
+                    </span>
+                  </p>
+                )}
+                {businessInfo?.phoneContact && (
+                  <p className="flex items-center gap-2">
+                    <Phone className="w-3.5 h-3.5 text-brand-green-400 shrink-0" />
+                    <span>
+                      {businessInfo.phoneContact}
+                      {businessInfo.secondaryPhone ? ` • ${businessInfo.secondaryPhone}` : ""}
+                    </span>
+                  </p>
+                )}
+                {businessInfo?.emailContact && (
+                  <p className="flex items-center gap-2">
+                    <Mail className="w-3.5 h-3.5 text-brand-green-400 shrink-0" />
+                    <span>
+                      {businessInfo.emailContact}
+                      {businessInfo.supportEmail && businessInfo.supportEmail !== businessInfo.emailContact
+                        ? ` • ${businessInfo.supportEmail}`
+                        : ""}
+                    </span>
+                  </p>
+                )}
+                {businessInfo?.operatingHours && (
+                  <p className="flex items-center gap-2 text-slate-500">
+                    <Clock className="w-3.5 h-3.5 text-brand-yellow-400 shrink-0" />
+                    <span>{businessInfo.operatingHours}</span>
+                  </p>
+                )}
+              </div>
             </div>
             <div>
               <h4 className="text-white text-xs font-bold uppercase tracking-wider mb-3">
@@ -463,14 +647,14 @@ export const MainLayout = () => {
               <h4 className="text-white text-xs font-bold uppercase tracking-wider mb-3">
                 Wholesale T&C
               </h4>
-              <p className="text-xs leading-relaxed text-slate-500">
-                Wire payments transfer slips proof must be submitted in
-                support chats to begin packing and logistics.
+              <p className="text-xs leading-relaxed text-slate-400">
+                {businessInfo?.footerNote ||
+                  "Wire payments transfer slips proof must be submitted in support chats to begin packing and logistics."}
               </p>
             </div>
           </div>
-          <div className="border-t border-slate-800 mt-8 pt-6 text-center text-xs text-slate-600">
-            &copy; {new Date().getFullYear()} Vinoff Wholesales Ltd. All rights
+          <div className="border-t border-slate-800 mt-8 pt-6 text-center text-xs text-slate-500">
+            &copy; {new Date().getFullYear()} {businessInfo?.businessName || "Vinoff Wholesales Ltd"}. All rights
             reserved. Designed for Premium Commercial Distribution.
           </div>
         </div>
