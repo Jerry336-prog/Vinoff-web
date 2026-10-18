@@ -12,6 +12,7 @@ import {
   MapPin,
   Building,
   Shield,
+  ShieldCheck,
   Video,
   ExternalLink,
   Info,
