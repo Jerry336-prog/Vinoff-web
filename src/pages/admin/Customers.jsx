@@ -25,12 +25,12 @@ import Avatar from "../../components/ui/Avatar";
 import Button from "../../components/ui/Button";
 import { useToast } from "../../context/ToastContext";
 import { AuthContext } from "../../context/AuthContext";
-import { unwrapApiList } from "../../utils/apiResponse";
+import { unwrapApiList, unwrapApiRecord } from "../../utils/apiResponse";
 import { getAvatarUrl, getInitials } from "../../utils/avatar";
 
 export const Customers = () => {
   const { toast, showModal } = useToast();
-  const { user: currentUser, isSuperAdmin } = useContext(AuthContext);
+  const { user: currentUser, isSuperAdmin, refreshUser } = useContext(AuthContext);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -123,7 +123,8 @@ export const Customers = () => {
           const res = await api.patch(`/api/admin/customers/${targetUser._id}/vip-credit`, {
             isVipCreditPartner: nextVipState,
           });
-          const updatedCustomer = res.data?.data?.customer || res.data?.customer || res.data;
+          const payload = unwrapApiRecord(res);
+          const updatedCustomer = payload?.customer || payload;
           setUsers((prev) =>
             prev.map((u) =>
               u._id === targetUser._id
@@ -131,10 +132,12 @@ export const Customers = () => {
                     ...u,
                     isVipCreditPartner: nextVipState,
                     outstandingCredit: updatedCustomer?.outstandingCredit ?? u.outstandingCredit ?? 0,
+                    isOwingCredit: Number(updatedCustomer?.outstandingCredit ?? u.outstandingCredit ?? 0) > 0,
                   }
                 : u
             )
           );
+          refreshUser?.();
           toast.success(
             nextVipState
               ? `${targetUser.firstName} ${targetUser.lastName} is now a VIP Credit Partner!`
@@ -434,18 +437,16 @@ export const Customers = () => {
                             <Eye className="w-4 h-4 text-brand-green-600" /> View Details
                           </button>
 
-                          {!isSuperadminRole && !isAdminRole && (
-                            <button
-                              onClick={(e) => {
-                                setOpenMenuId(null);
-                                handleVipCreditToggle(e, u);
-                              }}
-                              className="w-full text-left px-4 py-2 text-xs font-bold text-amber-800 hover:bg-amber-50 flex items-center gap-2"
-                            >
-                              <Sparkles className="w-4 h-4 text-amber-600" />
-                              {u.isVipCreditPartner ? "Revoke VIP Credit" : "Make VIP Credit Partner"}
-                            </button>
-                          )}
+                          <button
+                            onClick={(e) => {
+                              setOpenMenuId(null);
+                              handleVipCreditToggle(e, u);
+                            }}
+                            className="w-full text-left px-4 py-2 text-xs font-bold text-amber-800 hover:bg-amber-50 flex items-center gap-2"
+                          >
+                            <Sparkles className="w-4 h-4 text-amber-600" />
+                            {u.isVipCreditPartner ? "Revoke VIP Credit" : "Make VIP Credit Partner"}
+                          </button>
 
                           {isSuperAdmin && !isSuperadminRole && u._id !== currentUser?._id && (
                             <>
@@ -510,8 +511,8 @@ export const Customers = () => {
                     )}
                   </div>
 
-                  <div className="flex items-center justify-between pt-1">
-                    <div>
+                  <div className="flex items-center justify-between pt-1 gap-2">
+                    <div className="flex flex-wrap items-center gap-1.5">
                       {isSuperadminRole ? (
                         <span className="inline-flex items-center gap-1 text-[9px] font-black bg-amber-100 text-amber-900 border border-amber-300 px-2 py-0.5 rounded-full">
                           <Crown className="w-3 h-3 text-amber-600 fill-amber-500" /> SUPERADMIN
@@ -525,6 +526,20 @@ export const Customers = () => {
                           CUSTOMER
                         </span>
                       )}
+
+                      <button
+                        type="button"
+                        onClick={(e) => handleVipCreditToggle(e, u)}
+                        disabled={updatingId === u._id}
+                        className={`inline-flex items-center gap-1 text-[9px] font-black px-2 py-0.5 rounded-full border transition cursor-pointer ${
+                          u.isVipCreditPartner
+                            ? "bg-amber-100 text-amber-900 border-amber-300 hover:bg-amber-200"
+                            : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-amber-50 hover:text-amber-800 hover:border-amber-300"
+                        }`}
+                      >
+                        <Sparkles className="w-2.5 h-2.5 text-amber-600" />
+                        {u.isVipCreditPartner ? "VIP Partner ✓" : "+ Make VIP Partner"}
+                      </button>
                     </div>
 
                     <span
@@ -685,35 +700,50 @@ export const Customers = () => {
 
                         <td className="py-4 px-5 text-right whitespace-nowrap relative">
                           <div
-                            className="relative inline-block text-left"
+                            className="inline-flex items-center gap-1.5 text-left"
                             onClick={(e) => e.stopPropagation()}
                           >
                             <button
                               type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setOpenMenuId(openMenuId === u._id ? null : u._id);
-                              }}
-                              className="p-2 rounded-xl text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition focus:outline-none"
-                              title="Actions menu"
+                              onClick={(e) => handleVipCreditToggle(e, u)}
+                              disabled={updatingId === u._id}
+                              className={`inline-flex items-center gap-1 text-[10px] font-extrabold px-2.5 py-1.5 rounded-xl border transition cursor-pointer ${
+                                u.isVipCreditPartner
+                                  ? "bg-amber-100 text-amber-900 border-amber-300 hover:bg-amber-200"
+                                  : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-amber-50 hover:text-amber-800 hover:border-amber-300"
+                              }`}
+                              title={u.isVipCreditPartner ? "Click to revoke VIP Credit Partner status" : "Click to upgrade to VIP Credit Partner"}
                             >
-                              <MoreVertical className="w-4 h-4" />
+                              <Sparkles className="w-3 h-3 text-amber-600" />
+                              <span>{u.isVipCreditPartner ? "VIP Partner ✓" : "Make VIP"}</span>
                             </button>
 
-                            {openMenuId === u._id && (
-                              <div className="absolute right-0 mt-1 w-52 bg-white rounded-2xl shadow-xl border border-slate-200 py-1.5 z-40 animate-fadeIn text-left">
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setOpenMenuId(null);
-                                    navigate(`/admin/customers/${u._id}`);
-                                  }}
-                                  className="w-full text-left px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2"
-                                >
-                                  <Eye className="w-4 h-4 text-brand-green-600" /> View Details
-                                </button>
+                            <div className="relative">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setOpenMenuId(openMenuId === u._id ? null : u._id);
+                                }}
+                                className="p-2 rounded-xl text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition focus:outline-none"
+                                title="Actions menu"
+                              >
+                                <MoreVertical className="w-4 h-4" />
+                              </button>
 
-                                {!isSuperadminRole && !isAdminRole && (
+                              {openMenuId === u._id && (
+                                <div className="absolute right-0 mt-1 w-52 bg-white rounded-2xl shadow-xl border border-slate-200 py-1.5 z-40 animate-fadeIn text-left">
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setOpenMenuId(null);
+                                      navigate(`/admin/customers/${u._id}`);
+                                    }}
+                                    className="w-full text-left px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2"
+                                  >
+                                    <Eye className="w-4 h-4 text-brand-green-600" /> View Details
+                                  </button>
+
                                   <button
                                     onClick={(e) => {
                                       setOpenMenuId(null);
@@ -724,57 +754,57 @@ export const Customers = () => {
                                     <Sparkles className="w-4 h-4 text-amber-600" />
                                     {u.isVipCreditPartner ? "Revoke VIP Credit" : "Make VIP Credit Partner"}
                                   </button>
-                                )}
 
-                                {isSuperAdmin && !isSuperadminRole && u._id !== currentUser?._id && (
-                                  <>
-                                    {u.role === "customer" ? (
-                                      <button
-                                        onClick={(e) => {
-                                          setOpenMenuId(null);
-                                          handleRoleChange(e, u, "admin");
-                                        }}
-                                        className="w-full text-left px-4 py-2 text-xs font-bold text-purple-700 hover:bg-purple-50 flex items-center gap-2"
-                                      >
-                                        <UserPlus className="w-4 h-4 text-purple-600" /> Make Admin
-                                      </button>
-                                    ) : (
-                                      <button
-                                        onClick={(e) => {
-                                          setOpenMenuId(null);
-                                          handleRoleChange(e, u, "customer");
-                                        }}
-                                        className="w-full text-left px-4 py-2 text-xs font-bold text-amber-800 hover:bg-amber-50 flex items-center gap-2"
-                                      >
-                                        <UserMinus className="w-4 h-4 text-amber-600" /> Dismiss Admin
-                                      </button>
-                                    )}
-                                  </>
-                                )}
-
-                                <button
-                                  onClick={(e) => {
-                                    setOpenMenuId(null);
-                                    handleStatusToggle(e, u);
-                                  }}
-                                  className={`w-full text-left px-4 py-2 text-xs font-bold flex items-center gap-2 border-t border-slate-100 ${
-                                    isSuspended
-                                      ? "text-emerald-700 hover:bg-emerald-50"
-                                      : "text-red-600 hover:bg-red-50"
-                                  }`}
-                                >
-                                  {isSuspended ? (
+                                  {isSuperAdmin && !isSuperadminRole && u._id !== currentUser?._id && (
                                     <>
-                                      <UserCheck className="w-4 h-4 text-emerald-600" /> Activate Account
-                                    </>
-                                  ) : (
-                                    <>
-                                      <UserX className="w-4 h-4 text-red-600" /> Suspend Account
+                                      {u.role === "customer" ? (
+                                        <button
+                                          onClick={(e) => {
+                                            setOpenMenuId(null);
+                                            handleRoleChange(e, u, "admin");
+                                          }}
+                                          className="w-full text-left px-4 py-2 text-xs font-bold text-purple-700 hover:bg-purple-50 flex items-center gap-2"
+                                        >
+                                          <UserPlus className="w-4 h-4 text-purple-600" /> Make Admin
+                                        </button>
+                                      ) : (
+                                        <button
+                                          onClick={(e) => {
+                                            setOpenMenuId(null);
+                                            handleRoleChange(e, u, "customer");
+                                          }}
+                                          className="w-full text-left px-4 py-2 text-xs font-bold text-amber-800 hover:bg-amber-50 flex items-center gap-2"
+                                        >
+                                          <UserMinus className="w-4 h-4 text-amber-600" /> Dismiss Admin
+                                        </button>
+                                      )}
                                     </>
                                   )}
-                                </button>
-                              </div>
-                            )}
+
+                                  <button
+                                    onClick={(e) => {
+                                      setOpenMenuId(null);
+                                      handleStatusToggle(e, u);
+                                    }}
+                                    className={`w-full text-left px-4 py-2 text-xs font-bold flex items-center gap-2 border-t border-slate-100 ${
+                                      isSuspended
+                                        ? "text-emerald-700 hover:bg-emerald-50"
+                                        : "text-red-600 hover:bg-red-50"
+                                    }`}
+                                  >
+                                    {isSuspended ? (
+                                      <>
+                                        <UserCheck className="w-4 h-4 text-emerald-600" /> Activate Account
+                                      </>
+                                    ) : (
+                                      <>
+                                        <UserX className="w-4 h-4 text-red-600" /> Suspend Account
+                                      </>
+                                    )}
+                                  </button>
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </td>
                       </tr>

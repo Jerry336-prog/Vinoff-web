@@ -12,7 +12,7 @@ export const NotificationContext = createContext({
 });
 
 export const NotificationProvider = ({ children }) => {
-  const { user } = useContext(AuthContext);
+  const { user, refreshUser } = useContext(AuthContext);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -26,7 +26,7 @@ export const NotificationProvider = ({ children }) => {
 
     try {
       const res = await api.get('/api/notifications');
-      const data = res.data;
+      const data = res?.data || res;
       if (data) {
         const rawItems = data.items || data;
         const normalizedItems = (Array.isArray(rawItems) ? rawItems : []).map((n) => {
@@ -42,6 +42,18 @@ export const NotificationProvider = ({ children }) => {
         setUnreadCount(
           typeof data.unreadCount === 'number' ? data.unreadCount : computedUnread
         );
+
+        // If there is a recent unread VIP_CREDIT_UPDATED or INVOICE notification, refresh user state
+        const hasCreditSignal = normalizedItems.some(
+          (n) =>
+            !n.isRead &&
+            (n.type === 'VIP_CREDIT_UPDATED' ||
+              n.type === 'INVOICE_ISSUED' ||
+              n.type === 'PAYMENT_CONFIRMED')
+        );
+        if (hasCreditSignal) {
+          refreshUser?.();
+        }
       }
     } catch (err) {
       // Avoid spamming logs if unauthenticated
@@ -49,7 +61,7 @@ export const NotificationProvider = ({ children }) => {
         console.warn('Failed to fetch notifications:', err.message);
       }
     }
-  }, [user]);
+  }, [user, refreshUser]);
 
   useEffect(() => {
     fetchNotifications();

@@ -34,7 +34,7 @@ import { trackPageView } from "../utils/trafficTracker";
 import StoreNoticeBanner from "../components/common/StoreNoticeBanner";
 
 export const MainLayout = () => {
-  const { user, logout, isAdmin } = useContext(AuthContext);
+  const { user, logout, isAdmin, refreshUser } = useContext(AuthContext);
   const { cartCount, subtotal } = useContext(CartContext);
   const { activeRoom, rooms } = useContext(ChatContext);
   const { unreadCount: unreadNotifications } = useContext(NotificationContext);
@@ -49,8 +49,18 @@ export const MainLayout = () => {
   const [activeCreditCount, setActiveCreditCount] = useState(0);
 
   const isVipPartner = Boolean(
-    user?.isVipCreditPartner || Number(user?.outstandingCredit || 0) > 0 || liveCreditTotal > 0
+    user?.isVipCreditPartner ||
+      Number(user?.outstandingCredit || 0) > 0 ||
+      liveCreditTotal > 0 ||
+      activeCreditCount > 0
   );
+
+  // Refresh user state on route navigation so newly granted VIP Credit Partner status shows immediately
+  useEffect(() => {
+    if (localStorage.getItem("vinoff_token")) {
+      refreshUser?.();
+    }
+  }, [location.pathname, refreshUser]);
 
   // Sync live unpaid credit total from customer's invoices so header is always 100% accurate
   useEffect(() => {
@@ -62,28 +72,34 @@ export const MainLayout = () => {
 
     setLiveCreditTotal(Number(user.outstandingCredit || 0));
 
-    if (user.role === "customer" || user.isVipCreditPartner) {
-      api
-        .get("/api/invoices?limit=100")
-        .then((res) => {
-          const list = unwrapApiList(res);
-          if (Array.isArray(list)) {
-            const unpaidCredits = list.filter(
-              (inv) =>
-                (inv.isCredit === true || inv.status === "On Credit") &&
-                inv.status !== "Paid" &&
-                inv.status !== "Cancelled"
-            );
-            const sum = unpaidCredits.reduce(
-              (acc, inv) => acc + Number(inv.total || inv.totalAmount || 0),
-              0
-            );
-            setLiveCreditTotal(sum);
-            setActiveCreditCount(unpaidCredits.length);
-          }
-        })
-        .catch(() => {});
-    }
+    api
+      .get("/api/invoices?limit=100")
+      .then((res) => {
+        const list = unwrapApiList(res);
+        if (Array.isArray(list)) {
+          const uid = String(user._id || user.id || "");
+          const myInvoices =
+            user.role === "customer"
+              ? list
+              : list.filter(
+                  (inv) =>
+                    String(inv.customer?._id || inv.customer || "") === uid
+                );
+          const unpaidCredits = myInvoices.filter(
+            (inv) =>
+              (inv.isCredit === true || inv.status === "On Credit") &&
+              inv.status !== "Paid" &&
+              inv.status !== "Cancelled"
+          );
+          const sum = unpaidCredits.reduce(
+            (acc, inv) => acc + Number(inv.total || inv.totalAmount || 0),
+            0
+          );
+          setLiveCreditTotal(sum);
+          setActiveCreditCount(unpaidCredits.length);
+        }
+      })
+      .catch(() => {});
   }, [user, location.pathname]);
 
   // Split brandTitle for two-tone styling (e.g. "VINOFF WHOLESALES")
@@ -194,6 +210,24 @@ export const MainLayout = () => {
                   >
                     Invoices
                   </Link>
+                  {isVipPartner && (
+                    <Link
+                      to="/credit-invoices"
+                      className={`flex items-center gap-1.5 transition-colors ${
+                        isActive("/credit-invoices")
+                          ? "text-amber-700 border-b-2 border-amber-500 pb-1 font-extrabold"
+                          : "text-amber-700 hover:text-amber-800 font-bold"
+                      }`}
+                    >
+                      <Crown className="w-4 h-4 text-amber-500 fill-amber-400" />
+                      <span>VIP Credit</span>
+                      {activeCreditCount > 0 && (
+                        <span className="px-1.5 py-0.5 rounded-full bg-rose-600 text-white text-[9px] font-black leading-none">
+                          {activeCreditCount}
+                        </span>
+                      )}
+                    </Link>
+                  )}
                   <Link
                     to="/chat"
                     className={`relative flex items-center gap-1 transition-colors ${isActive("/chat") ? "text-brand-green-700 border-b-2 border-brand-green-600 pb-1" : "text-slate-600 hover:text-brand-green-700"}`}

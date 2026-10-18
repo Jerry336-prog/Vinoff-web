@@ -30,7 +30,9 @@ export const Checkout = () => {
   const { businessInfo, bankDetails: contextBankDetails } = useBusiness();
   const navigate = useNavigate();
 
-  const [paymentMethod, setPaymentMethod] = useState("bank_transfer");
+  const [paymentMethod, setPaymentMethod] = useState(
+    user?.isVipCreditPartner ? "credit" : "bank_transfer"
+  );
   const [screenshotFile, setScreenshotFile] = useState(null);
   const [screenshotPreview, setScreenshotPreview] = useState("");
   const [deliveryAddress, setDeliveryAddress] = useState("");
@@ -40,6 +42,21 @@ export const Checkout = () => {
   const [orderConfirmed, setOrderConfirmed] = useState(null);
   const orderSubmissionKeyRef = useRef(null);
   const paymentSubmissionKeyRef = useRef(null);
+
+  // Ensure latest VIP Credit Partner status is loaded when entering Checkout
+  useEffect(() => {
+    refreshUser?.().then((freshUser) => {
+      if (freshUser?.isVipCreditPartner) {
+        setPaymentMethod("credit");
+      }
+    });
+  }, [refreshUser]);
+
+  useEffect(() => {
+    if (user?.isVipCreditPartner) {
+      setPaymentMethod((prev) => (prev === "bank_transfer" ? "credit" : prev));
+    }
+  }, [user?.isVipCreditPartner]);
 
   const [bankDetails, setBankDetails] = useState({
     bankName: contextBankDetails?.bankName || "Guaranty Trust Bank (GTB)",

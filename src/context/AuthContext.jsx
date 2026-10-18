@@ -70,6 +70,32 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     refreshUser();
+
+    const handleFocus = () => {
+      if (localStorage.getItem("vinoff_token")) {
+        refreshUser();
+      }
+    };
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible" && localStorage.getItem("vinoff_token")) {
+        refreshUser();
+      }
+    };
+
+    window.addEventListener("focus", handleFocus);
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    const interval = setInterval(() => {
+      if (localStorage.getItem("vinoff_token")) {
+        refreshUser();
+      }
+    }, 20000);
+
+    return () => {
+      window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleVisibility);
+      clearInterval(interval);
+    };
   }, [refreshUser]);
 
   const login = async (email, password) => {

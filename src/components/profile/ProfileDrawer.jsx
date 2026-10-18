@@ -3,13 +3,14 @@ import { AuthContext } from '../../context/AuthContext';
 import { Link, useNavigate } from 'react-router-dom';
 import { 
   X, User, Building, Mail, Phone, MapPin, CheckCircle2, 
-  AlertCircle, Loader2, Save, ShoppingBag, FileText, LogOut, Camera
+  AlertCircle, Loader2, Save, ShoppingBag, FileText, LogOut, Camera, Crown, CreditCard
 } from 'lucide-react';
 import Button from '../ui/Button';
 import { toast } from '../../context/ToastContext';
+import { formatCurrency } from '../../utils/formatCurrency';
 
 export const ProfileDrawer = ({ isOpen, onClose }) => {
-  const { user, updateProfile, logout } = useContext(AuthContext);
+  const { user, updateProfile, logout, refreshUser } = useContext(AuthContext);
   const navigate = useNavigate();
 
   const [formData, setFormData] = useState({
@@ -30,6 +31,13 @@ export const ProfileDrawer = ({ isOpen, onClose }) => {
   const [saving, setSaving] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
+
+  // Refresh user when drawer opens so VIP status and credit balance are fresh
+  useEffect(() => {
+    if (isOpen) {
+      refreshUser?.();
+    }
+  }, [isOpen, refreshUser]);
 
   // Populate form when user data loads or drawer opens
   useEffect(() => {
@@ -115,6 +123,7 @@ export const ProfileDrawer = ({ isOpen, onClose }) => {
   const displayName = `${formData.firstName} ${formData.lastName}`.trim() || user?.name || 'Wholesale Buyer';
   const initials = (formData.firstName?.charAt(0) || user?.name?.charAt(0) || 'W') + 
                    (formData.lastName?.charAt(0) || user?.name?.split(' ')?.[1]?.charAt(0) || 'B');
+  const isVipPartner = Boolean(user?.isVipCreditPartner || Number(user?.outstandingCredit || 0) > 0);
 
   return (
     <div className={`fixed inset-0 z-50 transition-visibility duration-300 ${isOpen ? 'visible' : 'invisible pointer-events-none'}`}>
@@ -141,7 +150,9 @@ export const ProfileDrawer = ({ isOpen, onClose }) => {
             </div>
             <div>
               <h2 className="text-sm font-extrabold text-slate-800 tracking-tight">Account Profile</h2>
-              <p className="text-[11px] text-slate-500 font-medium">Wholesale buyer credentials</p>
+              <p className="text-[11px] text-slate-500 font-medium">
+                {isVipPartner ? 'VIP Credit Partner Credentials' : 'Wholesale buyer credentials'}
+              </p>
             </div>
           </div>
           <button 
@@ -186,17 +197,65 @@ export const ProfileDrawer = ({ isOpen, onClose }) => {
                 />
               </div>
               <div className="min-w-0 flex-1">
-                <h3 className="text-sm font-bold text-white truncate leading-snug">{displayName}</h3>
+                <h3 className="text-sm font-bold text-white truncate leading-snug flex items-center gap-1.5">
+                  <span className="truncate">{displayName}</span>
+                  {isVipPartner && (
+                    <Crown className="w-3.5 h-3.5 text-amber-400 fill-amber-400 shrink-0" />
+                  )}
+                </h3>
                 <p className="text-xs text-slate-300 truncate">{user?.email}</p>
-                <div className="mt-1.5 flex items-center gap-2">
+                <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                   <span className="inline-flex items-center gap-1 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold px-2 py-0.5 rounded-full">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                     Active Wholesale Outlet
                   </span>
+                  {isVipPartner && (
+                    <span className="inline-flex items-center gap-1 bg-amber-400/20 text-amber-300 border border-amber-400/40 text-[10px] font-black px-2 py-0.5 rounded-full">
+                      <Crown className="w-3 h-3 text-amber-400 fill-amber-400" />
+                      VIP Credit Partner
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
           </div>
+
+          {/* VIP Credit Facility Quick Card */}
+          {isVipPartner && (
+            <div className="rounded-2xl p-4 bg-gradient-to-r from-amber-50/90 via-white to-rose-50/80 border border-amber-200/80 shadow-xs space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-amber-100 border border-amber-300 flex items-center justify-center">
+                    <Crown className="w-4 h-4 text-amber-600 fill-amber-500" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-wider text-amber-900">
+                      VIP Credit Partner Facility
+                    </p>
+                    <p className="text-[11px] text-slate-500 font-medium">
+                      Order on credit &amp; manage credit invoices
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <span className="text-[9px] font-bold uppercase text-slate-400 block">
+                    Credit Balance
+                  </span>
+                  <span className="text-sm font-black font-mono text-rose-700">
+                    {formatCurrency(user?.outstandingCredit || 0)}
+                  </span>
+                </div>
+              </div>
+              <Link
+                to="/credit-invoices"
+                onClick={onClose}
+                className="w-full py-2 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold flex items-center justify-center gap-2 transition shadow-xs"
+              >
+                <CreditCard className="w-3.5 h-3.5 text-amber-400" />
+                <span>Open VIP Credit Invoices Ledger</span>
+              </Link>
+            </div>
+          )}
 
           {/* Feedback Messages */}
           {successMsg && (

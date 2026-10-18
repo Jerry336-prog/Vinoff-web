@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import api from "../../services/api";
 import { formatCurrency } from "../../utils/formatCurrency";
@@ -28,12 +28,14 @@ import {
 import Button from "../../components/ui/Button";
 import Avatar from "../../components/ui/Avatar";
 import { useToast } from "../../context/ToastContext";
+import { AuthContext } from "../../context/AuthContext";
 import { downloadInvoicePDF } from "../../utils/generatePDF";
 import { unwrapApiList, unwrapApiRecord } from "../../utils/apiResponse";
 import { getAvatarUrl, getInitials } from "../../utils/avatar";
 
 export const CustomerDetail = () => {
   const { toast, showModal } = useToast();
+  const { refreshUser } = useContext(AuthContext);
   const { id } = useParams();
   const navigate = useNavigate();
 
@@ -132,12 +134,15 @@ export const CustomerDetail = () => {
           const res = await api.patch(`/api/admin/customers/${customer._id}/vip-credit`, {
             isVipCreditPartner: nextVipState,
           });
-          const updatedCustomer = res.data?.data?.customer || res.data?.customer || res.data;
+          const payload = unwrapApiRecord(res);
+          const updatedCustomer = payload?.customer || payload;
           setCustomer((prev) => ({
             ...prev,
             isVipCreditPartner: nextVipState,
             outstandingCredit: updatedCustomer?.outstandingCredit ?? prev.outstandingCredit ?? 0,
+            isOwingCredit: Number(updatedCustomer?.outstandingCredit ?? prev.outstandingCredit ?? 0) > 0,
           }));
+          refreshUser?.();
           toast.success(
             nextVipState
               ? `${customer.firstName} ${customer.lastName} is now a VIP Credit Partner!`
@@ -194,22 +199,20 @@ export const CustomerDetail = () => {
         </Link>
 
         <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-          {customer.role === "customer" && (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleVipCreditToggle}
-              isLoading={statusUpdating}
-              icon={Sparkles}
-              className={`flex-1 sm:flex-initial justify-center rounded-xl text-xs py-2 ${
-                customer.isVipCreditPartner
-                  ? "bg-amber-50 text-amber-900 border-amber-300 hover:bg-amber-100"
-                  : "text-slate-700 border-slate-200 hover:bg-slate-50"
-              }`}
-            >
-              {customer.isVipCreditPartner ? "Revoke VIP Credit" : "Grant VIP Credit"}
-            </Button>
-          )}
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleVipCreditToggle}
+            isLoading={statusUpdating}
+            icon={Sparkles}
+            className={`flex-1 sm:flex-initial justify-center rounded-xl text-xs py-2 ${
+              customer.isVipCreditPartner
+                ? "bg-amber-50 text-amber-900 border-amber-300 hover:bg-amber-100"
+                : "text-slate-700 border-slate-200 hover:bg-slate-50"
+            }`}
+          >
+            {customer.isVipCreditPartner ? "Revoke VIP Credit" : "Grant VIP Credit"}
+          </Button>
 
           <Button
             size="sm"
@@ -368,59 +371,111 @@ export const CustomerDetail = () => {
 
       {/* Tab Contents */}
       {activeTab === "overview" && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-          <div className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-xs space-y-4">
-            <h3 className="text-xs font-black uppercase tracking-wider text-slate-400 border-b border-slate-100 pb-2.5">
-              Contact & Authentication Details
-            </h3>
-            <div className="space-y-3 text-xs">
-              <div>
-                <span className="text-[10px] text-slate-400 uppercase font-bold block">Email Address</span>
-                <span className="font-semibold text-slate-800 flex items-center gap-1.5 mt-0.5 break-all">
-                  <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" /> {customer.email}
+        <div className="space-y-4 sm:space-y-6">
+          {/* VIP Credit Partner Facility Control Card */}
+          <div className="bg-gradient-to-r from-slate-900 via-brand-green-950 to-slate-900 text-white border border-amber-400/30 rounded-2xl sm:rounded-3xl p-5 sm:p-6 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-400/20 border border-amber-400/40 text-amber-300 text-[10px] font-black uppercase tracking-wider">
+                  <Sparkles className="w-3 h-3 text-amber-400" />
+                  VIP Credit Partner Facility
                 </span>
+                {isOwing && (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-red-600/30 border border-red-400/50 text-red-200 text-[10px] font-black uppercase tracking-wider">
+                    <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                    Owing {formatCurrency(owingAmount)}
+                  </span>
+                )}
               </div>
-              <div>
-                <span className="text-[10px] text-slate-400 uppercase font-bold block">Telephone</span>
-                <span className="font-semibold text-slate-800 flex items-center gap-1.5 mt-0.5">
-                  <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" /> {customer.phone || "Not specified"}
-                </span>
-              </div>
-              <div>
-                <span className="text-[10px] text-slate-400 uppercase font-bold block">Account Role</span>
-                <span className="font-semibold text-slate-800 uppercase">{customer.role}</span>
-              </div>
+              <h3 className="text-sm sm:text-base font-extrabold text-white">
+                {customer.isVipCreditPartner
+                  ? `${customer.firstName} ${customer.lastName} is an active VIP Credit Partner`
+                  : `Upgrade ${customer.firstName} ${customer.lastName} to a VIP Credit Partner`}
+              </h3>
+              <p className="text-xs text-slate-300 max-w-xl leading-relaxed">
+                {customer.isVipCreditPartner
+                  ? "This account can place wholesale orders on credit, view live credit balances in their storefront header pill, and manage credit invoices on the glassmorphic Credit Ledger page."
+                  : "Granting VIP Credit Partner status unlocks ordering on credit, a live glassmorphic credit balance pill in the customer header, and access to the dedicated VIP Credit Invoices ledger."}
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+              <Button
+                size="sm"
+                onClick={handleVipCreditToggle}
+                isLoading={statusUpdating}
+                icon={Sparkles}
+                className={`rounded-xl text-xs font-extrabold px-4 py-2.5 ${
+                  customer.isVipCreditPartner
+                    ? "bg-red-500/20 hover:bg-red-500/30 text-red-200 border border-red-400/40"
+                    : "bg-amber-400 hover:bg-amber-300 text-slate-950 border border-amber-300"
+                }`}
+              >
+                {customer.isVipCreditPartner ? "Revoke VIP Credit Partner" : "Make VIP Credit Partner"}
+              </Button>
+              <Link
+                to="/admin/invoices"
+                className="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/20 text-white text-xs font-bold flex items-center gap-1.5 transition"
+              >
+                <CreditCard className="w-3.5 h-3.5 text-amber-300" />
+                <span>Manage Credit Invoices</span>
+              </Link>
             </div>
           </div>
 
-          <div className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-xs space-y-4">
-            <h3 className="text-xs font-black uppercase tracking-wider text-slate-400 border-b border-slate-100 pb-2.5">
-              Business & Logistics Destination
-            </h3>
-            <div className="space-y-3 text-xs">
-              <div>
-                <span className="text-[10px] text-slate-400 uppercase font-bold block">Company / Store Name</span>
-                <span className="font-semibold text-slate-800 flex items-center gap-1.5 mt-0.5">
-                  <Building className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                  {customer.profile?.companyName || "N/A"}
-                </span>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+            <div className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-xs space-y-4">
+              <h3 className="text-xs font-black uppercase tracking-wider text-slate-400 border-b border-slate-100 pb-2.5">
+                Contact & Authentication Details
+              </h3>
+              <div className="space-y-3 text-xs">
+                <div>
+                  <span className="text-[10px] text-slate-400 uppercase font-bold block">Email Address</span>
+                  <span className="font-semibold text-slate-800 flex items-center gap-1.5 mt-0.5 break-all">
+                    <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" /> {customer.email}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-400 uppercase font-bold block">Telephone</span>
+                  <span className="font-semibold text-slate-800 flex items-center gap-1.5 mt-0.5">
+                    <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" /> {customer.phone || "Not specified"}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-400 uppercase font-bold block">Account Role</span>
+                  <span className="font-semibold text-slate-800 uppercase">{customer.role}</span>
+                </div>
               </div>
-              <div>
-                <span className="text-[10px] text-slate-400 uppercase font-bold block">Business Sector</span>
-                <span className="font-semibold text-slate-800">{customer.profile?.businessType || "Wholesale Buyer"}</span>
-              </div>
-              <div>
-                <span className="text-[10px] text-slate-400 uppercase font-bold block">Delivery Address</span>
-                <span className="font-semibold text-slate-800 flex items-center gap-1.5 mt-0.5">
-                  <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                  {customer.profile?.address || "Warehouse pickup"}
-                </span>
-              </div>
-              <div>
-                <span className="text-[10px] text-slate-400 uppercase font-bold block">Location</span>
-                <span className="font-semibold text-slate-800">
-                  {customer.profile?.city || ""}, {customer.profile?.state || ""} &bull; {customer.profile?.country || "Nigeria"}
-                </span>
+            </div>
+
+            <div className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-xs space-y-4">
+              <h3 className="text-xs font-black uppercase tracking-wider text-slate-400 border-b border-slate-100 pb-2.5">
+                Business & Logistics Destination
+              </h3>
+              <div className="space-y-3 text-xs">
+                <div>
+                  <span className="text-[10px] text-slate-400 uppercase font-bold block">Company / Store Name</span>
+                  <span className="font-semibold text-slate-800 flex items-center gap-1.5 mt-0.5">
+                    <Building className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                    {customer.profile?.companyName || "N/A"}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-400 uppercase font-bold block">Business Sector</span>
+                  <span className="font-semibold text-slate-800">{customer.profile?.businessType || "Wholesale Buyer"}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-400 uppercase font-bold block">Delivery Address</span>
+                  <span className="font-semibold text-slate-800 flex items-center gap-1.5 mt-0.5">
+                    <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                    {customer.profile?.address || "Warehouse pickup"}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-400 uppercase font-bold block">Location</span>
+                  <span className="font-semibold text-slate-800">
+                    {customer.profile?.city || ""}, {customer.profile?.state || ""} &bull; {customer.profile?.country || "Nigeria"}
+                  </span>
+                </div>
               </div>
             </div>
           </div>
