@@ -130,141 +130,138 @@ export const CreditInvoices = () => {
   };
 
   return (
-    <div className="relative min-h-[80vh] space-y-6 pb-12">
-      {/* Ambient Glassmorphic Background Glows */}
-      <div className="pointer-events-none fixed inset-0 overflow-hidden -z-10">
-        <div className="absolute -top-24 right-1/4 w-96 h-96 rounded-full bg-brand-green-400/15 blur-3xl" />
-        <div className="absolute top-1/3 -left-24 w-80 h-80 rounded-full bg-amber-400/15 blur-3xl" />
-        <div className="absolute bottom-10 right-10 w-96 h-96 rounded-full bg-emerald-500/10 blur-3xl" />
-      </div>
-
+    <div className="space-y-6 pb-12">
       {/* Top Navigation */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5">
           <Link
             to="/shop"
-            className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-600 hover:text-brand-green-700 bg-white/70 backdrop-blur-md border border-white/80 px-3.5 py-2 rounded-xl shadow-xs transition"
+            className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-600 hover:text-brand-green-700 bg-white border border-slate-200 px-3.5 py-2 rounded-xl shadow-2xs transition"
           >
             <ArrowLeft className="w-4 h-4" />
             Back to Store
           </Link>
           <Link
             to="/invoices"
-            className="inline-flex items-center gap-1.5 text-xs font-bold text-brand-green-800 hover:text-brand-green-950 bg-brand-green-50/80 backdrop-blur-md border border-brand-green-200/70 px-3.5 py-2 rounded-xl shadow-xs transition"
+            className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-700 hover:text-brand-green-700 bg-white border border-slate-200 px-3.5 py-2 rounded-xl shadow-2xs transition"
           >
             <FileText className="w-4 h-4 text-brand-green-600" />
             Regular Invoices History
           </Link>
         </div>
 
-        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-500/10 backdrop-blur-md border border-amber-400/30 text-amber-900 text-xs font-extrabold w-fit">
-          <Crown className="w-4 h-4 text-amber-500 fill-amber-400" />
-          <span>VIP CREDIT PARTNER FACILITY</span>
+        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 text-xs font-bold w-fit">
+          <Crown className="w-3.5 h-3.5 text-amber-600" />
+          <span>VIP Credit Partner Facility</span>
         </div>
       </div>
 
-      {/* Hero Glassmorphic Credit Ledger Banner */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-brand-green-950 via-slate-900 to-brand-green-900 text-white p-6 sm:p-8 shadow-2xl border border-white/15">
-        {/* Glass light reflection */}
-        <div className="pointer-events-none absolute -top-24 -right-24 w-72 h-72 rounded-full bg-brand-yellow-400/20 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-24 -left-24 w-72 h-72 rounded-full bg-brand-green-400/20 blur-3xl" />
-
-        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-          <div className="space-y-2 max-w-xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/15 text-brand-yellow-300 text-[11px] font-black uppercase tracking-wider">
-              <Sparkles className="w-3.5 h-3.5" />
-              VIP Credit Partner Account &bull; {user?.businessName || user?.name}
+      {/* Clean Corporate Credit Ledger Header Card (No Gradients) */}
+      <div className="bg-white/90 backdrop-blur-md border border-slate-200 rounded-2xl p-6 sm:p-7 shadow-xs">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 pb-6 border-b border-slate-100">
+          <div className="space-y-1.5 max-w-2xl">
+            <div className="flex items-center gap-2 text-xs font-bold text-brand-green-700 uppercase tracking-wider">
+              <CreditCard className="w-4 h-4" />
+              <span>{user?.businessName || user?.name} &bull; Credit Statement</span>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white">
+            <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">
               VIP Credit Facility &amp; Invoices
             </h1>
-            <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
-              Your total outstanding credit is dynamically calculated across all active credit invoices below. Once an invoice is settled and confirmed by Admin, its amount is automatically deducted from your credit balance and archived in your regular invoices history.
+            <p className="text-xs sm:text-sm text-slate-500 leading-relaxed">
+              Your total outstanding credit is calculated across all active credit invoices below. Once an invoice is settled and confirmed by Admin, its amount is automatically deducted from your credit balance and archived in your regular invoices history.
             </p>
           </div>
 
-          {/* Glassmorphic Total Credit Box */}
-          <div className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl p-5 sm:p-6 min-w-[260px] shadow-inner space-y-2">
+          {/* Total Outstanding Credit Summary Box */}
+          <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 min-w-[260px] space-y-1.5">
             <div className="flex items-center justify-between gap-2">
-              <span className="text-[10px] font-black uppercase tracking-widest text-brand-yellow-300">
+              <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">
                 Total Outstanding Credit
               </span>
               {totalOutstandingCredit > 0 ? (
-                <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-rose-500/20 text-rose-200 border border-rose-400/30 px-2 py-0.5 rounded-full">
-                  <span className="w-2 h-2 rounded-full bg-rose-400 animate-pulse" />
-                  Owing
+                <span className="inline-flex items-center gap-1.5 text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200 px-2 py-0.5 rounded-md">
+                  <span className="w-1.5 h-1.5 rounded-full bg-rose-600" />
+                  Owing Balance
                 </span>
               ) : (
-                <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-emerald-500/20 text-emerald-200 border border-emerald-400/30 px-2 py-0.5 rounded-full">
-                  <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-md">
+                  <CheckCircle2 className="w-3 h-3 text-emerald-600" />
                   Cleared
                 </span>
               )}
             </div>
-            <p className="text-3xl sm:text-4xl font-black tracking-tight text-white font-mono">
+            <p
+              className={`text-2xl sm:text-3xl font-black tracking-tight font-mono ${
+                totalOutstandingCredit > 0 ? "text-rose-600" : "text-slate-900"
+              }`}
+            >
               {formatCurrency(totalOutstandingCredit)}
             </p>
-            <p className="text-[11px] text-slate-300">
-              Across <strong className="text-white">{activeCreditInvoices.length}</strong> active credit invoice(s)
+            <p className="text-[11px] text-slate-500">
+              Across <strong className="text-slate-800">{activeCreditInvoices.length}</strong> active credit invoice(s)
             </p>
           </div>
         </div>
 
-        {/* 3 Glassmorphic Mini Breakdown Pills */}
-        <div className="relative z-10 grid grid-cols-1 sm:grid-cols-3 gap-3.5 mt-6 pt-6 border-t border-white/10">
-          <div className="bg-white/8 backdrop-blur-md border border-white/10 rounded-2xl p-4 flex items-center justify-between">
+        {/* 3 Clean Metric Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-6">
+          <div className="bg-slate-50/80 border border-slate-200/80 rounded-xl p-4 flex items-center justify-between">
             <div>
-              <p className="text-[10px] uppercase tracking-wider text-slate-300 font-bold">
+              <p className="text-[10px] uppercase tracking-wider text-slate-500 font-bold">
                 Active Unpaid Credit
               </p>
-              <p className="text-lg font-black text-rose-300 mt-0.5 font-mono">
+              <p
+                className={`text-lg font-black mt-0.5 font-mono ${
+                  totalOutstandingCredit > 0 ? "text-rose-600" : "text-slate-900"
+                }`}
+              >
                 {formatCurrency(totalOutstandingCredit)}
               </p>
             </div>
-            <div className="w-10 h-10 rounded-xl bg-rose-500/20 border border-rose-400/30 flex items-center justify-center text-rose-300">
+            <div className="w-10 h-10 rounded-xl bg-rose-50 border border-rose-200 flex items-center justify-center text-rose-600">
               <Clock className="w-5 h-5" />
             </div>
           </div>
 
-          <div className="bg-white/8 backdrop-blur-md border border-white/10 rounded-2xl p-4 flex items-center justify-between">
+          <div className="bg-slate-50/80 border border-slate-200/80 rounded-xl p-4 flex items-center justify-between">
             <div>
-              <p className="text-[10px] uppercase tracking-wider text-slate-300 font-bold">
+              <p className="text-[10px] uppercase tracking-wider text-slate-500 font-bold">
                 Settled &amp; Deducted Credit
               </p>
-              <p className="text-lg font-black text-emerald-300 mt-0.5 font-mono">
+              <p className="text-lg font-black text-emerald-700 mt-0.5 font-mono">
                 {formatCurrency(totalSettledCredit)}
               </p>
             </div>
-            <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center text-emerald-300">
+            <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600">
               <ShieldCheck className="w-5 h-5" />
             </div>
           </div>
 
-          <div className="bg-white/8 backdrop-blur-md border border-white/10 rounded-2xl p-4 flex items-center justify-between">
+          <div className="bg-slate-50/80 border border-slate-200/80 rounded-xl p-4 flex items-center justify-between">
             <div>
-              <p className="text-[10px] uppercase tracking-wider text-slate-300 font-bold">
+              <p className="text-[10px] uppercase tracking-wider text-slate-500 font-bold">
                 Total Credit Invoices Issued
               </p>
-              <p className="text-lg font-black text-brand-yellow-300 mt-0.5">
+              <p className="text-lg font-black text-slate-900 mt-0.5">
                 {allCreditInvoices.length} Invoice(s)
               </p>
             </div>
-            <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-400/30 flex items-center justify-center text-brand-yellow-300">
+            <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-700">
               <Receipt className="w-5 h-5" />
             </div>
           </div>
         </div>
       </div>
 
-      {/* Glassmorphic Filter Bar & Search */}
-      <div className="bg-white/75 backdrop-blur-xl border border-white/80 rounded-3xl p-4 shadow-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      {/* Filter Bar & Search */}
+      <div className="bg-white/90 backdrop-blur-md border border-slate-200 rounded-2xl p-3.5 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
           <button
             onClick={() => setTabFilter("active")}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap ${
+            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap ${
               tabFilter === "active"
-                ? "bg-brand-green-700 text-white shadow-sm"
-                : "bg-white/60 text-slate-600 hover:bg-white border border-slate-200/80"
+                ? "bg-brand-green-700 text-white"
+                : "bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200"
             }`}
           >
             <span>Active Credit Invoices</span>
@@ -281,10 +278,10 @@ export const CreditInvoices = () => {
 
           <button
             onClick={() => setTabFilter("settled")}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap ${
+            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap ${
               tabFilter === "settled"
-                ? "bg-brand-green-700 text-white shadow-sm"
-                : "bg-white/60 text-slate-600 hover:bg-white border border-slate-200/80"
+                ? "bg-brand-green-700 text-white"
+                : "bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200"
             }`}
           >
             <span>Settled History (Deducted)</span>
@@ -301,10 +298,10 @@ export const CreditInvoices = () => {
 
           <button
             onClick={() => setTabFilter("all")}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap ${
+            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap ${
               tabFilter === "all"
-                ? "bg-brand-green-700 text-white shadow-sm"
-                : "bg-white/60 text-slate-600 hover:bg-white border border-slate-200/80"
+                ? "bg-brand-green-700 text-white"
+                : "bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200"
             }`}
           >
             All Credit Records ({allCreditInvoices.length})
@@ -317,23 +314,23 @@ export const CreditInvoices = () => {
             placeholder="Search credit invoice # or item..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-white/80 backdrop-blur-md border border-slate-200/90 rounded-xl py-2 pl-9 pr-4 text-xs font-semibold focus:bg-white focus:ring-2 focus:ring-brand-green-500 outline-none"
+            className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 pl-9 pr-4 text-xs font-semibold focus:bg-white focus:ring-2 focus:ring-brand-green-500 outline-none"
           />
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
         </div>
       </div>
 
-      {/* Credit Invoices Glassmorphic Cards & Table */}
+      {/* Credit Invoices List */}
       {loading ? (
-        <div className="p-12 text-center bg-white/70 backdrop-blur-xl border border-white/80 rounded-3xl animate-pulse text-xs text-slate-500 shadow-lg">
+        <div className="p-12 text-center bg-white border border-slate-200 rounded-2xl animate-pulse text-xs text-slate-500 shadow-2xs">
           Syncing VIP credit invoices...
         </div>
       ) : displayedInvoices.length === 0 ? (
-        <div className="bg-white/75 backdrop-blur-xl border border-white/80 rounded-3xl p-12 text-center shadow-lg space-y-3">
-          <div className="w-14 h-14 rounded-2xl bg-brand-green-50 border border-brand-green-100 flex items-center justify-center mx-auto text-brand-green-700">
-            <CreditCard className="w-7 h-7" />
+        <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center shadow-2xs space-y-3">
+          <div className="w-12 h-12 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center mx-auto text-slate-600">
+            <CreditCard className="w-6 h-6" />
           </div>
-          <h3 className="text-base font-extrabold text-slate-800">
+          <h3 className="text-base font-bold text-slate-800">
             {tabFilter === "active"
               ? "No Outstanding Credit Invoices"
               : "No Credit Invoices Found"}
@@ -363,7 +360,7 @@ export const CreditInvoices = () => {
           </div>
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-3.5">
           {displayedInvoices.map((inv, index) => {
             const invId = inv._id || inv.id;
             const amount = Number(inv.total || inv.totalAmount || 0);
@@ -375,7 +372,7 @@ export const CreditInvoices = () => {
               <div
                 key={invId}
                 onClick={() => navigate(`/invoices/${invId}`)}
-                className="group relative overflow-hidden bg-white/80 hover:bg-white/95 backdrop-blur-xl border border-white/90 hover:border-brand-green-300 rounded-3xl p-5 sm:p-6 shadow-lg hover:shadow-xl transition-all cursor-pointer"
+                className="group bg-white hover:bg-slate-50/60 border border-slate-200 hover:border-brand-green-400 rounded-2xl p-5 shadow-2xs transition-all cursor-pointer"
               >
                 <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                   {/* Left: Invoice Identity & Items Breakdown */}

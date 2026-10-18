@@ -372,51 +372,52 @@ export const CustomerDetail = () => {
       {/* Tab Contents */}
       {activeTab === "overview" && (
         <div className="space-y-4 sm:space-y-6">
-          {/* VIP Credit Partner Facility Control Card */}
-          <div className="bg-gradient-to-r from-slate-900 via-brand-green-950 to-slate-900 text-white border border-amber-400/30 rounded-2xl sm:rounded-3xl p-5 sm:p-6 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          {/* VIP Credit Partner Facility Control Card (Clean Corporate Design, No Gradients) */}
+          <div className="bg-white border border-slate-200 rounded-2xl sm:rounded-3xl p-5 sm:p-6 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="space-y-1.5">
               <div className="flex items-center gap-2">
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-400/20 border border-amber-400/40 text-amber-300 text-[10px] font-black uppercase tracking-wider">
-                  <Sparkles className="w-3 h-3 text-amber-400" />
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-amber-50 border border-amber-200 text-amber-900 text-[10px] font-extrabold uppercase tracking-wider">
+                  <Sparkles className="w-3 h-3 text-amber-600" />
                   VIP Credit Partner Facility
                 </span>
                 {isOwing && (
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-red-600/30 border border-red-400/50 text-red-200 text-[10px] font-black uppercase tracking-wider">
-                    <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-rose-50 border border-rose-200 text-rose-700 text-[10px] font-extrabold uppercase tracking-wider">
+                    <span className="w-2 h-2 rounded-full bg-red-600" />
                     Owing {formatCurrency(owingAmount)}
                   </span>
                 )}
               </div>
-              <h3 className="text-sm sm:text-base font-extrabold text-white">
+              <h3 className="text-sm sm:text-base font-extrabold text-slate-900">
                 {customer.isVipCreditPartner
                   ? `${customer.firstName} ${customer.lastName} is an active VIP Credit Partner`
                   : `Upgrade ${customer.firstName} ${customer.lastName} to a VIP Credit Partner`}
               </h3>
-              <p className="text-xs text-slate-300 max-w-xl leading-relaxed">
+              <p className="text-xs text-slate-500 max-w-xl leading-relaxed">
                 {customer.isVipCreditPartner
-                  ? "This account can place wholesale orders on credit, view live credit balances in their storefront header pill, and manage credit invoices on the glassmorphic Credit Ledger page."
-                  : "Granting VIP Credit Partner status unlocks ordering on credit, a live glassmorphic credit balance pill in the customer header, and access to the dedicated VIP Credit Invoices ledger."}
+                  ? "This account can place wholesale orders on credit, view live credit balances in their storefront header, and manage credit invoices on the Credit Ledger page."
+                  : "Granting VIP Credit Partner status unlocks ordering on credit, a live credit balance indicator in the customer header, and access to the dedicated VIP Credit Invoices ledger."}
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2.5 shrink-0">
               <Button
                 size="sm"
+                variant={customer.isVipCreditPartner ? "outline" : "primary"}
                 onClick={handleVipCreditToggle}
                 isLoading={statusUpdating}
                 icon={Sparkles}
-                className={`rounded-xl text-xs font-extrabold px-4 py-2.5 ${
+                className={`rounded-xl text-xs font-bold px-4 py-2.5 ${
                   customer.isVipCreditPartner
-                    ? "bg-red-500/20 hover:bg-red-500/30 text-red-200 border border-red-400/40"
-                    : "bg-amber-400 hover:bg-amber-300 text-slate-950 border border-amber-300"
+                    ? "text-rose-700 border-rose-200 hover:bg-rose-50"
+                    : ""
                 }`}
               >
                 {customer.isVipCreditPartner ? "Revoke VIP Credit Partner" : "Make VIP Credit Partner"}
               </Button>
               <Link
                 to="/admin/invoices"
-                className="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/20 text-white text-xs font-bold flex items-center gap-1.5 transition"
+                className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 text-xs font-bold flex items-center gap-1.5 transition"
               >
-                <CreditCard className="w-3.5 h-3.5 text-amber-300" />
+                <CreditCard className="w-3.5 h-3.5 text-slate-600" />
                 <span>Manage Credit Invoices</span>
               </Link>
             </div>

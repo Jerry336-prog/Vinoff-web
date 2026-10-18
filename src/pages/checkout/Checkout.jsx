@@ -430,26 +430,26 @@ export const Checkout = () => {
             )}
 
             {paymentMethod === "credit" && user?.isVipCreditPartner ? (
-              <div className="bg-gradient-to-br from-slate-900 via-brand-green-950 to-slate-900 text-white rounded-2xl p-4 text-xs space-y-2 border border-amber-400/30 shadow-md">
+              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 text-xs space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-extrabold uppercase tracking-widest text-amber-300">
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-600">
                     VIP Credit Partner Summary
                   </span>
-                  <span className="text-[10px] font-bold bg-white/10 px-2 py-0.5 rounded-full text-emerald-200">
+                  <span className="text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-md">
                     Active Facility
                   </span>
                 </div>
-                <div className="flex justify-between text-slate-300 pt-1">
+                <div className="flex justify-between text-slate-600 pt-1">
                   <span>Current Credit Owing:</span>
-                  <strong className="font-mono text-white">{formatCurrency(user?.outstandingCredit || 0)}</strong>
+                  <strong className="font-mono text-slate-900">{formatCurrency(user?.outstandingCredit || 0)}</strong>
                 </div>
-                <div className="flex justify-between text-slate-300">
+                <div className="flex justify-between text-slate-600">
                   <span>This Credit Order:</span>
-                  <strong className="font-mono text-amber-300">+{formatCurrency(estimatedTotal)}</strong>
+                  <strong className="font-mono text-rose-600">+{formatCurrency(estimatedTotal)}</strong>
                 </div>
-                <div className="flex justify-between text-white font-black pt-2 border-t border-white/10 text-xs">
+                <div className="flex justify-between text-slate-900 font-black pt-2 border-t border-slate-200 text-xs">
                   <span>New Credit Balance:</span>
-                  <strong className="font-mono text-amber-300">
+                  <strong className="font-mono text-brand-green-800">
                     {formatCurrency(Number(user?.outstandingCredit || 0) + Number(estimatedTotal || 0))}
                   </strong>
                 </div>

@@ -165,27 +165,26 @@ export const ProfileDrawer = ({ isOpen, onClose }) => {
         </div>
 
         {/* Scrollable Content */}
-        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
+        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
           
-          {/* User Header Summary Card */}
-          <div className="bg-gradient-to-br from-slate-900 to-slate-800 text-white rounded-2xl p-4.5 shadow-sm relative overflow-hidden">
-            <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-brand-green-500/15 rounded-full blur-xl" />
-            <div className="flex items-center gap-3.5 relative z-10">
+          {/* User Header Summary Card (Clean, No Gradients) */}
+          <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4">
+            <div className="flex items-center gap-3.5">
               {/* Avatar with camera overlay */}
               <div className="relative shrink-0 group cursor-pointer" onClick={() => avatarInputRef.current?.click()}>
                 {avatarPreview || user?.avatarUrl ? (
                   <img
                     src={avatarPreview || user.avatarUrl}
                     alt="Avatar"
-                    className="w-12 h-12 rounded-2xl object-cover shadow-md ring-2 ring-brand-yellow-400/60"
+                    className="w-12 h-12 rounded-xl object-cover border border-slate-200 shadow-2xs"
                   />
                 ) : (
-                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-brand-yellow-500 to-brand-yellow-400 text-slate-950 font-black text-base flex items-center justify-center shadow-md">
+                  <div className="w-12 h-12 rounded-xl bg-brand-green-700 text-white font-bold text-sm flex items-center justify-center shadow-2xs">
                     {initials.toUpperCase()}
                   </div>
                 )}
                 {/* Camera overlay */}
-                <div className="absolute inset-0 rounded-2xl bg-slate-900/50 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
+                <div className="absolute inset-0 rounded-xl bg-slate-900/50 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
                   <Camera className="w-4 h-4 text-white" />
                 </div>
                 <input
@@ -197,21 +196,18 @@ export const ProfileDrawer = ({ isOpen, onClose }) => {
                 />
               </div>
               <div className="min-w-0 flex-1">
-                <h3 className="text-sm font-bold text-white truncate leading-snug flex items-center gap-1.5">
+                <h3 className="text-sm font-bold text-slate-900 truncate leading-snug flex items-center gap-1.5">
                   <span className="truncate">{displayName}</span>
-                  {isVipPartner && (
-                    <Crown className="w-3.5 h-3.5 text-amber-400 fill-amber-400 shrink-0" />
-                  )}
                 </h3>
-                <p className="text-xs text-slate-300 truncate">{user?.email}</p>
+                <p className="text-xs text-slate-500 truncate">{user?.email}</p>
                 <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                  <span className="inline-flex items-center gap-1 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold px-2 py-0.5 rounded-md">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
                     Active Wholesale Outlet
                   </span>
                   {isVipPartner && (
-                    <span className="inline-flex items-center gap-1 bg-amber-400/20 text-amber-300 border border-amber-400/40 text-[10px] font-black px-2 py-0.5 rounded-full">
-                      <Crown className="w-3 h-3 text-amber-400 fill-amber-400" />
+                    <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-800 border border-amber-200 text-[10px] font-bold px-2 py-0.5 rounded-md">
+                      <Crown className="w-3 h-3 text-amber-600" />
                       VIP Credit Partner
                     </span>
                   )}
@@ -220,28 +216,34 @@ export const ProfileDrawer = ({ isOpen, onClose }) => {
             </div>
           </div>
 
-          {/* VIP Credit Facility Quick Card */}
+          {/* VIP Credit Facility Quick Card (Clean Corporate Style, No Gradients) */}
           {isVipPartner && (
-            <div className="rounded-2xl p-4 bg-gradient-to-r from-amber-50/90 via-white to-rose-50/80 border border-amber-200/80 shadow-xs space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-xl bg-amber-100 border border-amber-300 flex items-center justify-center">
-                    <Crown className="w-4 h-4 text-amber-600 fill-amber-500" />
+            <div className="rounded-2xl p-4 bg-white border border-slate-200 shadow-2xs space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-brand-green-50 border border-brand-green-200 flex items-center justify-center shrink-0">
+                    <CreditCard className="w-4 h-4 text-brand-green-700" />
                   </div>
                   <div>
-                    <p className="text-[10px] font-black uppercase tracking-wider text-amber-900">
-                      VIP Credit Partner Facility
+                    <p className="text-xs font-bold text-slate-900">
+                      VIP Credit Facility
                     </p>
-                    <p className="text-[11px] text-slate-500 font-medium">
-                      Order on credit &amp; manage credit invoices
+                    <p className="text-[11px] text-slate-500">
+                      Credit orders &amp; invoices ledger
                     </p>
                   </div>
                 </div>
                 <div className="text-right">
-                  <span className="text-[9px] font-bold uppercase text-slate-400 block">
-                    Credit Balance
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                    Outstanding
                   </span>
-                  <span className="text-sm font-black font-mono text-rose-700">
+                  <span
+                    className={`text-sm font-black font-mono ${
+                      Number(user?.outstandingCredit || 0) > 0
+                        ? "text-rose-600"
+                        : "text-slate-900"
+                    }`}
+                  >
                     {formatCurrency(user?.outstandingCredit || 0)}
                   </span>
                 </div>
@@ -249,10 +251,10 @@ export const ProfileDrawer = ({ isOpen, onClose }) => {
               <Link
                 to="/credit-invoices"
                 onClick={onClose}
-                className="w-full py-2 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold flex items-center justify-center gap-2 transition shadow-xs"
+                className="w-full py-2.5 px-3 rounded-xl bg-brand-green-700 hover:bg-brand-green-800 text-white text-xs font-bold flex items-center justify-center gap-2 transition"
               >
-                <CreditCard className="w-3.5 h-3.5 text-amber-400" />
-                <span>Open VIP Credit Invoices Ledger</span>
+                <FileText className="w-3.5 h-3.5" />
+                <span>View Credit Invoices Ledger</span>
               </Link>
             </div>
           )}

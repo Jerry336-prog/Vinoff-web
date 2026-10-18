@@ -336,33 +336,33 @@ export const Invoices = () => {
 
       {/* Credit Invoices Summary Banner when viewing Credit Invoices or On Credit */}
       {(statusFilter === "Credit Invoices" || statusFilter === "On Credit") && (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 bg-gradient-to-r from-slate-900 via-brand-green-950 to-slate-900 text-white rounded-3xl p-5 shadow-md">
-          <div>
-            <span className="text-[10px] font-black uppercase tracking-widest text-rose-300 flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 bg-white border border-slate-200 rounded-2xl p-5 shadow-2xs">
+          <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-4">
+            <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-red-600" />
               Active Unpaid Credit (NGN)
             </span>
-            <p className="text-xl sm:text-2xl font-black font-mono text-white mt-1">
+            <p className="text-xl sm:text-2xl font-black font-mono text-rose-600 mt-1">
               {formatCurrency(unpaidCreditTotal)}
             </p>
-            <p className="text-[11px] text-slate-300 mt-0.5">
+            <p className="text-[11px] text-slate-500 mt-0.5">
               {creditInvoices.filter((i) => i.status !== "Paid" && i.status !== "Cancelled").length} open credit invoice(s)
             </p>
           </div>
-          <div>
-            <span className="text-[10px] font-black uppercase tracking-widest text-emerald-300">
+          <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-4">
+            <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">
               Settled Credit Realized into Revenue
             </span>
-            <p className="text-xl sm:text-2xl font-black font-mono text-emerald-300 mt-1">
+            <p className="text-xl sm:text-2xl font-black font-mono text-emerald-700 mt-1">
               {formatCurrency(settledCreditTotal)}
             </p>
-            <p className="text-[11px] text-slate-300 mt-0.5">
+            <p className="text-[11px] text-slate-500 mt-0.5">
               {creditInvoices.filter((i) => i.status === "Paid").length} settled credit invoice(s)
             </p>
           </div>
-          <div className="flex flex-col justify-center sm:items-end text-xs text-slate-300">
-            <p className="leading-relaxed sm:text-right">
-              Marking a credit invoice as <strong className="text-white">Paid</strong> automatically deducts its balance from the VIP Partner's owing credit and adds it to realized revenue.
+          <div className="flex flex-col justify-center text-xs text-slate-500 p-2">
+            <p className="leading-relaxed">
+              Marking a credit invoice as <strong className="text-slate-800">Paid</strong> automatically deducts its balance from the VIP Partner's owing credit and adds it to realized revenue.
             </p>
           </div>
         </div>

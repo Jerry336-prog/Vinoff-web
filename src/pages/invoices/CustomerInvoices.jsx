@@ -91,11 +91,11 @@ export const CustomerInvoices = () => {
         <div className="flex flex-wrap items-center gap-2.5">
           <Link
             to="/credit-invoices"
-            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-extrabold bg-gradient-to-r from-brand-green-900 to-slate-900 text-white shadow-xs hover:opacity-95 transition"
+            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold bg-brand-green-700 hover:bg-brand-green-800 text-white shadow-2xs transition"
           >
             <span>VIP Credit Ledger</span>
             {creditInvoicesCount > 0 && (
-              <span className="px-1.5 py-0.5 rounded-full text-[10px] font-black bg-rose-500 text-white">
+              <span className="px-1.5 py-0.5 rounded-full text-[10px] font-black bg-rose-600 text-white">
                 {creditInvoicesCount} Owing
               </span>
             )}
