@@ -3,7 +3,7 @@ import { AuthContext } from '../../context/AuthContext';
 import { Link, useNavigate } from 'react-router-dom';
 import { 
   X, User, Building, Mail, Phone, MapPin, CheckCircle2, 
-  AlertCircle, Loader2, Save, ShoppingBag, FileText, LogOut, Camera, Crown, CreditCard
+  AlertCircle, Loader2, Save, ShoppingBag, FileText, LogOut, Camera, CreditCard
 } from 'lucide-react';
 import Button from '../ui/Button';
 import { toast } from '../../context/ToastContext';
@@ -207,7 +207,6 @@ export const ProfileDrawer = ({ isOpen, onClose }) => {
                   </span>
                   {isVipPartner && (
                     <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-800 border border-amber-200 text-[10px] font-bold px-2 py-0.5 rounded-md">
-                      <Crown className="w-3 h-3 text-amber-600" />
                       VIP Credit Partner
                     </span>
                   )}

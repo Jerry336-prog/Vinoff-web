@@ -8,7 +8,6 @@ import Button from "../../components/ui/Button";
 import { downloadInvoicePDF } from "../../utils/generatePDF";
 import { unwrapApiList } from "../../utils/apiResponse";
 import {
-  Crown,
   CreditCard,
   FileText,
   Download,
@@ -18,10 +17,8 @@ import {
   CheckCircle2,
   Clock,
   ArrowLeft,
-  Sparkles,
   Search,
   Upload,
-  Receipt,
   ShieldCheck,
 } from "lucide-react";
 
@@ -151,7 +148,6 @@ export const CreditInvoices = () => {
         </div>
 
         <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 text-xs font-bold w-fit">
-          <Crown className="w-3.5 h-3.5 text-amber-600" />
           <span>VIP Credit Partner Facility</span>
         </div>
       </div>
@@ -247,7 +243,7 @@ export const CreditInvoices = () => {
               </p>
             </div>
             <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-700">
-              <Receipt className="w-5 h-5" />
+              <FileText className="w-5 h-5" />
             </div>
           </div>
         </div>

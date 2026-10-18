@@ -36,7 +36,6 @@ import {
   Clock,
   Check,
   Sliders,
-  Sparkles,
   Play,
   Edit3,
   Plus,

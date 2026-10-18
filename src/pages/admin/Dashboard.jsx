@@ -13,7 +13,7 @@ import { AuthContext } from '../../context/AuthContext';
 import { toast } from '../../context/ToastContext';
 import { 
   ClipboardList, MessageSquare, AlertTriangle, ArrowRight,
-  Users, Package, Layers, FileText, Sparkles, CheckCircle2, Download, Eye
+  Users, Package, Layers, FileText, CheckCircle2, Download, Eye
 } from 'lucide-react';
 
 export const Dashboard = () => {
@@ -150,7 +150,6 @@ export const Dashboard = () => {
           to="/admin/customers"
           className="text-xs font-bold text-brand-green-800 hover:underline px-3 py-1.5 flex items-center gap-1"
         >
-          <Sparkles className="w-3.5 h-3.5 text-amber-500" />
           Manage VIP Credit Partners ({vipCustomers.length})
         </Link>
       </div>
@@ -158,28 +157,28 @@ export const Dashboard = () => {
       {activeTab === 'credit-invoices' ? (
         <div className="space-y-6">
           {/* Credit Summary Banner */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-gradient-to-br from-slate-900 via-brand-green-950 to-slate-900 text-white rounded-3xl p-6 shadow-md">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-white border border-slate-200 rounded-3xl p-6 shadow-xs">
             <div className="space-y-1">
-              <span className="text-[10px] font-black uppercase tracking-widest text-rose-300 flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+              <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500 flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-red-600" />
                 Total Unpaid VIP Credit (NGN)
               </span>
-              <p className="text-2xl sm:text-3xl font-black font-mono text-white">
+              <p className="text-2xl sm:text-3xl font-black font-mono text-slate-900">
                 {formatCurrency(totalOutstandingCredit)}
               </p>
-              <p className="text-[11px] text-slate-300">
+              <p className="text-[11px] text-slate-500">
                 Across {activeCreditInvoices.length} active credit invoice(s)
               </p>
             </div>
 
             <div className="space-y-1">
-              <span className="text-[10px] font-black uppercase tracking-widest text-amber-300">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
                 VIP Credit Partners Owing
               </span>
-              <p className="text-2xl sm:text-3xl font-black font-mono text-amber-300">
-                {owingCustomersCount} <span className="text-sm font-bold text-slate-300">/ {vipCustomers.length} Partners</span>
+              <p className="text-2xl sm:text-3xl font-black font-mono text-slate-900">
+                {owingCustomersCount} <span className="text-sm font-bold text-slate-400">/ {vipCustomers.length} Partners</span>
               </p>
-              <p className="text-[11px] text-slate-300">
+              <p className="text-[11px] text-slate-500">
                 Partners with red dot (●) have unsettled credit
               </p>
             </div>
@@ -187,9 +186,9 @@ export const Dashboard = () => {
             <div className="flex flex-col justify-center md:items-end gap-2">
               <Link
                 to="/admin/invoices"
-                className="inline-flex items-center gap-2 bg-white text-slate-900 hover:bg-amber-50 px-4 py-2.5 rounded-xl text-xs font-extrabold transition shadow-xs"
+                className="inline-flex items-center gap-2 bg-slate-900 text-white hover:bg-slate-800 px-4 py-2.5 rounded-xl text-xs font-extrabold transition shadow-xs"
               >
-                <FileText className="w-4 h-4 text-brand-green-700" />
+                <FileText className="w-4 h-4 text-white" />
                 Open Full Invoicing Desk
               </Link>
             </div>
@@ -299,7 +298,6 @@ export const Dashboard = () => {
             <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-4">
               <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                 <h3 className="font-bold text-slate-800 text-sm tracking-wide uppercase flex items-center gap-1.5">
-                  <Sparkles className="w-4 h-4 text-amber-500" />
                   VIP Credit Partners
                 </h3>
                 <Link to="/admin/customers" className="text-xs font-bold text-brand-green-700 hover:underline">

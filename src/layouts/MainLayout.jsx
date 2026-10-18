@@ -25,7 +25,6 @@ import {
   Mail,
   MapPin,
   Clock,
-  Crown,
   CreditCard,
 } from "lucide-react";
 import api from "../services/api";
@@ -215,11 +214,10 @@ export const MainLayout = () => {
                       to="/credit-invoices"
                       className={`flex items-center gap-1.5 transition-colors ${
                         isActive("/credit-invoices")
-                          ? "text-amber-700 border-b-2 border-amber-500 pb-1 font-extrabold"
-                          : "text-amber-700 hover:text-amber-800 font-bold"
+                          ? "text-brand-green-700 border-b-2 border-brand-green-600 pb-1 font-bold"
+                          : "text-slate-600 hover:text-brand-green-700"
                       }`}
                     >
-                      <Crown className="w-4 h-4 text-amber-500 fill-amber-400" />
                       <span>VIP Credit</span>
                       {activeCreditCount > 0 && (
                         <span className="px-1.5 py-0.5 rounded-full bg-rose-600 text-white text-[9px] font-black leading-none">
@@ -340,9 +338,6 @@ export const MainLayout = () => {
                   >
                     <p className="text-xs font-bold text-slate-800 group-hover:text-brand-green-700 transition-colors flex items-center justify-end gap-1">
                       <span>{user.name}</span>
-                      {isVipPartner && (
-                        <Crown className="w-3 h-3 text-amber-500 shrink-0" title="VIP Credit Partner" />
-                      )}
                     </p>
                     <p className="text-[9px] text-slate-500 uppercase tracking-wider font-semibold">
                       {isVipPartner ? "VIP Credit Partner" : user.businessName || "Wholesale Buyer"}

@@ -13,12 +13,10 @@ import {
   ShieldCheck,
   UserPlus,
   UserMinus,
-  Crown,
   Shield,
   MapPin,
   MoreVertical,
   Eye,
-  Sparkles,
   CreditCard,
 } from "lucide-react";
 import Avatar from "../../components/ui/Avatar";
@@ -264,7 +262,6 @@ export const Customers = () => {
               : "bg-white text-amber-900 hover:bg-amber-50 border border-amber-200"
           }`}
         >
-          <Sparkles className="w-3.5 h-3.5 text-amber-500" />
           <span>VIP Credit Partners</span>
           <span className="text-[10px] px-2 py-0.2 bg-amber-100 text-amber-900 rounded-full font-extrabold">
             {vipCount}
@@ -444,7 +441,7 @@ export const Customers = () => {
                             }}
                             className="w-full text-left px-4 py-2 text-xs font-bold text-amber-800 hover:bg-amber-50 flex items-center gap-2"
                           >
-                            <Sparkles className="w-4 h-4 text-amber-600" />
+                            <CreditCard className="w-4 h-4 text-amber-600" />
                             {u.isVipCreditPartner ? "Revoke VIP Credit" : "Make VIP Credit Partner"}
                           </button>
 
@@ -515,7 +512,7 @@ export const Customers = () => {
                     <div className="flex flex-wrap items-center gap-1.5">
                       {isSuperadminRole ? (
                         <span className="inline-flex items-center gap-1 text-[9px] font-black bg-amber-100 text-amber-900 border border-amber-300 px-2 py-0.5 rounded-full">
-                          <Crown className="w-3 h-3 text-amber-600 fill-amber-500" /> SUPERADMIN
+                          <ShieldCheck className="w-3 h-3 text-amber-700" /> SUPERADMIN
                         </span>
                       ) : isAdminRole ? (
                         <span className="inline-flex items-center gap-1 text-[9px] font-bold bg-purple-100 text-purple-900 border border-purple-200 px-2 py-0.5 rounded-full">
@@ -537,7 +534,6 @@ export const Customers = () => {
                             : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-amber-50 hover:text-amber-800 hover:border-amber-300"
                         }`}
                       >
-                        <Sparkles className="w-2.5 h-2.5 text-amber-600" />
                         {u.isVipCreditPartner ? "VIP Partner ✓" : "+ Make VIP Partner"}
                       </button>
                     </div>
@@ -637,7 +633,7 @@ export const Customers = () => {
                           <div className="flex flex-col items-start gap-1">
                             {isSuperadminRole ? (
                               <span className="inline-flex items-center gap-1 text-[10px] font-black bg-amber-100 text-amber-900 border border-amber-300 px-2.5 py-0.5 rounded-full">
-                                <Crown className="w-3 h-3 text-amber-600 fill-amber-500" />
+                                <ShieldCheck className="w-3 h-3 text-amber-700" />
                                 SUPERADMIN
                               </span>
                             ) : isAdminRole ? (
@@ -652,7 +648,6 @@ export const Customers = () => {
                             )}
                             {u.isVipCreditPartner && (
                               <span className="inline-flex items-center gap-1 text-[9px] font-black bg-amber-50 text-amber-900 border border-amber-300 px-2 py-0.5 rounded-full">
-                                <Sparkles className="w-2.5 h-2.5 text-amber-600" />
                                 VIP CREDIT PARTNER
                               </span>
                             )}
@@ -714,7 +709,6 @@ export const Customers = () => {
                               }`}
                               title={u.isVipCreditPartner ? "Click to revoke VIP Credit Partner status" : "Click to upgrade to VIP Credit Partner"}
                             >
-                              <Sparkles className="w-3 h-3 text-amber-600" />
                               <span>{u.isVipCreditPartner ? "VIP Partner ✓" : "Make VIP"}</span>
                             </button>
 
@@ -751,7 +745,7 @@ export const Customers = () => {
                                     }}
                                     className="w-full text-left px-4 py-2 text-xs font-bold text-amber-800 hover:bg-amber-50 flex items-center gap-2"
                                   >
-                                    <Sparkles className="w-4 h-4 text-amber-600" />
+                                    <CreditCard className="w-4 h-4 text-amber-600" />
                                     {u.isVipCreditPartner ? "Revoke VIP Credit" : "Make VIP Credit Partner"}
                                   </button>
 

@@ -22,7 +22,6 @@ import {
   ExternalLink,
   Download,
   Shield,
-  Sparkles,
   CreditCard,
 } from "lucide-react";
 import Button from "../../components/ui/Button";
@@ -204,7 +203,7 @@ export const CustomerDetail = () => {
             variant="outline"
             onClick={handleVipCreditToggle}
             isLoading={statusUpdating}
-            icon={Sparkles}
+            icon={CreditCard}
             className={`flex-1 sm:flex-initial justify-center rounded-xl text-xs py-2 ${
               customer.isVipCreditPartner
                 ? "bg-amber-50 text-amber-900 border-amber-300 hover:bg-amber-100"
@@ -276,7 +275,6 @@ export const CustomerDetail = () => {
                 </h1>
                 {customer.isVipCreditPartner && (
                   <span className="inline-flex items-center gap-1 text-[10px] font-black bg-amber-100 text-amber-900 px-2.5 py-0.5 rounded-full border border-amber-300">
-                    <Sparkles className="w-3 h-3 text-amber-600" />
                     VIP CREDIT PARTNER
                   </span>
                 )}
@@ -377,7 +375,6 @@ export const CustomerDetail = () => {
             <div className="space-y-1.5">
               <div className="flex items-center gap-2">
                 <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-amber-50 border border-amber-200 text-amber-900 text-[10px] font-extrabold uppercase tracking-wider">
-                  <Sparkles className="w-3 h-3 text-amber-600" />
                   VIP Credit Partner Facility
                 </span>
                 {isOwing && (
@@ -404,7 +401,6 @@ export const CustomerDetail = () => {
                 variant={customer.isVipCreditPartner ? "outline" : "primary"}
                 onClick={handleVipCreditToggle}
                 isLoading={statusUpdating}
-                icon={Sparkles}
                 className={`rounded-xl text-xs font-bold px-4 py-2.5 ${
                   customer.isVipCreditPartner
                     ? "text-rose-700 border-rose-200 hover:bg-rose-50"
