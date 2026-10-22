@@ -1,5 +1,5 @@
 import PaymentReturn from '../pages/checkout/PaymentReturn';
-import React, { useContext } from 'react';
+import React, { useContext, lazy, Suspense } from 'react';
 import { createBrowserRouter, Navigate, useLocation } from 'react-router-dom';
 import MainLayout from '../layouts/MainLayout';
 import AdminLayout from '../layouts/AdminLayout';
@@ -43,6 +43,7 @@ import AdminProfile from '../pages/admin/AdminProfile';
 import ExpenseTracker from '../pages/admin/ExpenseTracker';
 import AdminAnnouncements from '../pages/admin/AdminAnnouncements';
 import Analytics from '../pages/admin/Analytics';
+const OperatingGuide = lazy(() => import('../pages/admin/OperatingGuide'));
 
 /**
  * ProtectedGate — requires the user to be signed in.
@@ -191,6 +192,10 @@ export const router = createBrowserRouter([
       {
         path: 'dashboard',
         element: <AdminDashboard />
+      },
+      {
+        path: 'guide',
+        element: <Suspense fallback={<p className="p-6 text-sm text-slate-500">Loading operating guide...</p>}><OperatingGuide /></Suspense>
       },
       {
         path: 'products',

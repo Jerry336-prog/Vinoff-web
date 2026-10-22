@@ -107,9 +107,7 @@ const AdminProfile = () => {
       </div>
 
       {/* Hero Avatar Card */}
-      <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-3xl p-6 relative overflow-hidden shadow-xl">
-        <div className="absolute -right-10 -bottom-10 w-48 h-48 bg-brand-green-500/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute -left-6 -top-6 w-32 h-32 bg-brand-yellow-500/10 rounded-full blur-2xl pointer-events-none" />
+      <div className="bg-slate-900 text-white border border-slate-800 rounded-3xl p-6 shadow-sm relative overflow-hidden">
         <div className="relative z-10 flex items-center gap-5">
           {/* Avatar with camera overlay */}
           <div
@@ -121,15 +119,15 @@ const AdminProfile = () => {
               <img
                 src={avatarSrc}
                 alt="Avatar"
-                className="w-20 h-20 rounded-2xl object-cover ring-4 ring-brand-yellow-400/50 shadow-lg"
+                className="w-20 h-20 rounded-2xl object-cover ring-2 ring-slate-700 shadow-sm"
               />
             ) : (
-              <div className="w-20 h-20 rounded-2xl bg-gradient-to-tr from-brand-yellow-500 to-brand-yellow-400 text-slate-950 font-black text-2xl flex items-center justify-center shadow-lg ring-4 ring-brand-yellow-400/40">
+              <div className="w-20 h-20 rounded-2xl bg-amber-400 text-slate-950 font-black text-2xl flex items-center justify-center shadow-sm ring-2 ring-amber-400/40">
                 {(formData.firstName?.charAt(0) || 'A').toUpperCase()}
                 {(formData.lastName?.charAt(0) || 'D').toUpperCase()}
               </div>
             )}
-            <div className="absolute inset-0 rounded-2xl bg-slate-900/60 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center">
+            <div className="absolute inset-0 rounded-2xl bg-slate-950/60 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center">
               <Camera className="w-6 h-6 text-white" />
             </div>
             <input
@@ -148,16 +146,16 @@ const AdminProfile = () => {
               {user?.email}
             </p>
             <div className="mt-2 flex items-center gap-2 flex-wrap">
-              <span className="inline-flex items-center gap-1.5 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold px-2.5 py-1 rounded-full">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="inline-flex items-center gap-1.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold px-2.5 py-1 rounded-full">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
                 Administrator
               </span>
-              <span className="inline-flex items-center gap-1.5 bg-brand-yellow-500/20 text-brand-yellow-300 border border-brand-yellow-500/30 text-[10px] font-bold px-2.5 py-1 rounded-full">
+              <span className="inline-flex items-center gap-1.5 bg-amber-500/10 text-amber-300 border border-amber-500/30 text-[10px] font-bold px-2.5 py-1 rounded-full">
                 <Key className="w-3 h-3" />
                 Full Access
               </span>
             </div>
-            <p className="text-[10px] text-slate-500 mt-2 flex items-center gap-1 cursor-pointer hover:text-slate-300 transition"
+            <p className="text-[10px] text-slate-400 mt-2 flex items-center gap-1 cursor-pointer hover:text-slate-200 transition"
                onClick={() => avatarInputRef.current?.click()}>
               <Camera className="w-3 h-3" /> Click avatar to change photo
             </p>

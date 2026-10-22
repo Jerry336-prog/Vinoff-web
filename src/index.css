@@ -2,6 +2,23 @@
 @tailwind components;
 @tailwind utilities;
 
+@media print {
+  body:has(.admin-operating-guide) {
+    background: white;
+  }
+  body:has(.admin-operating-guide) main {
+    height: auto !important;
+    overflow: visible !important;
+    padding: 0 !important;
+  }
+  .admin-operating-guide h2 {
+    break-after: avoid;
+  }
+  .admin-operating-guide li {
+    break-inside: avoid;
+  }
+}
+
 @layer base {
   body {
     @apply bg-slate-50 text-slate-800 font-sans antialiased selection:bg-brand-green-200;

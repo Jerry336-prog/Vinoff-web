@@ -68,8 +68,28 @@ export const CustomerInvoiceDetails = () => {
     const fetchInvoice = async () => {
       setLoading(true);
       try {
-        const res = await api.get(`/api/invoices/${id}`);
-        const data = unwrapApiRecord(res);
+        let data = null;
+        try {
+          const res = await api.get(`/api/invoices/${id}`);
+          data = unwrapApiRecord(res);
+        } catch (primaryErr) {
+          // Fallback: resolve by order ID, orderNumber, or invoiceNumber from invoice list
+          const listRes = await api.get("/api/invoices?limit=100");
+          const allInvoices = unwrapApiList(listRes);
+          const matched = (Array.isArray(allInvoices) ? allInvoices : []).find(
+            (inv) =>
+              String(inv._id || inv.id) === String(id) ||
+              String(inv.invoiceNumber) === String(id) ||
+              String(inv.order?._id || inv.order) === String(id) ||
+              String(inv.order?.orderNumber) === String(id)
+          );
+          if (matched) {
+            const detailRes = await api.get(`/api/invoices/${matched._id || matched.id}`);
+            data = unwrapApiRecord(detailRes) || matched;
+          } else {
+            throw primaryErr;
+          }
+        }
         const cachedStamp = localStorage.getItem(`vinoff_invoice_stamp_${id}`);
         if (cachedStamp && !data.issuedBy && !data.createdBy) {
           data.issuedBy = cachedStamp;

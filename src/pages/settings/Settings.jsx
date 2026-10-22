@@ -592,7 +592,7 @@ export const Settings = () => {
   return (
     <div className="space-y-4 sm:space-y-6 max-w-5xl mx-auto pb-12 px-1 sm:px-0">
       {/* Header Banner */}
-      <div className="bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 text-white border border-slate-800 rounded-2xl sm:rounded-3xl p-4 sm:p-7 shadow-md">
+      <div className="bg-slate-900 text-white border border-slate-800 rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-sm">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3 sm:gap-4">
             <div className="w-10 h-10 sm:w-12 sm:h-12 bg-brand-green-600/30 border border-brand-green-500/40 text-brand-green-400 rounded-xl sm:rounded-2xl flex items-center justify-center shrink-0">
@@ -1282,9 +1282,9 @@ export const Settings = () => {
           {/* Live Previews Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {/* Live Website & Store Address Display Card */}
-            <div className="bg-gradient-to-br from-slate-900 to-slate-950 text-white rounded-xl sm:rounded-2xl p-4 sm:p-5 space-y-2.5 border border-slate-800 shadow-xs flex flex-col justify-between">
+            <div className="bg-slate-900 text-white rounded-xl sm:rounded-2xl p-4 sm:p-5 space-y-2.5 border border-slate-800 shadow-xs flex flex-col justify-between">
               <div className="space-y-2">
-                <span className="text-[10px] font-extrabold uppercase text-brand-yellow-400 tracking-wider block">
+                <span className="text-[10px] font-extrabold uppercase text-amber-400 tracking-wider block">
                   Live Website &amp; Physical Store Card Preview
                 </span>
                 <div>
@@ -1302,9 +1302,18 @@ export const Settings = () => {
                 </p>
               </div>
               <div className="pt-3 border-t border-slate-800/80 flex flex-wrap gap-x-4 gap-y-1.5 text-[11px] text-slate-300 font-medium">
-                <span>🕒 {locationForm.operatingHours}</span>
-                <span>📞 {locationForm.phoneContact}{locationForm.secondaryPhone ? ` / ${locationForm.secondaryPhone}` : ""}</span>
-                <span>✉️ {locationForm.emailContact}</span>
+                <span className="inline-flex items-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                  {locationForm.operatingHours}
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                  {locationForm.phoneContact}{locationForm.secondaryPhone ? ` / ${locationForm.secondaryPhone}` : ""}
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                  {locationForm.emailContact}
+                </span>
               </div>
             </div>
 

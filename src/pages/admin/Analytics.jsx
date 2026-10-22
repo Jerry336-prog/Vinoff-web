@@ -30,8 +30,8 @@ const SOURCE_CONFIG = {
   },
   Instagram: {
     color: 'bg-pink-600 text-white border-pink-500',
-    pillBg: 'bg-gradient-to-r from-purple-50 text-pink-700 border-pink-200',
-    barColor: 'bg-gradient-to-r from-purple-600 via-pink-600 to-amber-500',
+    pillBg: 'bg-pink-50 text-pink-700 border-pink-200',
+    barColor: 'bg-pink-600',
     description: 'Instagram profile, story swipe & bio links',
   },
   WhatsApp: {

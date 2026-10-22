@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useMemo, useContext } from 'react';
+import React, { useState, useEffect, useMemo, useContext, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import api from '../../services/api';
-import { formatCurrency } from '../../utils/formatCurrency';
 import { unwrapApiList } from '../../utils/apiResponse';
 import { exportHistoryCSV, exportHistoryPDF } from '../../utils/exportHistory';
 import { AuthContext } from '../../context/AuthContext';
@@ -16,41 +16,91 @@ import {
   User,
   FileSpreadsheet,
   RefreshCw,
-  FileText,
+  ExternalLink,
+  ArrowRight,
 } from 'lucide-react';
 import Button from '../../components/ui/Button';
 
 export const InventoryHistory = () => {
   const { user } = useContext(AuthContext);
-  const adminName = user?.name || 'Jerry Admin';
+  const adminName =
+    user?.name ||
+    (user?.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : 'System Administrator');
   const [historyItems, setHistoryItems] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState('all'); // 'all', 'deduction', 'restock'
 
-  const fetchHistory = async () => {
-    setLoading(true);
+  const fetchHistory = useCallback(async (isInitial = false) => {
+    if (isInitial) {
+      setLoading(true);
+    } else {
+      setRefreshing(true);
+    }
+
     try {
-      // Fetch both orders (which deduce stock) and products/activities
-      const [ordersRes, productsRes] = await Promise.all([
-        api.get('/api/orders?limit=200').catch(() => ({ data: [] })),
-        api.get('/api/products?limit=200').catch(() => ({ data: [] })),
+      const [ordersRes, invoicesRes, productsRes, activityRes] = await Promise.all([
+        api.get('/api/orders?limit=100').catch(() => ({ data: [] })),
+        api.get('/api/invoices?limit=100').catch(() => ({ data: [] })),
+        api.get('/api/products?limit=100').catch(() => ({ data: [] })),
+        api.get('/api/admin/activity?targetType=Product&limit=100').catch(() => ({ data: [] })),
       ]);
 
       const rawOrders = unwrapApiList(ordersRes);
+      const rawInvoices = unwrapApiList(invoicesRes);
       const rawProducts = unwrapApiList(productsRes);
+      const rawActivities = unwrapApiList(activityRes);
 
+      // Map products by ID and normalized name for stock lookup
       const itemsMap = new Map();
+      const itemsByNameMap = new Map();
       (Array.isArray(rawProducts) ? rawProducts : []).forEach((p) => {
         const id = p._id || p.id;
         if (id) itemsMap.set(String(id), p);
+        if (p.name) itemsByNameMap.set(p.name.trim().toLowerCase(), p);
+      });
+
+      // Map Order ID / Order Number -> Invoice for direct invoice navigation
+      const orderToInvoiceMap = new Map();
+      (Array.isArray(rawInvoices) ? rawInvoices : []).forEach((inv) => {
+        const linkedOrderId = inv.order?._id || inv.order?.id || inv.order;
+        const linkedOrderNumber = inv.order?.orderNumber;
+        if (linkedOrderId) {
+          orderToInvoiceMap.set(String(linkedOrderId), inv);
+        }
+        if (linkedOrderNumber) {
+          orderToInvoiceMap.set(String(linkedOrderNumber), inv);
+        }
       });
 
       const movements = [];
 
-      // 1. Process Orders -> Deductions
+      // Helper to normalize product name (strip trailing (CTN)/(Pieces))
+      const cleanProductName = (rawName = '') =>
+        String(rawName).replace(/\s*\((CTN|Pieces|ctn|pieces|Units|units)\)\s*$/i, '').trim();
+
+      // Helper to determine if an item is loose units vs cartons
+      const isLooseUnitItem = (item) =>
+        item.isCarton === false ||
+        item.unitType === 'pieces' ||
+        item.unitType === 'units' ||
+        item.unitType === 'loose units' ||
+        item.unit === 'pieces' ||
+        item.unit === 'units' ||
+        /\((pieces|units)\)/i.test(item.name || item.description || '');
+
+      // 1. Process Customer Orders -> Stock Deductions
       (Array.isArray(rawOrders) ? rawOrders : []).forEach((order) => {
-        const orderId = order.orderNumber || order._id || order.id;
+        // Cancelled orders do not represent active stock deductions if cancelled
+        const orderMongoId = String(order._id || order.id || '');
+        const orderRef = order.orderNumber || orderMongoId;
+        const linkedInvoice =
+          orderToInvoiceMap.get(orderMongoId) || orderToInvoiceMap.get(String(orderRef));
+        const targetInvoiceId =
+          linkedInvoice?._id || linkedInvoice?.id || order.invoiceId || orderMongoId || orderRef;
+        const invoiceNumber = linkedInvoice?.invoiceNumber || null;
+
         const customerName =
           order.customerName ||
           (order.customer?.firstName
@@ -60,26 +110,87 @@ export const InventoryHistory = () => {
         const date = order.createdAt || order.date || new Date().toISOString();
 
         if (Array.isArray(order.items)) {
-          order.items.forEach((item) => {
-            const prod = itemsMap.get(String(item.product?._id || item.product || item.productId));
+          order.items.forEach((item, idx) => {
+            const rawProdId = item.product?._id || item.product?.id || item.product || item.productId;
+            const cleanedName = cleanProductName(item.name || item.description || '');
+            const prod =
+              (rawProdId && itemsMap.get(String(rawProdId))) ||
+              itemsByNameMap.get(cleanedName.toLowerCase());
+            const resolvedProductId = String(prod?._id || prod?.id || rawProdId || cleanedName);
+
+            const isUnits = isLooseUnitItem(item);
+            const qty = Math.abs(Number(item.quantity) || 1);
+
             movements.push({
-              id: `deduction-${orderId}-${item._id || item.name || Math.random()}`,
+              id: `deduction-order-${orderMongoId || orderRef}-${item._id || idx}`,
               timestamp: date,
-              productName: item.name || prod?.name || 'Commercial Product',
+              productId: resolvedProductId,
+              productName: cleanedName || prod?.name || 'Commercial Product',
               category: prod?.category || item.category || 'General',
               type: 'deduction',
-              change: -(item.quantity || 1),
-              unitType: item.isCarton === false ? 'units' : 'cartons',
+              change: -qty,
+              unitType: isUnits ? 'units' : 'cartons',
               actorName: customerName,
-              orderRef: orderId,
-              orderId: order._id || order.id,
-              notes: `Order #${orderId} created by ${customerName}`,
+              orderRef: String(orderRef),
+              orderId: orderMongoId,
+              invoiceId: String(targetInvoiceId),
+              invoiceNumber,
+              previousStock: item.previousStock != null ? Number(item.previousStock) : null,
+              newStock: item.newStock != null ? Number(item.newStock) : null,
+              notes: `Order #${orderRef}${invoiceNumber ? ` (Invoice #${invoiceNumber})` : ''} placed by ${customerName}`,
             });
           });
         }
       });
 
-      // 2. Process Restock Activity / Product updates with explicit added amounts
+      // 2. Process Standalone Custom Invoices (not linked to an order) that deducted product stock
+      (Array.isArray(rawInvoices) ? rawInvoices : []).forEach((inv) => {
+        if (inv.order) return; // Already accounted for via order
+        const invMongoId = String(inv._id || inv.id || '');
+        const invNumber = inv.invoiceNumber || invMongoId;
+        const customerName =
+          inv.customer?.firstName
+            ? `${inv.customer.firstName} ${inv.customer.lastName || ''}`.trim()
+            : inv.customer?.name || 'Commercial Buyer';
+        const date = inv.createdAt || new Date().toISOString();
+
+        if (Array.isArray(inv.items)) {
+          inv.items.forEach((item, idx) => {
+            const rawProdId = item.product?._id || item.product?.id || item.product || item.productId;
+            const cleanedName = cleanProductName(item.description || item.name || '');
+            const prod =
+              (rawProdId && itemsMap.get(String(rawProdId))) ||
+              itemsByNameMap.get(cleanedName.toLowerCase());
+
+            if (!prod && !rawProdId) return;
+
+            const resolvedProductId = String(prod?._id || prod?.id || rawProdId || cleanedName);
+            const isUnits = isLooseUnitItem(item);
+            const qty = Math.abs(Number(item.quantity) || 1);
+
+            movements.push({
+              id: `deduction-inv-${invMongoId}-${item._id || idx}`,
+              timestamp: date,
+              productId: resolvedProductId,
+              productName: prod?.name || cleanedName || 'Commercial Product',
+              category: prod?.category || 'General',
+              type: 'deduction',
+              change: -qty,
+              unitType: isUnits ? 'units' : 'cartons',
+              actorName: customerName,
+              orderRef: String(invNumber),
+              orderId: null,
+              invoiceId: invMongoId,
+              invoiceNumber: String(invNumber),
+              previousStock: item.previousStock != null ? Number(item.previousStock) : null,
+              newStock: item.newStock != null ? Number(item.newStock) : null,
+              notes: `Invoice #${invNumber} issued to ${customerName}`,
+            });
+          });
+        }
+      });
+
+      // 3. Process Restock Activity from localStorage & Backend ActivityLog
       let localRestocks = [];
       try {
         localRestocks = JSON.parse(localStorage.getItem('vinoff_restock_history') || '[]');
@@ -87,66 +198,192 @@ export const InventoryHistory = () => {
         console.error(e);
       }
 
-      if (localRestocks.length > 0) {
+      const seenRestockKeys = new Set();
+
+      if (Array.isArray(localRestocks) && localRestocks.length > 0) {
         localRestocks.forEach((r) => {
+          const cleanedName = cleanProductName(r.productName || '');
+          const prod = itemsByNameMap.get(cleanedName.toLowerCase());
+          const resolvedProductId = String(prod?._id || prod?.id || cleanedName);
+          const isUnits =
+            r.unitType === 'loose units' || r.unitType === 'units' || r.unitType === 'pieces';
+          const changeAmt = Number(r.change) || 0;
+          if (changeAmt === 0) return;
+
+          const dedupKey = `${resolvedProductId}:${isUnits ? 'units' : 'cartons'}:${changeAmt}:${Math.floor(
+            new Date(r.timestamp || Date.now()).getTime() / 60000
+          )}`;
+          seenRestockKeys.add(dedupKey);
+
           movements.push({
             id: r.id || `restock-${Math.random()}`,
             timestamp: r.timestamp || new Date().toISOString(),
-            productName: r.productName || 'Catalog Product',
-            category: r.category || 'General',
-            type: 'restock',
-            change: Number(r.change) || 0, // Amount added!
-            unitType: r.unitType || 'cartons',
+            productId: resolvedProductId,
+            productName: prod?.name || r.productName || 'Catalog Product',
+            category: prod?.category || r.category || 'General',
+            type: changeAmt > 0 ? 'restock' : 'deduction',
+            change: changeAmt,
+            unitType: isUnits ? 'units' : 'cartons',
             actorName: r.actorName || adminName,
-            orderRef: r.orderRef || 'N/A (Stock Restock)',
+            orderRef: 'Restock Allocation',
             orderId: null,
-            notes: r.notes || `Inventory restock addition`,
+            invoiceId: null,
+            invoiceNumber: null,
+            previousStock: r.previousStock != null ? Number(r.previousStock) : null,
+            newStock: r.newStock != null ? Number(r.newStock) : null,
+            notes: r.notes || 'Inventory restock addition',
           });
-        });
-      } else {
-        (Array.isArray(rawProducts) ? rawProducts : []).forEach((prod) => {
-          if (prod.updatedAt && prod.stock > 0) {
-            movements.push({
-              id: `restock-${prod._id || prod.id}`,
-              timestamp: prod.updatedAt,
-              productName: prod.name,
-              category: prod.category || 'General',
-              type: 'restock',
-              change: prod.stock,
-              unitType: 'cartons',
-              actorName: prod.updatedByAdmin || prod.createdByAdmin || adminName,
-              orderRef: 'N/A (Stock Restock)',
-              orderId: null,
-              notes: `Inventory restock allocation`,
-            });
-          }
         });
       }
 
+      // Also include backend ActivityLog stock adjustments (if any)
+      (Array.isArray(rawActivities) ? rawActivities : []).forEach((act) => {
+        const meta = act.metadata || {};
+        const prodId = String(meta.productId || act.targetId || '');
+        const prod = itemsMap.get(prodId);
+        const actor =
+          act.actor?.firstName
+            ? `${act.actor.firstName} ${act.actor.lastName || ''}`.trim()
+            : adminName;
+
+        if (Number(meta.stockDelta) && Number(meta.stockDelta) !== 0) {
+          const delta = Number(meta.stockDelta);
+          const dedupKey = `${prodId}:cartons:${delta}:${Math.floor(
+            new Date(act.createdAt || Date.now()).getTime() / 60000
+          )}`;
+          if (!seenRestockKeys.has(dedupKey)) {
+            seenRestockKeys.add(dedupKey);
+            movements.push({
+              id: `activity-stock-${act._id}`,
+              timestamp: act.createdAt || new Date().toISOString(),
+              productId: prodId,
+              productName: meta.productName || prod?.name || 'Catalog Product',
+              category: meta.category || prod?.category || 'General',
+              type: delta > 0 ? 'restock' : 'deduction',
+              change: delta,
+              unitType: 'cartons',
+              actorName: actor,
+              orderRef: 'Restock Allocation',
+              orderId: null,
+              invoiceId: null,
+              invoiceNumber: null,
+              previousStock: meta.previousStock != null ? Number(meta.previousStock) : null,
+              newStock: meta.newStock != null ? Number(meta.newStock) : null,
+              notes: act.description || 'Admin stock adjustment',
+            });
+          }
+        }
+
+        if (Number(meta.unitStockDelta) && Number(meta.unitStockDelta) !== 0) {
+          const delta = Number(meta.unitStockDelta);
+          const dedupKey = `${prodId}:units:${delta}:${Math.floor(
+            new Date(act.createdAt || Date.now()).getTime() / 60000
+          )}`;
+          if (!seenRestockKeys.has(dedupKey)) {
+            seenRestockKeys.add(dedupKey);
+            movements.push({
+              id: `activity-unitstock-${act._id}`,
+              timestamp: act.createdAt || new Date().toISOString(),
+              productId: prodId,
+              productName: meta.productName || prod?.name || 'Catalog Product',
+              category: meta.category || prod?.category || 'General',
+              type: delta > 0 ? 'restock' : 'deduction',
+              change: delta,
+              unitType: 'units',
+              actorName: actor,
+              orderRef: 'Restock Allocation',
+              orderId: null,
+              invoiceId: null,
+              invoiceNumber: null,
+              previousStock: meta.previousUnitStock != null ? Number(meta.previousUnitStock) : null,
+              newStock: meta.newUnitStock != null ? Number(meta.newUnitStock) : null,
+              notes: act.description || 'Admin unit stock adjustment',
+            });
+          }
+        }
+      });
+
       // Sort newest first
       movements.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+      // Compute running Before -> After stock balances anchored to current live product stock
+      const runningStockTracker = new Map();
+      movements.forEach((m) => {
+        const prod =
+          itemsMap.get(String(m.productId)) ||
+          itemsByNameMap.get(String(m.productName || '').trim().toLowerCase());
+        const isUnits = m.unitType === 'units';
+        const liveStock = prod
+          ? Number(isUnits ? prod.unitStock ?? 0 : prod.stock ?? prod.inventoryCount ?? 0)
+          : null;
+        m.currentLiveStock = liveStock;
+
+        const key = `${m.productId || m.productName}:${m.unitType}`;
+        if (!runningStockTracker.has(key) && liveStock !== null) {
+          runningStockTracker.set(key, liveStock);
+        }
+
+        if (m.previousStock != null && m.newStock != null) {
+          // Movement already has exact recorded snapshots; sync tracker to previousStock for older entries
+          runningStockTracker.set(key, Number(m.previousStock));
+        } else if (runningStockTracker.has(key)) {
+          const afterStock = runningStockTracker.get(key);
+          const beforeStock = Math.max(0, afterStock - Number(m.change || 0));
+          m.newStock = afterStock;
+          m.previousStock = beforeStock;
+          runningStockTracker.set(key, beforeStock);
+        }
+      });
+
       setHistoryItems(movements);
     } catch (e) {
       console.error('Failed to fetch inventory history:', e);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
-  };
+  }, [adminName]);
 
   useEffect(() => {
-    fetchHistory();
-  }, []);
+    fetchHistory(true);
+
+    // Live poll every 15 seconds while tab is visible so new orders appear automatically
+    const intervalId = window.setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        fetchHistory(false);
+      }
+    }, 15000);
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        fetchHistory(false);
+      }
+    };
+
+    const handleWindowFocus = () => fetchHistory(false);
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleWindowFocus);
+
+    return () => {
+      window.clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleWindowFocus);
+    };
+  }, [fetchHistory]);
 
   const filteredItems = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
     return historyItems.filter((item) => {
       const matchesSearch =
-        item.productName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.actorName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        String(item.orderRef).toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.category.toLowerCase().includes(searchQuery.toLowerCase());
+        !q ||
+        item.productName.toLowerCase().includes(q) ||
+        item.actorName.toLowerCase().includes(q) ||
+        String(item.orderRef).toLowerCase().includes(q) ||
+        String(item.invoiceNumber || '').toLowerCase().includes(q) ||
+        item.category.toLowerCase().includes(q);
 
-      const matchesType =
-        filterType === 'all' || item.type === filterType;
+      const matchesType = filterType === 'all' || item.type === filterType;
 
       return matchesSearch && matchesType;
     });
@@ -163,8 +400,10 @@ export const InventoryHistory = () => {
       'Movement Type',
       'Stock Change',
       'Unit Type',
+      'Previous Stock',
+      'Updated Stock',
       'Actor / Customer',
-      'Order Reference',
+      'Order / Invoice Reference',
       'Notes',
     ];
 
@@ -175,8 +414,12 @@ export const InventoryHistory = () => {
       item.type === 'deduction' ? 'Stock Deduction (Order)' : 'Restock Addition',
       item.change > 0 ? `+${item.change}` : item.change,
       item.unitType,
+      item.previousStock != null ? `${item.previousStock} ${item.unitType}` : '—',
+      item.newStock != null ? `${item.newStock} ${item.unitType}` : '—',
       item.actorName,
-      item.orderRef,
+      item.invoiceNumber && item.invoiceNumber !== item.orderRef
+        ? `${item.orderRef} (${item.invoiceNumber})`
+        : item.orderRef,
       item.notes,
     ]);
 
@@ -194,19 +437,21 @@ export const InventoryHistory = () => {
     const headers = [
       'Date & Time',
       'Product',
-      'Category',
       'Type',
       'Change',
+      'Stock Update',
       'Actor / Customer',
-      'Order Ref',
+      'Order / Invoice Ref',
     ];
 
     const rows = filteredItems.map((item) => [
       new Date(item.timestamp).toLocaleString(),
       item.productName,
-      item.category,
       item.type === 'deduction' ? 'Deduction' : 'Restock',
       `${item.change > 0 ? '+' : ''}${item.change} ${item.unitType}`,
+      item.previousStock != null && item.newStock != null
+        ? `${item.previousStock} -> ${item.newStock} ${item.unitType}`
+        : '—',
       item.actorName,
       item.orderRef,
     ]);
@@ -222,46 +467,47 @@ export const InventoryHistory = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-black text-slate-800 tracking-tight flex items-center gap-2.5">
-            <History className="w-6 h-6 text-brand-green-700" />
-            Inventory Stock Movement Log
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
+        <div className="min-w-0 flex-1">
+          <h1 className="text-xl sm:text-2xl font-black text-slate-800 tracking-tight flex items-center gap-2.5">
+            <History className="w-5 h-5 sm:w-6 sm:h-6 text-brand-green-700 shrink-0" />
+            <span className="truncate">Inventory Stock Movement Log</span>
           </h1>
           <p className="text-xs text-slate-500 font-medium mt-0.5">
-            Complete audit trail showing which customer orders reduced stock, who ordered, and restock records.
+            Live audit trail of stock reductions and restock allocations. Click an order reference to open its invoice.
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0 flex-nowrap">
           <Button
             variant="outline"
             size="sm"
-            onClick={fetchHistory}
-            className="rounded-xl border-slate-200"
+            onClick={() => fetchHistory(false)}
+            disabled={refreshing}
+            className="rounded-xl border-slate-200 text-xs px-3 py-1.5 whitespace-nowrap shrink-0"
             icon={RefreshCw}
           >
-            Refresh
+            {refreshing ? 'Syncing...' : 'Refresh'}
           </Button>
           <Button
             variant="outline"
             size="sm"
             onClick={handleExportCSV}
             disabled={filteredItems.length === 0}
-            className="rounded-xl border-slate-200 text-slate-700"
+            className="rounded-xl border-slate-200 text-slate-700 text-xs px-3 py-1.5 whitespace-nowrap shrink-0"
             icon={FileSpreadsheet}
           >
-            Download CSV
+            Export CSV
           </Button>
           <Button
             variant="primary"
             size="sm"
             onClick={handleExportPDF}
             disabled={filteredItems.length === 0}
-            className="rounded-xl shadow-sm"
+            className="rounded-xl shadow-sm text-xs px-3 py-1.5 whitespace-nowrap shrink-0"
             icon={Download}
           >
-            Download PDF
+            Export PDF
           </Button>
         </div>
       </div>
@@ -271,7 +517,7 @@ export const InventoryHistory = () => {
         <div className="relative w-full sm:w-80">
           <input
             type="text"
-            placeholder="Search product, customer, or Order #..."
+            placeholder="Search product, customer, Order # or Invoice #..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 pl-9 pr-4 text-xs font-semibold text-slate-800 focus:bg-white focus:ring-2 focus:ring-brand-green-500 outline-none transition"
@@ -328,63 +574,105 @@ export const InventoryHistory = () => {
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
               <thead>
-                <tr className="text-slate-400 font-extrabold border-b border-slate-100 bg-slate-50 uppercase text-[10px] tracking-wider">
-                  <th className="py-3.5 px-4">Date &amp; Time</th>
-                  <th className="py-3.5 px-4">Product Catalog Item</th>
-                  <th className="py-3.5 px-4 text-center">Movement Type</th>
-                  <th className="py-3.5 px-4 text-center">Quantity Change</th>
-                  <th className="py-3.5 px-4">Customer / Admin Actor</th>
-                  <th className="py-3.5 px-4">Order Reference</th>
+                <tr className="text-slate-400 font-extrabold border-b border-slate-100 bg-slate-50 uppercase text-[10px] tracking-wider whitespace-nowrap">
+                  <th className="py-3 px-3.5 whitespace-nowrap">Date &amp; Time</th>
+                  <th className="py-3 px-3.5 whitespace-nowrap">Product Catalog Item</th>
+                  <th className="py-3 px-3.5 text-center whitespace-nowrap">Movement Type</th>
+                  <th className="py-3 px-3.5 text-center whitespace-nowrap">Quantity Change</th>
+                  <th className="py-3 px-3.5 text-center whitespace-nowrap">Stock Level Update</th>
+                  <th className="py-3 px-3.5 whitespace-nowrap">Customer / Admin Actor</th>
+                  <th className="py-3 px-3.5 whitespace-nowrap">Order Reference</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 font-semibold text-slate-700">
                 {filteredItems.map((item) => {
                   const isDeduction = item.type === 'deduction';
+                  const targetInvoiceLinkId = item.invoiceId || item.orderId;
+
                   return (
                     <tr key={item.id} className="hover:bg-slate-50/50">
-                      <td className="py-4 px-4 whitespace-nowrap text-slate-500">
-                        <div className="flex items-center gap-1.5 font-mono text-[11px]">
+                      <td className="py-3 px-3.5 whitespace-nowrap text-slate-500">
+                        <div className="flex items-center gap-2 font-mono text-[11px]">
                           <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                          {new Date(item.timestamp).toLocaleString()}
+                          <div className="flex flex-col leading-tight">
+                            <span className="font-semibold text-slate-700">
+                              {new Date(item.timestamp).toLocaleDateString()}
+                            </span>
+                            <span className="text-[10px] text-slate-400">
+                              {new Date(item.timestamp).toLocaleTimeString()}
+                            </span>
+                          </div>
                         </div>
                       </td>
 
-                      <td className="py-4 px-4 font-bold text-slate-800">
-                        <div>{item.productName}</div>
-                        <span className="text-[9px] bg-slate-100 border border-slate-200 text-slate-600 px-2 py-0.5 rounded-md font-semibold uppercase mt-0.5 inline-block">
+                      <td className="py-3 px-3.5 whitespace-nowrap font-bold text-slate-800">
+                        <div className="text-xs leading-snug">{item.productName}</div>
+                        <span className="text-[9px] bg-slate-100 border border-slate-200 text-slate-600 px-1.5 py-0.5 rounded font-semibold uppercase mt-0.5 inline-block whitespace-nowrap">
                           {item.category}
                         </span>
                       </td>
 
-                      <td className="py-4 px-4 text-center">
+                      <td className="py-3 px-3.5 text-center whitespace-nowrap">
                         {isDeduction ? (
-                          <span className="inline-flex items-center gap-1 bg-red-50 text-red-700 border border-red-200 px-2.5 py-1 rounded-full text-[10px] font-bold">
-                            <ArrowDownRight className="w-3.5 h-3.5 text-red-600" />
+                          <span className="inline-flex items-center gap-1 bg-red-50 text-red-700 border border-red-200 px-2 py-0.5 rounded-full text-[10px] font-bold whitespace-nowrap">
+                            <ArrowDownRight className="w-3 h-3 text-red-600 shrink-0" />
                             Order Deduction
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-800 border border-emerald-200 px-2.5 py-1 rounded-full text-[10px] font-bold">
-                            <ArrowUpRight className="w-3.5 h-3.5 text-emerald-600" />
+                          <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded-full text-[10px] font-bold whitespace-nowrap">
+                            <ArrowUpRight className="w-3 h-3 text-emerald-600 shrink-0" />
                             Restock Addition
                           </span>
                         )}
                       </td>
 
-                      <td className="py-4 px-4 text-center font-mono font-bold text-sm">
+                      <td className="py-3 px-3.5 text-center font-mono font-bold text-xs whitespace-nowrap">
                         <span className={isDeduction ? 'text-red-600' : 'text-emerald-600'}>
                           {item.change > 0 ? `+${item.change}` : item.change} {item.unitType}
                         </span>
                       </td>
 
-                      <td className="py-4 px-4">
-                        <div className="flex items-center gap-1.5 font-bold text-slate-800">
+                      <td className="py-3 px-3.5 text-center whitespace-nowrap">
+                        {item.previousStock != null && item.newStock != null ? (
+                          <div className="inline-flex items-center justify-center">
+                            <div className="inline-flex items-center gap-1 font-mono text-[11px] bg-slate-50 border border-slate-200 px-2 py-0.5 rounded-md whitespace-nowrap">
+                              <span className="text-slate-500">{item.previousStock}</span>
+                              <ArrowRight className="w-2.5 h-2.5 text-slate-400 shrink-0" />
+                              <span className="font-black text-slate-900">{item.newStock}</span>
+                              <span className="text-[9px] text-slate-500 font-semibold">{item.unitType}</span>
+                            </div>
+                          </div>
+                        ) : item.currentLiveStock != null ? (
+                          <span className="font-mono text-[11px] text-slate-600 whitespace-nowrap">
+                            {item.currentLiveStock} {item.unitType} remaining
+                          </span>
+                        ) : (
+                          <span className="text-slate-400 whitespace-nowrap">—</span>
+                        )}
+                      </td>
+
+                      <td className="py-3 px-3.5 whitespace-nowrap">
+                        <div className="flex items-center gap-1.5 font-bold text-slate-800 text-xs whitespace-nowrap">
                           <User className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                          {item.actorName}
+                          <span>{item.actorName}</span>
                         </div>
                       </td>
 
-                      <td className="py-4 px-4 font-mono text-xs font-bold text-brand-green-800">
-                        {item.orderRef}
+                      <td className="py-3 px-3.5 whitespace-nowrap">
+                        {targetInvoiceLinkId ? (
+                          <Link
+                            to={`/admin/invoices/${targetInvoiceLinkId}`}
+                            title={`Open invoice for ${item.orderRef}`}
+                            className="inline-flex items-center gap-1 font-mono text-[11px] font-bold text-brand-green-700 hover:text-brand-green-900 bg-brand-green-50/70 hover:bg-brand-green-100/80 border border-brand-green-200 px-2 py-1 rounded-lg transition underline-offset-2 hover:underline whitespace-nowrap"
+                          >
+                            <span>{item.orderRef}</span>
+                            <ExternalLink className="w-3 h-3 shrink-0" />
+                          </Link>
+                        ) : (
+                          <span className="font-mono text-[11px] font-semibold text-slate-400 whitespace-nowrap">
+                            {item.orderRef}
+                          </span>
+                        )}
                       </td>
                     </tr>
                   );
@@ -397,7 +685,9 @@ export const InventoryHistory = () => {
         <div className="text-center py-16 bg-white border border-slate-200 rounded-3xl">
           <Package className="w-10 h-10 text-slate-300 mx-auto mb-3" />
           <h3 className="text-sm font-bold text-slate-700">No inventory history logs found</h3>
-          <p className="text-xs text-slate-400 mt-1">Movement logs recorded when customers order or admins restock will appear here.</p>
+          <p className="text-xs text-slate-400 mt-1">
+            Movement logs recorded when customers order or admins restock will appear here.
+          </p>
         </div>
       )}
     </div>

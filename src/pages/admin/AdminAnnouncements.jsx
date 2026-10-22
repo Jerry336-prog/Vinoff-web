@@ -159,20 +159,16 @@ export const AdminAnnouncements = () => {
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto pb-12">
-      {/* Header Banner */}
-      <div className="bg-slate-900 text-white border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-md">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 bg-brand-green-600/30 border border-brand-green-500/40 text-brand-green-400 rounded-2xl flex items-center justify-center shrink-0">
-            <Megaphone className="w-6 h-6" />
-          </div>
-          <div>
-            <h1 className="text-xl sm:text-2xl font-black tracking-tight text-white">
-              Announcements & Broadcast Management
-            </h1>
-            <p className="text-xs text-slate-400 mt-1">
-              Publish store notices, downtime/maintenance alerts, or new product arrivals to all customers or target a specific account.
-            </p>
-          </div>
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
+        <div className="min-w-0 flex-1">
+          <h1 className="text-xl sm:text-2xl font-black text-slate-800 tracking-tight flex items-center gap-2.5">
+            <Megaphone className="w-5 h-5 sm:w-6 sm:h-6 text-brand-green-700 shrink-0" />
+            <span>Announcements &amp; Broadcast Management</span>
+          </h1>
+          <p className="text-xs text-slate-500 font-medium mt-0.5">
+            Publish store notices, downtime alerts, and new product arrivals to all customers or target a specific account.
+          </p>
         </div>
       </div>
 

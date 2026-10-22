@@ -8,7 +8,7 @@ import AnnouncementModal from '../components/ui/AnnouncementModal';
 import { getInitials } from '../utils/avatar';
 import { 
   LayoutGrid, ShoppingBag, ClipboardList, MessageSquare, 
-  FileSpreadsheet, Users, Warehouse, History, LogOut, Bell, Menu, X, ArrowLeft, UserCircle2, ChevronDown, Wallet, Megaphone, Settings, BarChart3
+  FileSpreadsheet, Users, Warehouse, History, LogOut, Bell, Menu, X, ArrowLeft, UserCircle2, ChevronDown, Wallet, Megaphone, Settings, BarChart3, BookOpen
 } from 'lucide-react';
 
 export const AdminLayout = () => {
@@ -135,6 +135,7 @@ export const AdminLayout = () => {
 
   const menuItems = [
     { name: 'Dashboard', path: '/admin/dashboard', icon: LayoutGrid },
+    { name: 'Operating Guide', path: '/admin/guide', icon: BookOpen },
     { name: 'Products', path: '/admin/products', icon: ShoppingBag, tabKey: 'products' },
     { name: 'Orders', path: '/admin/orders', icon: ClipboardList, tabKey: 'orders' },
     { name: 'Chats', path: '/admin/chats', icon: MessageSquare, badge: true },

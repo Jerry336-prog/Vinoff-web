@@ -358,8 +358,8 @@ export const ExpenseTracker = () => {
               <span className="text-[10px] text-slate-400 mt-1 block">{expensesList.length} entry(ies)</span>
             </div>
 
-            <div className="col-span-2 lg:col-span-1 bg-gradient-to-br from-brand-green-950 to-slate-900 text-white border border-brand-green-900 rounded-2xl sm:rounded-3xl p-4 sm:p-5 shadow-sm flex flex-col justify-between">
-              <span className="text-[10px] font-extrabold text-brand-yellow-400 uppercase tracking-wider block">
+            <div className="col-span-2 lg:col-span-1 bg-slate-900 text-white border border-slate-800 rounded-2xl sm:rounded-3xl p-4 sm:p-5 shadow-xs flex flex-col justify-between">
+              <span className="text-[10px] font-extrabold text-amber-400 uppercase tracking-wider block">
                 Closing Balance
               </span>
               <p className="text-xl sm:text-2xl font-black text-white mt-1 truncate">

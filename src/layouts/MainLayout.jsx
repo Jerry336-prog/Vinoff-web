@@ -7,6 +7,7 @@ import { NotificationContext } from "../context/NotificationContext";
 import { useBusiness } from "../context/BusinessContext";
 import { formatCurrency } from "../utils/formatCurrency";
 import ProfileDrawer from "../components/profile/ProfileDrawer";
+import ProfileCompletionNotice from '../components/profile/ProfileCompletionNotice';
 import Avatar from "../components/ui/Avatar";
 import AnnouncementModal from "../components/ui/AnnouncementModal";
 import { getInitials } from "../utils/avatar";
@@ -577,6 +578,7 @@ export const MainLayout = () => {
 
       {/* Main Content Area */}
       <main className="flex-grow max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8">
+        <ProfileCompletionNotice onEdit={() => setProfileDrawerOpen(true)} />
         <Outlet />
       </main>
 
