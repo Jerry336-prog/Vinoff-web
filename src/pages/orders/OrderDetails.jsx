@@ -3,6 +3,7 @@ import { useParams, Link, useNavigate } from "react-router-dom";
 import { AuthContext } from "../../context/AuthContext";
 import { useBusiness } from "../../context/BusinessContext";
 import api from "../../services/api";
+import { startPayment } from "../../services/paystack";
 import { createIdempotencyKey, withIdempotencyKey } from "../../services/idempotency";
 import { formatCurrency } from "../../utils/formatCurrency";
 import Badge from "../../components/ui/Badge";
@@ -73,42 +74,6 @@ export const OrderDetails = () => {
   useEffect(() => {
     fetchOrder();
   }, [id]);
-
-  const handleFileSelect = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setScreenshotFile(file);
-    paymentUploadKeyRef.current = createIdempotencyKey("payment-proof");
-    setPreviewUrl(URL.createObjectURL(file));
-    setUploadError("");
-  };
-
-  const handleUploadPayment = async () => {
-    if (!screenshotFile) {
-      setUploadError("Please select a payment screenshot image first.");
-      return;
-    }
-
-    setUploading(true);
-    setUploadError("");
-    setUploadSuccess("");
-
-    try {
-      const formData = new FormData();
-      formData.append("screenshot", screenshotFile);
-
-      const uploadKey = paymentUploadKeyRef.current || createIdempotencyKey("payment-proof");
-      paymentUploadKeyRef.current = uploadKey;
-      const res = await api.post(`/api/orders/${id}/payment`, formData, withIdempotencyKey(uploadKey));
-      setOrder(res.data);
-      setUploadSuccess("Payment screenshot successfully submitted! Awaiting admin verification.");
-      setScreenshotFile(null);
-    } catch (err) {
-      setUploadError(err.message || "Failed to upload payment screenshot.");
-    } finally {
-      setUploading(false);
-    }
-  };
 
   const currentStepIndex = order
     ? STATUS_STEPS.indexOf(order.status)
@@ -344,102 +309,13 @@ export const OrderDetails = () => {
               </div>
             )}
 
-            {order.paymentScreenshot?.url ? (
-              <div className="space-y-3">
-                <div className="relative rounded-2xl overflow-hidden border border-slate-200 bg-slate-50 group">
-                  <img
-                    src={order.paymentScreenshot.url}
-                    alt="Payment Screenshot"
-                    className="w-full h-44 object-cover"
-                  />
-                  <a
-                    href={order.paymentScreenshot.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold gap-1.5"
-                  >
-                    <ExternalLink className="w-4 h-4" /> View Full Image
-                  </a>
-                </div>
-
-                <div className="bg-slate-50 rounded-2xl p-3 text-xs space-y-1">
-                  <p className="font-bold text-slate-700 flex items-center gap-1.5">
-                    {order.paymentStatus === "Confirmed" ? (
-                      <span className="text-emerald-700 flex items-center gap-1">
-                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Payment Confirmed
-                      </span>
-                    ) : (
-                      <span className="text-amber-700 flex items-center gap-1">
-                        <Clock className="w-3.5 h-3.5 text-amber-600" /> Awaiting Payment Confirmation
-                      </span>
-                    )}
-                  </p>
-                  <p className="text-[10px] text-slate-400">
-                    Uploaded: {new Date(order.paymentScreenshot.uploadedAt || order.updatedAt).toLocaleString()}
-                  </p>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                <p className="text-xs text-slate-500">
-                  Please transfer <strong className="text-slate-900">{formatCurrency(order.totalAmount)}</strong> to the{" "}
-                  {businessInfo?.businessName || "Vinoff"} commercial bank account below, then upload your transaction screenshot:
-                </p>
-
-                {bankDetails?.bankName && (
-                  <div className="bg-brand-green-50/70 border border-brand-green-100 rounded-2xl p-3.5 text-xs space-y-1">
-                    <p className="font-extrabold text-brand-green-950">{bankDetails.bankName}</p>
-                    <div className="flex justify-between text-brand-green-900">
-                      <span>Account Name:</span>
-                      <strong className="font-mono">{bankDetails.accountName}</strong>
-                    </div>
-                    <div className="flex justify-between text-brand-green-900">
-                      <span>Account Number:</span>
-                      <strong className="font-mono text-sm font-black">{bankDetails.accountNumber}</strong>
-                    </div>
-                  </div>
-                )}
-
-                <div className="border-2 border-dashed border-slate-200 hover:border-brand-green-500 rounded-2xl p-4 text-center transition bg-slate-50">
-                  <input
-                    type="file"
-                    id="screenshot-upload"
-                    accept="image/*"
-                    onChange={handleFileSelect}
-                    className="hidden"
-                  />
-                  <label
-                    htmlFor="screenshot-upload"
-                    className="cursor-pointer block space-y-1.5"
-                  >
-                    <Upload className="w-6 h-6 text-brand-green-600 mx-auto" />
-                    <span className="text-xs font-bold text-slate-700 block">
-                      {screenshotFile ? screenshotFile.name : "Select Transfer Slip / Screenshot"}
-                    </span>
-                    <span className="text-[10px] text-slate-400 block">
-                      Supports JPG, PNG, WEBP (Max 5MB)
-                    </span>
-                  </label>
-                </div>
-
-                {previewUrl && (
-                  <div className="rounded-xl overflow-hidden border border-slate-200 max-h-36">
-                    <img src={previewUrl} alt="Preview" className="w-full h-full object-cover" />
-                  </div>
-                )}
-
-                <Button
-                  onClick={handleUploadPayment}
-                  isLoading={uploading}
-                  disabled={!screenshotFile}
-                  className="w-full rounded-xl"
-                  size="sm"
-                  icon={Upload}
-                >
-                  Upload Payment Screenshot
-                </Button>
-              </div>
-            )}
+            <div className="space-y-3">
+              <p className="text-xs text-slate-500">{order.paymentStatus === 'Confirmed' ? 'Payment verified. Your invoice has been updated.' : 'Pay securely with Paystack. Confirmation is automatic; no screenshot is needed.'}</p>
+              {order.paymentStatus !== 'Confirmed' && order.status !== 'Cancelled' && <Button className="w-full rounded-xl" isLoading={uploading} onClick={async () => {
+                setUploading(true); setUploadError('');
+                try { await startPayment({ orderId: id }); } catch (err) { setUploadError(err.message); setUploading(false); }
+              }}>Pay with Paystack</Button>}
+            </div>
           </div>
 
           {/* Invoice Card */}

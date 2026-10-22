@@ -253,18 +253,7 @@ export const Orders = () => {
 
                   <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
                     {/* Confirm Payment Action */}
-                    {(isAwaitingConfirmation || order.paymentStatus === "On Credit") && (
-                      <Button
-                        size="sm"
-                        variant="primary"
-                        icon={Check}
-                        isLoading={confirmingId === order._id}
-                        onClick={() => handleConfirmPayment(order._id)}
-                        className="rounded-xl text-xs bg-emerald-600 hover:bg-emerald-700 shadow-xs py-1.5 flex-1 sm:flex-initial justify-center"
-                      >
-                        {order.paymentStatus === "On Credit" ? "Settle Credit & Confirm" : "Confirm Payment"}
-                      </Button>
-                    )}
+
 
                     {/* Status Dropdown */}
                     <select
@@ -273,7 +262,7 @@ export const Orders = () => {
                       onChange={(e) => handleStatusChange(order._id, e.target.value)}
                       className="bg-slate-50 border border-slate-200 text-xs font-bold rounded-xl py-1.5 px-3 focus:ring-2 focus:ring-brand-green-500 outline-none flex-1 sm:flex-initial"
                     >
-                      {ORDER_STATUSES.map((s) => (
+                      {ORDER_STATUSES.filter(s => s !== 'Payment Confirmed' || order.paymentStatus === 'Confirmed').map((s) => (
                         <option key={s} value={s}>
                           {s}
                         </option>

@@ -111,7 +111,7 @@ export const Home = () => {
     },
     {
       q: "How does payment verification work?",
-      a: `Payments are made via direct bank transfer to ${bankDetails?.accountName || businessInfo?.businessName || "Vinoff Wholesales Ltd"} (${bankDetails?.bankName || "GTB Account"}). After transfer, upload your payment receipt screenshot directly in your support chat for instant admin verification.`,
+      a: "Pay securely through Paystack from checkout, your order, or your invoice. Successful payments are verified automatically.",
     },
     {
       q: "Can I get an official watermarked invoice for my business?",
@@ -588,7 +588,7 @@ export const Home = () => {
             <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center font-black text-base">
               03
             </div>
-            <h3 className="font-extrabold text-white text-sm">Bank Transfer &amp; Chat Clearance</h3>
+            <h3 className="font-extrabold text-white text-sm">Secure Paystack Checkout</h3>
             <p className="text-xs text-slate-300 leading-relaxed">
               Pay via bank transfer and upload your transaction receipt directly in your live support chat for immediate admin verification and dispatch.
             </p>

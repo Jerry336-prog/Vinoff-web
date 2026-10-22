@@ -1,3 +1,4 @@
+import PaymentReturn from '../pages/checkout/PaymentReturn';
 import React, { useContext } from 'react';
 import { createBrowserRouter, Navigate, useLocation } from 'react-router-dom';
 import MainLayout from '../layouts/MainLayout';
@@ -276,6 +277,10 @@ export const router = createBrowserRouter([
         element: <Navigate to="/admin/dashboard" replace />
       }
     ]
+  },
+  {
+    path: '/payments/return',
+    element: <PaymentReturn />
   },
   {
     path: '*',

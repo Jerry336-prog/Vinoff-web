@@ -121,7 +121,7 @@ export const ChatInput = ({
 
   const quickActions = [
     "Request final wholesale invoice",
-    "Sent bank wire payment",
+    "I need help with my Paystack payment",
     "Confirm carton pricing discounts",
   ];
 
@@ -176,7 +176,7 @@ export const ChatInput = ({
           onClick={() => fileInputRef.current?.click()}
           disabled={uploading || sending}
           className="p-2.5 text-slate-500 hover:text-brand-green-600 bg-slate-50 border border-slate-200 hover:border-brand-green-300 rounded-xl transition disabled:opacity-50 flex-shrink-0"
-          title="Upload receipt or screenshot"
+          title="Attach an image or document"
         >
           <Image className="w-5 h-5" />
         </button>

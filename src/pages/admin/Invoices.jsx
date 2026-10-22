@@ -463,18 +463,7 @@ export const Invoices = () => {
                       </td>
                       <td className="py-4 px-5 text-right">
                         <div className="flex items-center justify-end gap-2">
-                          {(inv.status === "Pending" || inv.status === "On Credit") && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleStatusUpdate(inv._id || inv.id, "Paid");
-                              }}
-                              className="p-1.5 hover:bg-emerald-50 text-emerald-600 rounded-lg transition"
-                              title="Mark as Paid, Settle Credit & Stamp Admin Name"
-                            >
-                              <CheckCircle2 className="w-4 h-4" />
-                            </button>
-                          )}
+
 
                           {inv.status !== "Cancelled" && inv.status !== "Paid" && (
                             <button
@@ -710,7 +699,6 @@ export const Invoices = () => {
                     <option value="Pending">Pending</option>
                     <option value="On Credit">On Credit (VIP Credit Invoice)</option>
                     <option value="Draft">Draft</option>
-                    <option value="Paid">Paid</option>
                   </select>
                 </div>
               </div>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useContext } from "react";
 import { useParams, Link, useNavigate, useLocation } from "react-router-dom";
 import api from "../../services/api";
+import { startPayment } from "../../services/paystack";
 import { createIdempotencyKey, withIdempotencyKey } from "../../services/idempotency";
 import { formatCurrency } from "../../utils/formatCurrency";
 import Badge from "../../components/ui/Badge";
@@ -156,7 +157,7 @@ export const CustomerInvoiceDetails = () => {
       setSaving(true);
       const res = await api.patch(
         `/api/invoices/${invoice._id || invoice.id}`,
-        { status: "Paid", issuedBy: adminName },
+        { issuedBy: adminName },
         withIdempotencyKey(createIdempotencyKey(`invoice-paid-${invoice._id || invoice.id}`)),
       );
 
@@ -171,7 +172,6 @@ export const CustomerInvoiceDetails = () => {
       const updated = {
         ...(invoice || {}),
         ...(updatedRecord || {}),
-        status: "Paid",
         issuedBy: adminName,
         createdBy: {
           ...(invoice?.createdBy || {}),
@@ -181,7 +181,7 @@ export const CustomerInvoiceDetails = () => {
       };
 
       setInvoice(updated);
-      toast.success(`Invoice marked as Paid & stamped by ${adminName}`, "Invoice Stamped & Saved");
+      toast.success(`Invoice stamped by ${adminName}`, "Invoice Stamped & Saved");
     } catch (err) {
       toast.error(err.message || "Failed to stamp invoice", "Stamp Failed");
     } finally {
@@ -359,6 +359,10 @@ export const CustomerInvoiceDetails = () => {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
+      {!isAdminView && invoice.status !== 'Paid' && invoice.status !== 'Cancelled' && invoice.status !== 'Draft' && <Button isLoading={saving} onClick={async () => {
+        setSaving(true);
+        try { await startPayment({ invoiceId: invoice._id || invoice.id }); } catch (err) { toast.error(err.message); setSaving(false); }
+      }}>Pay invoice with Paystack</Button>}
       {/* Top Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 print:hidden">
         <Link
@@ -782,7 +786,7 @@ export const CustomerInvoiceDetails = () => {
                   <option>Draft</option>
                   <option>Pending</option>
                   <option>On Credit</option>
-                  <option>Paid</option>
+                  {invoice.status === 'Paid' && <option disabled>Paid</option>}
                   <option>Cancelled</option>
                 </select>
               </div>

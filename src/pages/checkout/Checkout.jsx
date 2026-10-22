@@ -4,6 +4,7 @@ import { CartContext } from "../../context/CartContext";
 import { AuthContext } from "../../context/AuthContext";
 import { useBusiness } from "../../context/BusinessContext";
 import api from "../../services/api";
+import { startPayment } from "../../services/paystack";
 import { createIdempotencyKey, withIdempotencyKey } from "../../services/idempotency";
 import { formatCurrency } from "../../utils/formatCurrency";
 import {
@@ -31,7 +32,7 @@ export const Checkout = () => {
   const navigate = useNavigate();
 
   const [paymentMethod, setPaymentMethod] = useState(
-    user?.isVipCreditPartner ? "credit" : "bank_transfer"
+    user?.isVipCreditPartner ? "credit" : "paystack"
   );
   const [screenshotFile, setScreenshotFile] = useState(null);
   const [screenshotPreview, setScreenshotPreview] = useState("");
@@ -54,7 +55,7 @@ export const Checkout = () => {
 
   useEffect(() => {
     if (user?.isVipCreditPartner) {
-      setPaymentMethod((prev) => (prev === "bank_transfer" ? "credit" : prev));
+      setPaymentMethod((prev) => (prev === "paystack" ? "credit" : prev));
     }
   }, [user?.isVipCreditPartner]);
 
@@ -114,13 +115,6 @@ export const Checkout = () => {
 
   const estimatedTotal = subtotal;
 
-  const handleScreenshotSelect = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setScreenshotFile(file);
-    setScreenshotPreview(URL.createObjectURL(file));
-  };
-
   const handleSubmitOrder = async (e) => {
     e.preventDefault();
     if (cartItems.length === 0) return;
@@ -157,7 +151,7 @@ export const Checkout = () => {
         deliveryAddress: deliveryAddress || user?.profile?.address || "Warehouse Pickup",
         notes: notes.trim(),
         isCreditOrder,
-        paymentMethod: isCreditOrder ? "credit" : "bank_transfer",
+        paymentMethod: isCreditOrder ? "credit" : "paystack",
       };
 
       // 2. Post order
@@ -168,27 +162,14 @@ export const Checkout = () => {
       // Play audio notification chime
       try {
         playNotificationChime();
-      } catch (_) {}
+      } catch (error) { console.warn('Notification sound unavailable:', error.message); }
 
-      // 3. If customer attached a payment screenshot (and not a credit order), upload it now
-      if (!isCreditOrder && screenshotFile && createdOrder?._id) {
-        try {
-          const formData = new FormData();
-          formData.append("screenshot", screenshotFile);
-          const paymentKey = paymentSubmissionKeyRef.current || createIdempotencyKey("payment-proof");
-          paymentSubmissionKeyRef.current = paymentKey;
-          const paymentRes = await api.post(
-            `/api/orders/${createdOrder._id}/payment`,
-            formData,
-            withIdempotencyKey(paymentKey),
-          );
-          setOrderConfirmed(paymentRes.data?.order || paymentRes.data || createdOrder);
-        } catch (payErr) {
-          console.warn("Screenshot upload error:", payErr);
-          setOrderConfirmed(createdOrder);
-        }
-      } else {
-        setOrderConfirmed(createdOrder);
+      setOrderConfirmed(createdOrder);
+      if (!isCreditOrder) {
+        clearCart();
+        navigate(`/orders/${createdOrder._id || createdOrder.id}`);
+        await startPayment({ orderId: createdOrder._id || createdOrder.id });
+        return;
       }
 
       clearCart();
@@ -239,8 +220,8 @@ export const Checkout = () => {
               {isCreditConfirmed
                 ? "Your wholesale order has been placed on your VIP Credit Partner facility and added to your active Credit Invoices ledger. Packaging has started immediately."
                 : isAwaitingConfirmation
-                ? "Your payment screenshot has been uploaded. Our accounting admin will confirm the transaction shortly."
-                : "Your order is currently in 'Pending Payment' status. Please upload your transfer screenshot to initiate packaging."}
+                ? "Payment is verified automatically by Paystack."
+                : "Your order is currently in 'Pending Payment' status. Open your order to complete payment with Paystack."}
             </p>
           </div>
 
@@ -374,7 +355,7 @@ export const Checkout = () => {
           <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-4">
             <h3 className="text-xs font-black uppercase tracking-wider text-slate-400 border-b border-slate-100 pb-3 flex items-center gap-2">
               <Landmark className="w-4 h-4 text-brand-yellow-600" />
-              {user?.isVipCreditPartner ? "Payment & Credit Options" : "Bank Transfer Information"}
+              {user?.isVipCreditPartner ? "Payment & Credit Options" : "Pay securely with Paystack"}
             </h3>
 
             {user?.isVipCreditPartner && (
@@ -408,9 +389,9 @@ export const Checkout = () => {
 
                   <button
                     type="button"
-                    onClick={() => setPaymentMethod("bank_transfer")}
+                    onClick={() => setPaymentMethod("paystack")}
                     className={`w-full text-left p-3.5 rounded-2xl border transition-all flex items-start justify-between gap-2 ${
-                      paymentMethod === "bank_transfer"
+                      paymentMethod === "paystack"
                         ? "bg-brand-green-50/90 border-brand-green-500 ring-2 ring-brand-green-500/20 shadow-xs"
                         : "bg-slate-50 border-slate-200 hover:bg-slate-100"
                     }`}
@@ -418,10 +399,10 @@ export const Checkout = () => {
                     <div>
                       <span className="inline-flex items-center gap-1.5 text-xs font-black text-slate-900">
                         <span className="w-2 h-2 rounded-full bg-brand-green-600" />
-                        Direct Bank Transfer
+                        Pay with Paystack
                       </span>
                       <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">
-                        Pay immediately via commercial bank wire and attach your transfer slip.
+                        Pay securely with automatic confirmation.
                       </p>
                     </div>
                   </button>
@@ -456,47 +437,9 @@ export const Checkout = () => {
               </div>
             ) : (
               <>
-                <div className="bg-brand-green-50/70 border border-brand-green-100 rounded-2xl p-4 text-xs space-y-1.5">
-                  <p className="font-extrabold text-brand-green-950">{bankDetails.bankName}</p>
-                  <div className="flex justify-between text-brand-green-900">
-                    <span>Account Name:</span>
-                    <strong className="font-mono">{bankDetails.accountName}</strong>
-                  </div>
-                  <div className="flex justify-between text-brand-green-900">
-                    <span>Account Number:</span>
-                    <strong className="font-mono text-sm font-black">{bankDetails.accountNumber}</strong>
-                  </div>
-                  {bankDetails.instructions && (
-                    <p className="text-brand-green-700 pt-1 italic text-[11px]">{bankDetails.instructions}</p>
-                  )}
-                </div>
-
-                {/* Optional screenshot upload during checkout */}
-                <div className="space-y-2 pt-1">
-                  <label className="text-[10px] font-extrabold uppercase text-slate-500 tracking-wider block">
-                    Attach Payment Screenshot (Optional now, or upload later)
-                  </label>
-                  <div className="border-2 border-dashed border-slate-200 hover:border-brand-green-500 rounded-2xl p-3 text-center transition bg-slate-50">
-                    <input
-                      type="file"
-                      id="checkout-screenshot"
-                      accept="image/*"
-                      onChange={handleScreenshotSelect}
-                      className="hidden"
-                    />
-                    <label htmlFor="checkout-screenshot" className="cursor-pointer block text-center">
-                      <Upload className="w-5 h-5 text-slate-400 mx-auto mb-1" />
-                      <span className="text-xs font-bold text-slate-700 block truncate">
-                        {screenshotFile ? screenshotFile.name : "Select Screenshot"}
-                      </span>
-                    </label>
-                  </div>
-
-                  {screenshotPreview && (
-                    <div className="rounded-xl overflow-hidden border border-slate-200 max-h-24">
-                      <img src={screenshotPreview} alt="Screenshot preview" className="w-full h-full object-cover" />
-                    </div>
-                  )}
+                <div className="bg-brand-green-50/70 border border-brand-green-100 rounded-2xl p-4 text-xs space-y-2">
+                  <p className="font-extrabold text-brand-green-950">Secure payment with Paystack</p>
+                  <p className="text-brand-green-900">Continue to Paystack to pay using the available payment methods. Your payment and invoice update automatically after verification.</p>
                 </div>
               </>
             )}
