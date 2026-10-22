@@ -4,7 +4,7 @@ import { CartContext } from "../../context/CartContext";
 import { AuthContext } from "../../context/AuthContext";
 import { useBusiness } from "../../context/BusinessContext";
 import api from "../../services/api";
-import { startPayment } from "../../services/paystack";
+import { payInPopup } from "../../services/paystack";
 import { createIdempotencyKey, withIdempotencyKey } from "../../services/idempotency";
 import { formatCurrency } from "../../utils/formatCurrency";
 import {
@@ -42,6 +42,8 @@ export const Checkout = () => {
   const [errorMsg, setErrorMsg] = useState("");
   const [orderConfirmed, setOrderConfirmed] = useState(null);
   const orderSubmissionKeyRef = useRef(null);
+  const pendingOrderRef = useRef(null);
+  const submittingRef = useRef(false);
   const paymentSubmissionKeyRef = useRef(null);
 
   // Ensure latest VIP Credit Partner status is loaded when entering Checkout
@@ -117,7 +119,7 @@ export const Checkout = () => {
 
   const handleSubmitOrder = async (e) => {
     e.preventDefault();
-    if (cartItems.length === 0) return;
+    if (cartItems.length === 0 || submittingRef.current) return;
 
     if (storeStatus?.isOpen === false) {
       setErrorMsg(
@@ -127,6 +129,7 @@ export const Checkout = () => {
       return;
     }
 
+    submittingRef.current = true;
     setSubmitting(true);
     setErrorMsg("");
 
@@ -155,29 +158,37 @@ export const Checkout = () => {
       };
 
       // 2. Post order
-      const res = await api.post("/api/orders", payload, withIdempotencyKey(orderKey));
-      const responseData = res.data?.data || res.data;
-      const createdOrder = responseData?.order || responseData;
+      if (!pendingOrderRef.current) {
+        const res = await api.post("/api/orders", payload, withIdempotencyKey(orderKey));
+        const responseData = res.data?.data || res.data;
+        pendingOrderRef.current = responseData?.order || responseData;
+      }
+      const createdOrder = pendingOrderRef.current;
+      if (Boolean(createdOrder.isCreditOrder) !== isCreditOrder) {
+        throw new Error('This checkout has already started. Select the original payment option to resume it.');
+      }
 
       // Play audio notification chime
       try {
         playNotificationChime();
       } catch (error) { console.warn('Notification sound unavailable:', error.message); }
 
-      setOrderConfirmed(createdOrder);
       if (!isCreditOrder) {
+        await payInPopup({ orderId: createdOrder._id || createdOrder.id });
+        setOrderConfirmed(createdOrder);
         clearCart();
         navigate(`/orders/${createdOrder._id || createdOrder.id}`);
-        await startPayment({ orderId: createdOrder._id || createdOrder.id });
         return;
       }
 
+      setOrderConfirmed(createdOrder);
       clearCart();
       refreshUser?.();
     } catch (err) {
       console.error("Order submission failed:", err);
       setErrorMsg(err.message || "Failed to place order. Please verify quantities and try again.");
     } finally {
+      submittingRef.current = false;
       setSubmitting(false);
     }
   };

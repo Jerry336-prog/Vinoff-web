@@ -43,12 +43,8 @@ export const OrdersList = () => {
   const statuses = [
     "All",
     "Pending Payment",
-    "Awaiting Confirmation",
-    "Payment Confirmed",
     "Processing",
-    "Ready for Delivery",
-    "Shipped",
-    "Completed",
+    "Delivered",
     "Cancelled",
   ];
 

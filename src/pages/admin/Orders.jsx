@@ -24,16 +24,7 @@ import {
 import Button from "../../components/ui/Button";
 import { useToast, toast } from "../../context/ToastContext";
 
-const ORDER_STATUSES = [
-  "Pending Payment",
-  "Awaiting Confirmation",
-  "Payment Confirmed",
-  "Processing",
-  "Ready for Delivery",
-  "Shipped",
-  "Completed",
-  "Cancelled",
-];
+const ORDER_STATUSES = ["Pending Payment", "Processing", "Delivered", "Cancelled"];
 
 export const Orders = () => {
   const [searchParams] = useSearchParams();

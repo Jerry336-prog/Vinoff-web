@@ -26,15 +26,7 @@ import {
 } from "lucide-react";
 import Button from "../../components/ui/Button";
 
-const STATUS_STEPS = [
-  "Pending Payment",
-  "Awaiting Confirmation",
-  "Payment Confirmed",
-  "Processing",
-  "Ready for Delivery",
-  "Shipped",
-  "Completed",
-];
+const STATUS_STEPS = ["Payment Confirmed", "Processing", "Delivered"];
 
 export const OrderDetails = () => {
   const { id } = useParams();
@@ -76,7 +68,7 @@ export const OrderDetails = () => {
   }, [id]);
 
   const currentStepIndex = order
-    ? STATUS_STEPS.indexOf(order.status)
+    ? (['Delivered', 'Completed'].includes(order.status) ? 2 : ['Processing', 'Ready for Delivery', 'Shipped'].includes(order.status) ? 1 : order.paymentStatus === 'Confirmed' ? 0 : -1)
     : -1;
 
   if (loading) {
