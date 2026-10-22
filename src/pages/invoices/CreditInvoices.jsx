@@ -18,7 +18,6 @@ import {
   Clock,
   ArrowLeft,
   Search,
-  Upload,
   ShieldCheck,
 } from "lucide-react";
 
@@ -488,10 +487,10 @@ export const CreditInvoices = () => {
                           type="button"
                           onClick={() => navigate(`/orders/${orderId}`)}
                           className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 text-xs font-bold transition"
-                          title="Upload Payment Proof to Settle Credit"
+                          title="Pay with Paystack to Settle Credit"
                         >
-                          <Upload className="w-3.5 h-3.5 text-amber-700" />
-                          <span>Settle / Upload Proof</span>
+                          <CreditCard className="w-3.5 h-3.5 text-amber-700" />
+                          <span>Settle / Pay</span>
                         </button>
                       )}
 

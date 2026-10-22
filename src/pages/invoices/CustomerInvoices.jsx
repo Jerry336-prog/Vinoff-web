@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useContext } from "react";
+import { AuthContext } from "../../context/AuthContext";
 import { Link, useNavigate } from "react-router-dom";
 import api from "../../services/api";
 import { formatCurrency } from "../../utils/formatCurrency";
@@ -21,6 +22,7 @@ import { downloadInvoicePDF } from "../../utils/generatePDF";
 import { toast } from "../../context/ToastContext";
 
 export const CustomerInvoices = () => {
+  const { user } = useContext(AuthContext);
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -89,7 +91,7 @@ export const CustomerInvoices = () => {
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
-          <Link
+          {user?.isVipCreditPartner === true && <Link
             to="/credit-invoices"
             className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold bg-brand-green-700 hover:bg-brand-green-800 text-white shadow-2xs transition"
           >
@@ -99,7 +101,7 @@ export const CustomerInvoices = () => {
                 {creditInvoicesCount} Owing
               </span>
             )}
-          </Link>
+          </Link>}
           <div className="relative w-full sm:w-64">
             <input
               type="text"
