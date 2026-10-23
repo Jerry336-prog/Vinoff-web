@@ -7,6 +7,7 @@ import { unwrapApiList, unwrapApiRecord } from "../../utils/apiResponse";
 import { createIdempotencyKey, withIdempotencyKey } from "../../services/idempotency";
 import { playNotificationChime, playSwitchSound } from "../../utils/soundEffects";
 import { showConfirm } from "../../services/ui/modal";
+import DocumentWatermark from '../../components/ui/DocumentWatermark';
 import {
   Settings as SettingsIcon,
   MapPin,
@@ -45,7 +46,7 @@ import {
 export const Settings = () => {
   const { user, isAdmin } = useContext(AuthContext);
   const { toast } = useToast();
-  const { businessInfo, bankDetails, updateBusinessInfoState, updateBankDetailsState } = useBusiness();
+  const { businessInfo, updateBusinessInfoState } = useBusiness();
 
   const isSuperAdmin = user?.role === "superadmin";
 
@@ -105,7 +106,7 @@ export const Settings = () => {
     walkthroughVideoUrl: businessInfo?.walkthroughVideoUrl || "/store/VINOFF_CO_walkthrough.MP4",
     footerNote:
       businessInfo?.footerNote ||
-      "Wire payments transfer slips proof must be submitted in support chats to begin packing and logistics.",
+      "Pay securely with Paystack. Payment confirmation is automatic; no receipt upload is required.",
   });
   const [loadingLocation, setLoadingLocation] = useState(false);
   const [savingLocation, setSavingLocation] = useState(false);
@@ -117,18 +118,6 @@ export const Settings = () => {
   const [loadingSessions, setLoadingSessions] = useState(false);
   const [revokingOthers, setRevokingOthers] = useState(false);
   const [revokingId, setRevokingId] = useState(null);
-
-  // =========================================================
-  // 5. COMPANY BANK ACCOUNT STATE (ADMIN)
-  // =========================================================
-  const [bankForm, setBankForm] = useState({
-    bankName: bankDetails?.bankName || "Guaranty Trust Bank (GTB)",
-    accountName: bankDetails?.accountName || "Vinoff Wholesales Ltd",
-    accountNumber: bankDetails?.accountNumber || "0123456789",
-    instructions: bankDetails?.instructions || "Please use your Order # or Invoice # as the transfer payment narration.",
-  });
-  const [loadingBank, setLoadingBank] = useState(false);
-  const [savingBank, setSavingBank] = useState(false);
 
   // =========================================================
   // FETCH DATA
@@ -185,7 +174,7 @@ export const Settings = () => {
                 : record.walkthroughVideoUrl || "/store/VINOFF_CO_walkthrough.MP4",
             footerNote:
               record.footerNote ||
-              "Wire payments transfer slips proof must be submitted in support chats to begin packing and logistics.",
+              "Pay securely with Paystack. Payment confirmation is automatic; no receipt upload is required.",
           };
           setLocationForm(nextInfo);
           updateBusinessInfoState(nextInfo);
@@ -244,33 +233,6 @@ export const Settings = () => {
     };
     fetchAlerts();
   }, [isAdmin]);
-
-  // Fetch Bank Details (Admin)
-  useEffect(() => {
-    if (!isAdmin) return;
-    const fetchBankDetails = async () => {
-      setLoadingBank(true);
-      try {
-        const res = await api.get("/api/settings/bank-details");
-        const record = unwrapApiRecord(res) || res.data || res;
-        if (record && record.bankName) {
-          const nextBank = {
-            bankName: record.bankName || "",
-            accountName: record.accountName || "",
-            accountNumber: record.accountNumber || "",
-            instructions: record.instructions || "",
-          };
-          setBankForm(nextBank);
-          updateBankDetailsState(nextBank);
-        }
-      } catch (err) {
-        console.error("Failed to load bank details:", err);
-      } finally {
-        setLoadingBank(false);
-      }
-    };
-    fetchBankDetails();
-  }, [isAdmin, updateBankDetailsState]);
 
   // Fetch Sessions
   const fetchSessions = async () => {
@@ -479,33 +441,6 @@ export const Settings = () => {
     }
   };
 
-  // Save Bank Details
-  const handleSaveBankDetails = async (e) => {
-    e.preventDefault();
-    if (!isAdmin) {
-      toast.warning("Only Admin accounts can modify company bank details.", "Access Restricted");
-      return;
-    }
-    setSavingBank(true);
-    try {
-      const res = await api.put(
-        "/api/settings/bank-details",
-        bankForm,
-        withIdempotencyKey(createIdempotencyKey("update-bank-details"))
-      );
-      const data = unwrapApiRecord(res) || res.data?.data || res.data;
-      const merged = data && data.bankName ? { ...bankForm, ...data } : bankForm;
-      setBankForm(merged);
-      updateBankDetailsState(merged);
-      toast.success("Company bank details updated & published live across checkout and invoices!", "Bank Info Saved");
-    } catch (err) {
-      const message = err.response?.data?.message || err.message || "Failed to update bank details";
-      toast.error(message, "Update Error");
-    } finally {
-      setSavingBank(false);
-    }
-  };
-
   // Revoke other sessions
   const handleRevokeOtherSessions = async () => {
     const confirmed = await showConfirm({
@@ -590,19 +525,19 @@ export const Settings = () => {
   };
 
   return (
-    <div className="space-y-4 sm:space-y-6 max-w-5xl mx-auto pb-12 px-1 sm:px-0">
+    <div className="space-y-6 max-w-6xl mx-auto pb-12 px-1 sm:px-0">
       {/* Header Banner */}
-      <div className="bg-slate-900 text-white border border-slate-800 rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-sm">
+      <div className="bg-white text-slate-800 border border-slate-200 rounded-2xl sm:rounded-2xl p-4 sm:p-6 shadow-none">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3 sm:gap-4">
-            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-brand-green-600/30 border border-brand-green-500/40 text-brand-green-400 rounded-xl sm:rounded-2xl flex items-center justify-center shrink-0">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-brand-green-50 border border-brand-green-100 text-brand-green-700 rounded-xl sm:rounded-2xl flex items-center justify-center shrink-0">
               <SettingsIcon className="w-5 h-5 sm:w-6 sm:h-6" />
             </div>
             <div className="min-w-0">
-              <h1 className="text-base sm:text-2xl font-black tracking-tight text-white leading-tight truncate">
-                Settings &amp; Platform Controls
+              <h1 className="text-base sm:text-2xl font-semibold tracking-tight text-slate-900 leading-tight truncate">
+                Settings
               </h1>
-              <p className="text-[11px] sm:text-xs text-slate-400 mt-0.5 sm:mt-1 leading-relaxed line-clamp-2 sm:line-clamp-none">
+              <p className="text-[11px] sm:text-xs text-slate-500 mt-0.5 sm:mt-1 leading-relaxed line-clamp-2 sm:line-clamp-none">
                 Configure store operational status, business account &amp; invoice details, warehouse location, carton alerts, and device sessions.
               </p>
             </div>
@@ -614,13 +549,13 @@ export const Settings = () => {
               <span
                 className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold border ${
                   storeStatus.isOpen
-                    ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
-                    : "bg-amber-500/10 text-amber-400 border-amber-500/30"
+                    ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                    : "bg-amber-50 text-amber-800 border-amber-200"
                 }`}
               >
                 <span
                   className={`w-2 h-2 rounded-full ${
-                    storeStatus.isOpen ? "bg-emerald-400 animate-pulse" : "bg-amber-400"
+                    storeStatus.isOpen ? "bg-emerald-600" : "bg-amber-400"
                   }`}
                 />
                 {storeStatus.isOpen ? "Store Active (Orders Open)" : "Store Inactive (Orders Paused)"}
@@ -630,7 +565,7 @@ export const Settings = () => {
         </div>
 
         {/* Tab Navigation Bar */}
-        <div className="flex items-center gap-1.5 sm:gap-2 border-t border-slate-800/80 pt-3.5 sm:pt-5 mt-4 sm:mt-6 overflow-x-auto no-scrollbar scroll-smooth">
+        <div className="flex items-center gap-1.5 sm:gap-2 border-t border-slate-200 pt-3.5 sm:pt-5 mt-4 sm:mt-6 overflow-x-auto no-scrollbar scroll-smooth">
           {[
             ...(isAdmin
               ? [
@@ -641,7 +576,7 @@ export const Settings = () => {
             { id: "store", label: isAdmin ? "Business & Store Info" : "Store & Contact Info", icon: Building },
             { id: "sessions", label: `Active Devices (${sessions.length || 1})`, icon: Smartphone },
             ...(isAdmin
-              ? [{ id: "bank_details", label: "Bank Account Details", icon: Landmark }]
+              ? [{ id: "payments", label: "Paystack Payments", icon: Landmark }]
               : []),
           ].map((tab) => {
             const IconComponent = tab.icon;
@@ -650,10 +585,10 @@ export const Settings = () => {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-[11px] sm:text-xs font-bold transition-all flex items-center gap-1.5 sm:gap-2 outline-none shrink-0 whitespace-nowrap active:scale-95 ${
+                className={`px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-[11px] sm:text-xs font-bold transition-all flex items-center gap-1.5 sm:gap-2 outline-none shrink-0 whitespace-nowrap  ${
                   active
-                    ? "bg-brand-green-600 text-white shadow-xs ring-1 ring-white/10"
-                    : "bg-slate-800/70 text-slate-400 hover:text-white hover:bg-slate-800 border border-slate-700/50"
+                    ? "bg-brand-green-600 text-white shadow-none "
+                    : "bg-white text-slate-600 hover:bg-slate-50 border border-slate-200"
                 }`}
               >
                 <IconComponent className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
@@ -668,9 +603,9 @@ export const Settings = () => {
       {/* TAB 1: STORE STATUS (SIMPLE TOGGLE & BANNER MESSAGE) */}
       {/* ========================================================= */}
       {activeTab === "store_status" && isAdmin && (
-        <div className="bg-white border border-slate-200/90 rounded-2xl sm:rounded-3xl p-4 sm:p-7 shadow-xs space-y-6">
+        <div className="bg-white border border-slate-200 rounded-2xl sm:rounded-2xl p-4 sm:p-7 shadow-none space-y-6">
           <div className="border-b border-slate-100 pb-4">
-            <h2 className="text-xs sm:text-sm font-black uppercase tracking-wider text-slate-800 flex items-center gap-2">
+            <h2 className="text-xs sm:text-sm font-semibold uppercase tracking-wider text-slate-800 flex items-center gap-2">
               <Store className="w-4 h-4 text-brand-green-600" /> Store Status &amp; Vacation Mode
             </h2>
             <p className="text-[11px] sm:text-xs text-slate-500 mt-0.5 leading-relaxed">
@@ -679,9 +614,9 @@ export const Settings = () => {
           </div>
 
           {/* Simple Switch */}
-          <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-4 sm:p-5 flex items-center justify-between gap-4">
+          <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 sm:p-5 flex items-center justify-between gap-4">
             <div className="space-y-1">
-              <span className="text-xs sm:text-sm font-black text-slate-900 flex items-center gap-2">
+              <span className="text-xs sm:text-sm font-semibold text-slate-900 flex items-center gap-2">
                 <Power className={`w-4 h-4 ${storeStatus.isOpen ? "text-emerald-600" : "text-amber-600"}`} />
                 Status: {storeStatus.isOpen ? "Active (Accepting Orders)" : "Paused / Vacation Mode"}
               </span>
@@ -700,7 +635,7 @@ export const Settings = () => {
               }`}
             >
               <span
-                className={`pointer-events-none inline-block h-7 w-7 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+                className={`pointer-events-none inline-block h-7 w-7 transform rounded-full bg-white shadow-none ring-0 transition duration-200 ease-in-out ${
                   storeStatus.isOpen ? "translate-x-8" : "translate-x-0"
                 }`}
               />
@@ -709,7 +644,7 @@ export const Settings = () => {
 
           {/* Banner message only needed when switched off */}
           {!storeStatus.isOpen ? (
-            <div className="space-y-3 pt-2 animate-fade-in">
+            <div className="space-y-3 pt-2 ">
               <label className="text-xs font-bold text-slate-800 flex items-center justify-between">
                 <span>Banner Message for Customers (Displayed while paused)</span>
                 <span className="text-[10px] text-amber-700 font-semibold bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
@@ -748,7 +683,7 @@ export const Settings = () => {
               type="button"
               onClick={handleSaveStoreStatus}
               disabled={savingStoreStatus}
-              className="px-5 py-2.5 bg-brand-green-600 hover:bg-brand-green-700 text-white rounded-xl text-xs sm:text-sm font-bold shadow-xs transition flex items-center gap-2 disabled:opacity-50"
+              className="px-5 py-2.5 bg-brand-green-600 hover:bg-brand-green-700 text-white rounded-xl text-xs sm:text-sm font-bold shadow-none transition flex items-center gap-2 disabled:opacity-50"
             >
               <Save className={`w-4 h-4 ${savingStoreStatus ? "animate-spin" : ""}`} />
               <span>{savingStoreStatus ? "Saving..." : "Save Store Status"}</span>
@@ -761,9 +696,9 @@ export const Settings = () => {
       {/* TAB 2: ALERTS & NOTIFICATIONS (REAL CATEGORIES ONLY) */}
       {/* ========================================================= */}
       {activeTab === "alerts" && isAdmin && (
-        <div className="bg-white border border-slate-200/90 rounded-2xl sm:rounded-3xl p-4 sm:p-7 shadow-xs space-y-6">
+        <div className="bg-white border border-slate-200 rounded-2xl sm:rounded-2xl p-4 sm:p-7 shadow-none space-y-6">
           <div className="border-b border-slate-100 pb-4">
-            <h2 className="text-xs sm:text-sm font-black uppercase tracking-wider text-slate-800 flex items-center gap-2">
+            <h2 className="text-xs sm:text-sm font-semibold uppercase tracking-wider text-slate-800 flex items-center gap-2">
               <BellRing className="w-4 h-4 text-brand-green-600" /> Alerts &amp; Notification Preferences
             </h2>
             <p className="text-[11px] sm:text-xs text-slate-500 mt-0.5 leading-relaxed">
@@ -772,10 +707,10 @@ export const Settings = () => {
           </div>
 
           {/* Section A: Low Stock Carton Warning (Real Categories Only) */}
-          <div className="space-y-4 bg-slate-50/70 border border-slate-200/80 rounded-2xl p-4 sm:p-5">
+          <div className="space-y-4 bg-slate-50/70 border border-slate-200 rounded-2xl p-4 sm:p-5">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-xs sm:text-sm font-black text-slate-900 flex items-center gap-2">
+                <h3 className="text-xs sm:text-sm font-semibold text-slate-900 flex items-center gap-2">
                   <Sliders className="w-4 h-4 text-brand-green-600" /> Low Stock Carton Thresholds
                 </h3>
                 <p className="text-[11px] sm:text-xs text-slate-500 mt-0.5">
@@ -808,7 +743,7 @@ export const Settings = () => {
                   max="1000"
                   value={alertsForm.lowStockThreshold}
                   onChange={(e) => setAlertsForm((prev) => ({ ...prev, lowStockThreshold: parseInt(e.target.value, 10) || 0 }))}
-                  className="w-28 text-center text-sm font-black p-2 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-green-500/20 outline-none"
+                  className="w-28 text-center text-sm font-semibold p-2 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-green-500/20 outline-none"
                 />
                 <span className="text-xs font-bold text-slate-500">Cartons</span>
               </div>
@@ -817,7 +752,7 @@ export const Settings = () => {
             {/* Store Categories & Carton Alert Thresholds */}
             <div className="space-y-4 pt-3 border-t border-slate-200/60">
               <div>
-                <span className="text-xs sm:text-sm font-black text-slate-800 block">
+                <span className="text-xs sm:text-sm font-semibold text-slate-800 block">
                   Product Categories &amp; Carton Alert Thresholds
                 </span>
                 <p className="text-[11px] text-slate-500 mt-0.5">
@@ -826,8 +761,8 @@ export const Settings = () => {
               </div>
 
               {/* Add Custom Category Form */}
-              <div className="p-3 sm:p-4 bg-white border border-slate-200/90 rounded-2xl shadow-2xs space-y-2">
-                <span className="text-[10px] font-extrabold uppercase text-slate-500 tracking-wider block">
+              <div className="p-3 sm:p-4 bg-white border border-slate-200 rounded-2xl shadow-none space-y-2">
+                <span className="text-[10px] font-semibold uppercase text-slate-500 tracking-wider block">
                   Add New Store Category
                 </span>
                 <form
@@ -844,7 +779,7 @@ export const Settings = () => {
                   <button
                     type="submit"
                     disabled={addingCategory || !newCategoryName.trim()}
-                    className="px-4 py-2.5 rounded-xl bg-brand-green-600 hover:bg-brand-green-700 text-white text-xs font-bold transition flex items-center justify-center gap-1.5 shrink-0 shadow-xs active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-4 py-2.5 rounded-xl bg-brand-green-600 hover:bg-brand-green-700 text-white text-xs font-bold transition flex items-center justify-center gap-1.5 shrink-0 shadow-none  disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <Plus className="w-3.5 h-3.5" />
                     <span>{addingCategory ? "Creating..." : "Add Category"}</span>
@@ -863,10 +798,10 @@ export const Settings = () => {
                   return (
                     <div
                       key={cat}
-                      className="flex flex-col justify-between p-3.5 bg-white border border-slate-200/80 rounded-2xl shadow-2xs hover:border-slate-300 transition-all gap-3"
+                      className="flex flex-col justify-between p-3.5 bg-white border border-slate-200 rounded-2xl shadow-none hover:border-slate-300 transition-all gap-3"
                     >
                       <div className="flex items-center justify-between gap-1">
-                        <span className="text-xs font-black text-slate-800 truncate" title={cat}>
+                        <span className="text-xs font-semibold text-slate-800 truncate" title={cat}>
                           {cat}
                         </span>
                         <div className="flex items-center gap-1 shrink-0">
@@ -910,7 +845,7 @@ export const Settings = () => {
                                 },
                               }));
                             }}
-                            className="w-16 text-center text-xs font-black p-1.5 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:bg-white focus:ring-2 focus:ring-brand-green-500/20"
+                            className="w-16 text-center text-xs font-semibold p-1.5 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:bg-white focus:ring-2 focus:ring-brand-green-500/20"
                           />
                           <span className="text-[10px] text-slate-500 font-bold">ctns</span>
                         </div>
@@ -923,10 +858,10 @@ export const Settings = () => {
           </div>
 
           {/* Section B: Automated Email Order Notifications */}
-          <div className="space-y-4 bg-slate-50/70 border border-slate-200/80 rounded-2xl p-4 sm:p-5">
+          <div className="space-y-4 bg-slate-50/70 border border-slate-200 rounded-2xl p-4 sm:p-5">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-xs sm:text-sm font-black text-slate-900 flex items-center gap-2">
+                <h3 className="text-xs sm:text-sm font-semibold text-slate-900 flex items-center gap-2">
                   <Mail className="w-4 h-4 text-emerald-600" /> Automated Email Order Notifications
                 </h3>
                 <p className="text-[11px] sm:text-xs text-slate-500 mt-0.5">
@@ -959,7 +894,7 @@ export const Settings = () => {
                 type="button"
                 onClick={handleTestEmail}
                 disabled={testingEmail}
-                className="px-4 py-2.5 bg-white hover:bg-emerald-50 text-emerald-800 border border-emerald-300 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shrink-0 shadow-2xs active:scale-95 disabled:opacity-50"
+                className="px-4 py-2.5 bg-white hover:bg-emerald-50 text-emerald-800 border border-emerald-300 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shrink-0 shadow-none  disabled:opacity-50"
               >
                 <Mail className="w-3.5 h-3.5 text-emerald-600" />
                 <span>{testingEmail ? "Sending Ping..." : "Send Test Email Ping"}</span>
@@ -968,9 +903,9 @@ export const Settings = () => {
           </div>
 
           {/* Section C: In-App Audible Chimes (Working Sound Synthesizer) */}
-          <div className="bg-slate-50/70 border border-slate-200/80 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="bg-slate-50/70 border border-slate-200 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="space-y-0.5">
-              <span className="text-xs sm:text-sm font-black text-slate-900 flex items-center gap-2">
+              <span className="text-xs sm:text-sm font-semibold text-slate-900 flex items-center gap-2">
                 <Volume2 className="w-4 h-4 text-brand-green-600" /> In-App Audible Notification Chime
               </span>
               <p className="text-[11px] sm:text-xs text-slate-500">
@@ -982,7 +917,7 @@ export const Settings = () => {
               <button
                 type="button"
                 onClick={() => playNotificationChime()}
-                className="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-800 rounded-xl text-xs font-bold transition flex items-center gap-1.5 active:scale-95"
+                className="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-800 rounded-xl text-xs font-bold transition flex items-center gap-1.5 "
               >
                 <Play className="w-3 h-3 text-slate-700" />
                 <span>Test Sound</span>
@@ -1006,7 +941,7 @@ export const Settings = () => {
               type="button"
               onClick={handleSaveAlerts}
               disabled={savingAlerts}
-              className="px-5 py-2.5 bg-brand-green-600 hover:bg-brand-green-700 text-white rounded-xl text-xs sm:text-sm font-bold shadow-xs transition flex items-center gap-2 disabled:opacity-50"
+              className="px-5 py-2.5 bg-brand-green-600 hover:bg-brand-green-700 text-white rounded-xl text-xs sm:text-sm font-bold shadow-none transition flex items-center gap-2 disabled:opacity-50"
             >
               <Save className={`w-4 h-4 ${savingAlerts ? "animate-spin" : ""}`} />
               <span>{savingAlerts ? "Saving Preferences..." : "Save Alert Settings"}</span>
@@ -1019,10 +954,10 @@ export const Settings = () => {
       {/* TAB 3: BUSINESS ACCOUNT, CONTACT & STORE INFO (EDITABLE BY ADMIN) */}
       {/* ========================================================= */}
       {activeTab === "store" && (
-        <div className="bg-white border border-slate-200/90 rounded-2xl sm:rounded-3xl p-4 sm:p-7 shadow-xs space-y-6">
+        <div className="bg-white border border-slate-200 rounded-2xl sm:rounded-2xl p-4 sm:p-7 shadow-none space-y-6">
           <div className="border-b border-slate-100 pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div>
-              <h2 className="text-xs sm:text-sm font-black uppercase tracking-wider text-slate-800 flex items-center gap-2">
+              <h2 className="text-xs sm:text-sm font-semibold uppercase tracking-wider text-slate-800 flex items-center gap-2">
                 <Building className="w-4 h-4 text-brand-green-600" /> Business Account, Contact &amp; Physical Store Info
               </h2>
               <p className="text-[11px] sm:text-xs text-slate-500 mt-0.5 leading-relaxed">
@@ -1043,10 +978,10 @@ export const Settings = () => {
           {isAdmin ? (
             <form onSubmit={handleSaveLocation} className="space-y-6">
               {/* Section 1: Business Identity & Invoice Branding */}
-              <div className="space-y-4 bg-slate-50/70 border border-slate-200/80 rounded-2xl p-4 sm:p-5">
+              <div className="space-y-4 bg-slate-50/70 border border-slate-200 rounded-2xl p-4 sm:p-5">
                 <div className="flex items-center justify-between border-b border-slate-200/70 pb-2.5">
                   <div>
-                    <span className="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
                       <Building className="w-3.5 h-3.5 text-brand-green-600" /> 1. Business Identity &amp; Invoice Branding
                     </span>
                     <p className="text-[11px] text-slate-500 mt-0.5">
@@ -1074,7 +1009,7 @@ export const Settings = () => {
                       value={locationForm.brandTitle}
                       onChange={(e) => setLocationForm((prev) => ({ ...prev, brandTitle: e.target.value }))}
                       placeholder="VINOFF WHOLESALES"
-                      className="w-full text-xs sm:text-sm p-2.5 bg-white border border-slate-200 rounded-xl focus:border-brand-green-500 focus:ring-2 focus:ring-brand-green-500/20 outline-none font-black text-slate-800 uppercase"
+                      className="w-full text-xs sm:text-sm p-2.5 bg-white border border-slate-200 rounded-xl focus:border-brand-green-500 focus:ring-2 focus:ring-brand-green-500/20 outline-none font-semibold text-slate-800 uppercase"
                     />
                   </div>
 
@@ -1090,7 +1025,7 @@ export const Settings = () => {
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-700">Invoice Watermark Text</label>
+                    <label className="text-xs font-bold text-slate-700">Document Watermark Text</label>
                     <input
                       type="text"
                       value={locationForm.watermarkText}
@@ -1098,6 +1033,7 @@ export const Settings = () => {
                       placeholder="VINOFF & CO.NIG.LTD"
                       className="w-full text-xs sm:text-sm p-2.5 bg-white border border-slate-200 rounded-xl focus:border-brand-green-500 focus:ring-2 focus:ring-brand-green-500/20 outline-none font-mono font-bold text-slate-800 uppercase"
                     />
+                    <p className="text-[11px] leading-relaxed text-slate-500">A subtle company watermark on every PDF page, including invoices and reports.</p>
                   </div>
 
                   <div className="space-y-1.5 sm:col-span-2">
@@ -1117,7 +1053,7 @@ export const Settings = () => {
                       type="text"
                       value={locationForm.footerNote}
                       onChange={(e) => setLocationForm((prev) => ({ ...prev, footerNote: e.target.value }))}
-                      placeholder="Wire payments transfer slips proof must be submitted in support chats to begin packing and logistics."
+                      placeholder="Pay securely with Paystack. Payments are confirmed automatically."
                       className="w-full text-xs sm:text-sm p-2.5 bg-white border border-slate-200 rounded-xl focus:border-brand-green-500 focus:ring-2 focus:ring-brand-green-500/20 outline-none font-medium text-slate-800"
                     />
                   </div>
@@ -1125,10 +1061,10 @@ export const Settings = () => {
               </div>
 
               {/* Section 2: Phone Numbers & Email Contacts */}
-              <div className="space-y-4 bg-slate-50/70 border border-slate-200/80 rounded-2xl p-4 sm:p-5">
+              <div className="space-y-4 bg-slate-50/70 border border-slate-200 rounded-2xl p-4 sm:p-5">
                 <div className="flex items-center justify-between border-b border-slate-200/70 pb-2.5">
                   <div>
-                    <span className="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
                       <Phone className="w-3.5 h-3.5 text-brand-green-600" /> 2. Business Phone Numbers &amp; Email Addresses
                     </span>
                     <p className="text-[11px] text-slate-500 mt-0.5">
@@ -1185,10 +1121,10 @@ export const Settings = () => {
               </div>
 
               {/* Section 3: Physical Warehouse & Store Location */}
-              <div className="space-y-4 bg-slate-50/70 border border-slate-200/80 rounded-2xl p-4 sm:p-5">
+              <div className="space-y-4 bg-slate-50/70 border border-slate-200 rounded-2xl p-4 sm:p-5">
                 <div className="flex items-center justify-between border-b border-slate-200/70 pb-2.5">
                   <div>
-                    <span className="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
                       <MapPin className="w-3.5 h-3.5 text-brand-green-600" /> 3. Physical Warehouse Address &amp; Operating Hours
                     </span>
                     <p className="text-[11px] text-slate-500 mt-0.5">
@@ -1270,7 +1206,7 @@ export const Settings = () => {
                 <button
                   type="submit"
                   disabled={savingLocation}
-                  className="px-5 py-2.5 bg-brand-green-600 hover:bg-brand-green-700 text-white rounded-xl text-xs sm:text-sm font-bold shadow-xs transition flex items-center gap-2 disabled:opacity-50"
+                  className="px-5 py-2.5 bg-brand-green-600 hover:bg-brand-green-700 text-white rounded-xl text-xs sm:text-sm font-bold shadow-none transition flex items-center gap-2 disabled:opacity-50"
                 >
                   <Save className={`w-4 h-4 ${savingLocation ? "animate-spin" : ""}`} />
                   <span>{savingLocation ? "Saving Changes..." : "Save Business & Store Details"}</span>
@@ -1282,26 +1218,26 @@ export const Settings = () => {
           {/* Live Previews Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {/* Live Website & Store Address Display Card */}
-            <div className="bg-slate-900 text-white rounded-xl sm:rounded-2xl p-4 sm:p-5 space-y-2.5 border border-slate-800 shadow-xs flex flex-col justify-between">
+            <div className="bg-white text-slate-800 rounded-xl sm:rounded-2xl p-4 sm:p-5 space-y-2.5 border border-slate-200 shadow-none flex flex-col justify-between">
               <div className="space-y-2">
-                <span className="text-[10px] font-extrabold uppercase text-amber-400 tracking-wider block">
+                <span className="text-[10px] font-semibold uppercase text-slate-500 tracking-wider block">
                   Live Website &amp; Physical Store Card Preview
                 </span>
                 <div>
-                  <p className="text-sm sm:text-base font-black text-white tracking-tight">
+                  <p className="text-sm sm:text-base font-semibold text-slate-900 tracking-tight">
                     {locationForm.businessName || "Vinoff Wholesales Ltd"}
                   </p>
-                  <p className="text-[11px] text-emerald-400 font-semibold">
+                  <p className="text-[11px] text-emerald-700 font-semibold">
                     {locationForm.tagline}
                   </p>
                 </div>
-                <p className="text-xs sm:text-sm font-black leading-relaxed text-slate-100 pt-1">
+                <p className="text-xs sm:text-sm font-medium leading-relaxed text-slate-700 pt-1">
                   {locationForm.shopAddress}<br />
                   {locationForm.complexArea}<br />
                   {locationForm.cityState}
                 </p>
               </div>
-              <div className="pt-3 border-t border-slate-800/80 flex flex-wrap gap-x-4 gap-y-1.5 text-[11px] text-slate-300 font-medium">
+              <div className="pt-3 border-t border-slate-200 flex flex-wrap gap-x-4 gap-y-1.5 text-[11px] text-slate-600 font-medium">
                 <span className="inline-flex items-center gap-1.5">
                   <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                   {locationForm.operatingHours}
@@ -1318,14 +1254,10 @@ export const Settings = () => {
             </div>
 
             {/* Live Invoice Header Preview Card */}
-            <div className="bg-white border-2 border-slate-200 rounded-xl sm:rounded-2xl p-4 sm:p-5 relative overflow-hidden flex flex-col justify-between shadow-2xs">
-              <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none overflow-hidden">
-                <span className="text-slate-900/[0.04] font-black text-2xl sm:text-3xl tracking-widest uppercase -rotate-12 whitespace-nowrap">
-                  {locationForm.watermarkText || "VINOFF & CO.NIG.LTD"}
-                </span>
-              </div>
+            <div className="bg-white border-2 border-slate-200 rounded-xl sm:rounded-2xl p-4 sm:p-5 relative overflow-hidden flex flex-col justify-between shadow-none">
+              <DocumentWatermark text={locationForm.watermarkText} />
               <div className="relative z-10 space-y-2">
-                <span className="text-[10px] font-extrabold uppercase text-brand-green-700 tracking-wider block">
+                <span className="text-[10px] font-semibold uppercase text-brand-green-700 tracking-wider block">
                   Live Invoice Header &amp; Watermark Preview
                 </span>
                 <div className="flex items-start gap-3 pt-1">
@@ -1335,7 +1267,7 @@ export const Settings = () => {
                     className="w-10 h-10 rounded-xl object-contain border border-slate-200 bg-white p-1 shrink-0"
                   />
                   <div className="min-w-0">
-                    <h4 className="text-sm sm:text-base font-black text-slate-900 tracking-tight uppercase truncate">
+                    <h4 className="text-sm sm:text-base font-semibold text-slate-900 tracking-tight uppercase truncate">
                       {locationForm.brandTitle || "VINOFF WHOLESALES"}
                     </h4>
                     <p className="text-[11px] text-slate-500 font-medium truncate">
@@ -1362,10 +1294,10 @@ export const Settings = () => {
 
           {/* Video Walkthrough Player */}
           <div className="space-y-3">
-            <h3 className="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-2">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-800 flex items-center gap-2">
               <Video className="w-4 h-4 text-brand-green-600" /> Walk-in Store Location &amp; Direction Video
             </h3>
-            <div className="rounded-xl sm:rounded-2xl overflow-hidden border border-slate-200 bg-slate-950 shadow-sm max-w-2xl mx-auto w-full aspect-video sm:aspect-auto">
+            <div className="rounded-xl sm:rounded-2xl overflow-hidden border border-slate-200 bg-slate-950 shadow-none max-w-2xl mx-auto w-full aspect-video sm:aspect-auto">
               <video
                 src={locationForm.walkthroughVideoUrl || "/store/VINOFF_CO_walkthrough.MP4"}
                 controls
@@ -1388,10 +1320,10 @@ export const Settings = () => {
       {/* TAB 4: SESSION MANAGER & DEVICE HISTORY */}
       {/* ========================================================= */}
       {activeTab === "sessions" && (
-        <div className="bg-white border border-slate-200/90 rounded-2xl sm:rounded-3xl p-4 sm:p-7 shadow-xs space-y-6">
+        <div className="bg-white border border-slate-200 rounded-2xl sm:rounded-2xl p-4 sm:p-7 shadow-none space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
             <div>
-              <h2 className="text-xs sm:text-sm font-black uppercase tracking-wider text-slate-800 flex items-center gap-2">
+              <h2 className="text-xs sm:text-sm font-semibold uppercase tracking-wider text-slate-800 flex items-center gap-2">
                 <Smartphone className="w-4 h-4 text-brand-green-600" /> Active Login Sessions &amp; Device History
               </h2>
               <p className="text-[11px] sm:text-xs text-slate-500 mt-0.5 leading-relaxed">
@@ -1403,7 +1335,7 @@ export const Settings = () => {
               type="button"
               onClick={handleRevokeOtherSessions}
               disabled={revokingOthers || sessions.length <= 1}
-              className="self-start sm:self-auto px-4 py-2 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 rounded-xl text-xs font-bold transition flex items-center gap-2 disabled:opacity-50 shadow-xs active:scale-95"
+              className="self-start sm:self-auto px-4 py-2 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 rounded-xl text-xs font-bold transition flex items-center gap-2 disabled:opacity-50 shadow-none "
             >
               <LogOut className={`w-3.5 h-3.5 ${revokingOthers ? "animate-spin" : ""}`} />
               <span>{revokingOthers ? "Revoking..." : "Log Out of All Other Devices"}</span>
@@ -1431,7 +1363,7 @@ export const Settings = () => {
                     className={`p-4 rounded-xl sm:rounded-2xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
                       isCurrent
                         ? "bg-emerald-50/50 border-emerald-200"
-                        : "bg-slate-50/70 border-slate-200/80 hover:bg-slate-50"
+                        : "bg-slate-50/70 border-slate-200 hover:bg-slate-50"
                     }`}
                   >
                     <div className="flex items-start gap-3">
@@ -1447,11 +1379,11 @@ export const Settings = () => {
 
                       <div className="space-y-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-extrabold text-slate-900 text-xs sm:text-sm">
+                          <span className="font-semibold text-slate-900 text-xs sm:text-sm">
                             {sess.device || "Desktop"}
                           </span>
                           {isCurrent && (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-black bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full border border-emerald-300">
+                            <span className="inline-flex items-center gap-1 text-[10px] font-semibold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full border border-emerald-300">
                               <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
                               This Current Device
                             </span>
@@ -1489,7 +1421,7 @@ export const Settings = () => {
                         type="button"
                         onClick={() => handleRevokeSingleSession(sess.sessionId)}
                         disabled={revokingId === sess.sessionId}
-                        className="self-start sm:self-auto text-xs font-bold text-red-600 hover:text-red-700 hover:bg-red-50 px-3 py-1.5 rounded-lg border border-red-100 transition active:scale-95 disabled:opacity-50 flex items-center gap-1"
+                        className="self-start sm:self-auto text-xs font-bold text-red-600 hover:text-red-700 hover:bg-red-50 px-3 py-1.5 rounded-lg border border-red-100 transition  disabled:opacity-50 flex items-center gap-1"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                         <span>{revokingId === sess.sessionId ? "Revoking..." : "Revoke Session"}</span>
@@ -1513,87 +1445,24 @@ export const Settings = () => {
       {/* ========================================================= */}
       {/* TAB 5: BANK ACCOUNT DETAILS (ADMIN) */}
       {/* ========================================================= */}
-      {activeTab === "bank_details" && isAdmin && (
-        <div className="bg-white border border-slate-200/90 rounded-2xl sm:rounded-3xl p-4 sm:p-7 shadow-xs space-y-4 sm:space-y-6">
+      {activeTab === "payments" && isAdmin && (
+        <div className="bg-white border border-slate-200 rounded-2xl sm:rounded-2xl p-4 sm:p-7 shadow-none space-y-4 sm:space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
             <div>
-              <h2 className="text-xs sm:text-sm font-black uppercase tracking-wider text-slate-800 flex items-center gap-2">
-                <Landmark className="w-4 h-4 text-brand-green-600" /> Company Bank Account &amp; Wire Details
+              <h2 className="text-xs sm:text-sm font-semibold uppercase tracking-wider text-slate-800 flex items-center gap-2">
+                <Landmark className="w-4 h-4 text-brand-green-600" /> Paystack Payments
               </h2>
               <p className="text-[11px] sm:text-xs text-slate-500 mt-0.5 leading-relaxed">
-                These payment details are displayed live on the Checkout page, Invoice views, and PDF invoice downloads.
+                Customers pay securely from checkout, their orders, or invoices. Successful payments are verified automatically.
               </p>
             </div>
 
-            <span className="self-start sm:self-auto inline-flex items-center gap-1.5 text-[11px] sm:text-xs font-extrabold text-emerald-800 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-xl shadow-2xs">
+            <span className="self-start sm:self-auto inline-flex items-center gap-1.5 text-[11px] sm:text-xs font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-xl shadow-none">
               <Shield className="w-3.5 h-3.5 text-emerald-600" /> Admin Access (Edit Rights)
             </span>
           </div>
 
-          <form onSubmit={handleSaveBankDetails} className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-700">Bank Name</label>
-                <input
-                  type="text"
-                  disabled={!isAdmin || savingBank}
-                  value={bankForm.bankName}
-                  onChange={(e) => setBankForm((prev) => ({ ...prev, bankName: e.target.value }))}
-                  placeholder="e.g. Guaranty Trust Bank (GTB)"
-                  className="w-full text-xs sm:text-sm p-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-brand-green-500 focus:ring-2 focus:ring-brand-green-500/20 transition-all font-semibold text-slate-800 outline-none disabled:opacity-75 disabled:cursor-not-allowed"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-700">Account Number</label>
-                <input
-                  type="text"
-                  disabled={!isAdmin || savingBank}
-                  value={bankForm.accountNumber}
-                  onChange={(e) => setBankForm((prev) => ({ ...prev, accountNumber: e.target.value }))}
-                  placeholder="e.g. 0123456789"
-                  className="w-full text-xs sm:text-sm p-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-brand-green-500 focus:ring-2 focus:ring-brand-green-500/20 transition-all font-mono font-bold text-slate-800 outline-none disabled:opacity-75 disabled:cursor-not-allowed"
-                />
-              </div>
-
-              <div className="space-y-1.5 sm:col-span-2">
-                <label className="text-xs font-bold text-slate-700">Account Name (Beneficiary)</label>
-                <input
-                  type="text"
-                  disabled={!isAdmin || savingBank}
-                  value={bankForm.accountName}
-                  onChange={(e) => setBankForm((prev) => ({ ...prev, accountName: e.target.value }))}
-                  placeholder="e.g. Vinoff Wholesales Ltd"
-                  className="w-full text-xs sm:text-sm p-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-brand-green-500 focus:ring-2 focus:ring-brand-green-500/20 transition-all font-semibold text-slate-800 outline-none disabled:opacity-75 disabled:cursor-not-allowed"
-                />
-              </div>
-
-              <div className="space-y-1.5 sm:col-span-2">
-                <label className="text-xs font-bold text-slate-700">Payment Narration Instructions</label>
-                <textarea
-                  rows={2}
-                  disabled={!isAdmin || savingBank}
-                  value={bankForm.instructions}
-                  onChange={(e) => setBankForm((prev) => ({ ...prev, instructions: e.target.value }))}
-                  placeholder="e.g. Please use your Order # or Invoice # as the transfer payment narration."
-                  className="w-full text-xs sm:text-sm p-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-brand-green-500 focus:ring-2 focus:ring-brand-green-500/20 transition-all font-medium text-slate-800 outline-none disabled:opacity-75 disabled:cursor-not-allowed"
-                />
-              </div>
-            </div>
-
-            {isAdmin && (
-              <div className="pt-2 flex justify-end">
-                <button
-                  type="submit"
-                  disabled={savingBank}
-                  className="px-5 py-2.5 bg-brand-green-600 hover:bg-brand-green-700 text-white rounded-xl text-xs sm:text-sm font-bold shadow-xs transition flex items-center gap-2 disabled:opacity-50"
-                >
-                  <Save className={`w-4 h-4 ${savingBank ? "animate-spin" : ""}`} />
-                  <span>{savingBank ? "Saving..." : "Save Bank Details"}</span>
-                </button>
-              </div>
-            )}
-          </form>
+          <div className="space-y-3 text-sm leading-relaxed text-slate-600"><p>No payment screenshot or receipt upload is required. Staff should not manually mark payments confirmed.</p><p>If a customer reports a charge without an updated order, check the existing Paystack reference before asking them to pay again.</p><p>Secret keys and webhook settings are configured on the backend. Settlement bank accounts are managed in the Paystack dashboard, not here.</p><a href="https://dashboard.paystack.com" target="_blank" rel="noopener noreferrer" className="inline-block rounded-lg border border-slate-200 px-4 py-2 text-xs font-semibold text-brand-green-800">Open Paystack Dashboard</a></div>
         </div>
       )}
     </div>

@@ -15,6 +15,7 @@ import {
   Upload,
 } from "lucide-react";
 import Button from "../../components/ui/Button";
+import ReorderButton from '../../components/orders/ReorderButton';
 
 export const OrdersList = () => {
   const [orders, setOrders] = useState([]);
@@ -71,7 +72,7 @@ export const OrdersList = () => {
             My Wholesale Orders
           </h1>
           <p className="text-xs text-slate-500 font-medium mt-0.5 leading-relaxed">
-            View orders, upload payment confirmation slips, and track dispatch status.
+            View orders, pay securely with Paystack, reorder previous purchases, and track delivery.
           </p>
         </div>
 
@@ -151,7 +152,7 @@ export const OrdersList = () => {
                   <Badge status={order.status} className="text-[10px]" />
                   {order.paymentScreenshot?.url && order.status === "Awaiting Confirmation" && (
                     <span className="text-[10px] font-bold bg-amber-100/90 text-amber-800 px-2 py-0.5 rounded-full border border-amber-200/60">
-                      Proof Uploaded
+                      Historical Receipt
                     </span>
                   )}
                 </div>
@@ -193,6 +194,7 @@ export const OrdersList = () => {
               </div>
 
               <div className="flex items-center justify-between md:justify-end gap-4 pt-2.5 md:pt-0 border-t md:border-t-0 border-slate-100">
+                <ReorderButton orderId={order._id} />
                 <div className="text-left md:text-right">
                   <p className="text-base font-black text-slate-900">
                     {formatCurrency(order.totalAmount)}

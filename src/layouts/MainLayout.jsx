@@ -32,6 +32,7 @@ import api from "../services/api";
 import { unwrapApiList } from "../utils/apiResponse";
 import { trackPageView } from "../utils/trafficTracker";
 import StoreNoticeBanner from "../components/common/StoreNoticeBanner";
+import { getAdminLandingPath } from '../utils/staffPermissions';
 
 export const MainLayout = () => {
   const { user, logout, isAdmin, refreshUser } = useContext(AuthContext);
@@ -228,7 +229,7 @@ export const MainLayout = () => {
             <div className="hidden md:flex items-center gap-3">
               {isAdmin && (
                 <Link
-                  to="/admin/dashboard"
+                  to={getAdminLandingPath(user)}
                   className="flex items-center gap-1 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 text-xs font-semibold px-3 py-1.5 rounded-lg transition-all"
                 >
                   <ShieldAlert className="w-3.5 h-3.5" />
@@ -514,7 +515,7 @@ export const MainLayout = () => {
 
             {isAdmin && (
               <Link
-                to="/admin/dashboard"
+                to={getAdminLandingPath(user)}
                 onClick={() => setMobileMenuOpen(false)}
                 className="block px-3.5 py-2.5 rounded-xl bg-amber-50 text-amber-800 text-sm font-bold border border-amber-200 mt-2"
               >
@@ -671,7 +672,7 @@ export const MainLayout = () => {
               </h4>
               <p className="text-xs leading-relaxed text-slate-400">
                 {businessInfo?.footerNote ||
-                  "Wire payments transfer slips proof must be submitted in support chats to begin packing and logistics."}
+                  "Pay securely with Paystack. Payments are confirmed automatically; no receipt upload is required."}
               </p>
             </div>
           </div>

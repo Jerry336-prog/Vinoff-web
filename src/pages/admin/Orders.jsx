@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useContext } from "react";
+import { AuthContext } from '../../context/AuthContext';
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import api from "../../services/api";
 import { createIdempotencyKey, withIdempotencyKey } from "../../services/idempotency";
@@ -22,11 +23,13 @@ import {
   User,
 } from "lucide-react";
 import Button from "../../components/ui/Button";
+import ExportButton from "../../components/exports/ExportButton";
 import { useToast, toast } from "../../context/ToastContext";
 
 const ORDER_STATUSES = ["Pending Payment", "Processing", "Delivered", "Cancelled"];
 
 export const Orders = () => {
+  const { can } = useContext(AuthContext);
   const [searchParams] = useSearchParams();
   const initialSearch = searchParams.get("order") || searchParams.get("search") || "";
   const [orders, setOrders] = useState([]);
@@ -46,7 +49,6 @@ export const Orders = () => {
 
   // Status updating state
   const [updatingId, setUpdatingId] = useState(null);
-  const [confirmingId, setConfirmingId] = useState(null);
 
   const navigate = useNavigate();
 
@@ -68,35 +70,6 @@ export const Orders = () => {
   }, []);
 
   const { toast, showModal } = useToast();
-
-  const handleConfirmPayment = (orderId) => {
-    showModal({
-      title: "Confirm Payment",
-      message: "Confirm payment for this order? This will mark the linked invoice as Paid and transition status to 'Payment Confirmed'.",
-      confirmText: "Confirm Payment",
-      cancelText: "Cancel",
-      type: "success",
-      onConfirm: async () => {
-        setConfirmingId(orderId);
-        try {
-          const res = await api.post(
-            `/api/orders/${orderId}/confirm-payment`,
-            {},
-            withIdempotencyKey(createIdempotencyKey(`confirm-payment-${orderId}`)),
-          );
-          const updatedOrder = res.data?.order || res.data;
-          setOrders((prev) =>
-            prev.map((o) => (o._id === orderId ? { ...o, ...updatedOrder, status: "Payment Confirmed", paymentStatus: "Confirmed" } : o))
-          );
-          toast.success("Payment verified and confirmed successfully!", "Payment Confirmed");
-        } catch (err) {
-          toast.error(err.message || "Failed to confirm payment", "Confirmation Failed");
-        } finally {
-          setConfirmingId(null);
-        }
-      },
-    });
-  };
 
   const handleStatusChange = async (orderId, newStatus) => {
     setUpdatingId(orderId);
@@ -143,19 +116,22 @@ export const Orders = () => {
             Wholesale Order Processing Desk
           </h1>
           <p className="text-xs text-slate-500 font-medium mt-0.5 leading-relaxed">
-            Review buyer orders, inspect transaction screenshots, confirm bank settlements, and manage dispatch lifecycles.
+            Review orders and Paystack payment status, manage processing, and confirm delivery.
           </p>
         </div>
 
-        <div className="relative w-full sm:w-64 shrink-0">
-          <input
-            type="text"
-            placeholder="Search order #, customer, store..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 pl-9 pr-4 text-xs font-semibold focus:bg-white focus:ring-2 focus:ring-brand-green-500 outline-none"
-          />
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto shrink-0">
+          <ExportButton kind="orders" />
+          <div className="relative w-full sm:w-64">
+            <input
+              type="text"
+              placeholder="Search order #, customer, store..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 pl-9 pr-4 text-xs font-semibold focus:bg-white focus:ring-2 focus:ring-brand-green-500 outline-none"
+            />
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+          </div>
         </div>
       </div>
 
@@ -221,7 +197,7 @@ export const Orders = () => {
                           onClick={() => setSelectedScreenshot(order.paymentScreenshot)}
                           className="inline-flex items-center gap-1 text-[10px] font-bold bg-amber-100/90 text-amber-900 hover:bg-amber-200 px-2.5 py-0.5 rounded-full transition"
                         >
-                          <ImageIcon className="w-3 h-3" /> View Proof
+                          <ImageIcon className="w-3 h-3" /> Historical Receipt
                         </button>
                       )}
                     </div>
@@ -249,7 +225,7 @@ export const Orders = () => {
                     {/* Status Dropdown */}
                     <select
                       value={order.status}
-                      disabled={updatingId === order._id}
+                      disabled={!can('orders.manage') || updatingId === order._id}
                       onChange={(e) => handleStatusChange(order._id, e.target.value)}
                       className="bg-slate-50 border border-slate-200 text-xs font-bold rounded-xl py-1.5 px-3 focus:ring-2 focus:ring-brand-green-500 outline-none flex-1 sm:flex-initial"
                     >
@@ -335,7 +311,7 @@ export const Orders = () => {
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2">
                 <ImageIcon className="w-4 h-4 text-brand-yellow-600" />
-                Payment Proof Inspection
+                Historical Payment Receipt
               </h3>
               <button
                 onClick={() => setSelectedScreenshot(null)}

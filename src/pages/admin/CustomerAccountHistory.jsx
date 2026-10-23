@@ -2,15 +2,13 @@ import React, { useState, useEffect, useMemo } from 'react';
 import api from '../../services/api';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { unwrapApiList } from '../../utils/apiResponse';
-import { exportHistoryCSV, exportHistoryPDF } from '../../utils/exportHistory';
+import ExportButton from '../../components/exports/ExportButton';
 import {
   Users,
-  Download,
   Search,
   Filter,
   Calendar,
   User,
-  FileSpreadsheet,
   RefreshCw,
   ShoppingBag,
   Building2,
@@ -31,7 +29,7 @@ export const CustomerAccountHistory = () => {
     setLoading(true);
     try {
       const [usersRes, ordersRes] = await Promise.all([
-        api.get('/api/users?limit=300').catch(() => ({ data: [] })),
+        api.get('/api/admin/users?limit=100').catch(() => ({ data: [] })),
         api.get('/api/orders?limit=500').catch(() => ({ data: [] })),
       ]);
 
@@ -152,71 +150,6 @@ export const CustomerAccountHistory = () => {
     return { totalAccounts, totalSpendSum, totalCartonsSum };
   }, [filteredCustomers]);
 
-  const handleExportCSV = () => {
-    if (filteredCustomers.length === 0) return;
-
-    const headers = [
-      'Customer Name',
-      'Business Name',
-      'Email Address',
-      'Phone Number',
-      'Account Type',
-      'Total Orders Placed',
-      'Total Cartons Ordered',
-      'Total Lifetime Spend (NGN)',
-      'Last Order Date',
-    ];
-
-    const rows = filteredCustomers.map((cust) => [
-      cust.name,
-      cust.businessName,
-      cust.email,
-      cust.phone,
-      cust.accountType,
-      cust.orderCount,
-      cust.totalCartons,
-      cust.totalSpend,
-      cust.lastOrderDate ? new Date(cust.lastOrderDate).toLocaleDateString() : 'No orders yet',
-    ]);
-
-    exportHistoryCSV(
-      `vinoff_customer_purchase_history_${new Date().toISOString().slice(0, 10)}`,
-      headers,
-      rows
-    );
-  };
-
-  const handleExportPDF = () => {
-    if (filteredCustomers.length === 0) return;
-
-    const headers = [
-      'Customer Name',
-      'Business Outlet',
-      'Email',
-      'Account Type',
-      'Orders',
-      'Cartons',
-      'Total Spend',
-    ];
-
-    const rows = filteredCustomers.map((cust) => [
-      cust.name,
-      cust.businessName,
-      cust.email,
-      cust.accountType,
-      cust.orderCount,
-      `${cust.totalCartons} ctns`,
-      formatCurrency(cust.totalSpend),
-    ]);
-
-    exportHistoryPDF(
-      'Customer Account & Purchase History Audit Report',
-      `vinoff_customer_purchase_history_${new Date().toISOString().slice(0, 10)}`,
-      headers,
-      rows
-    );
-  };
-
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -241,26 +174,8 @@ export const CustomerAccountHistory = () => {
           >
             Refresh
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleExportCSV}
-            disabled={filteredCustomers.length === 0}
-            className="rounded-xl border-slate-200 text-slate-700"
-            icon={FileSpreadsheet}
-          >
-            Download CSV
-          </Button>
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={handleExportPDF}
-            disabled={filteredCustomers.length === 0}
-            className="rounded-xl shadow-sm"
-            icon={Download}
-          >
-            Download PDF
-          </Button>
+          <ExportButton kind="customer-history" label="Download CSV" defaultFormat="csv" />
+          <ExportButton kind="customer-history" label="Download PDF" defaultFormat="pdf" />
         </div>
       </div>
 

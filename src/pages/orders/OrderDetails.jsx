@@ -1,10 +1,9 @@
-import React, { useState, useEffect, useRef, useContext } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { AuthContext } from "../../context/AuthContext";
 import { useBusiness } from "../../context/BusinessContext";
 import api from "../../services/api";
 import { startPayment } from "../../services/paystack";
-import { createIdempotencyKey, withIdempotencyKey } from "../../services/idempotency";
 import { formatCurrency } from "../../utils/formatCurrency";
 import Badge from "../../components/ui/Badge";
 import {
@@ -25,6 +24,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 import Button from "../../components/ui/Button";
+import ReorderButton from '../../components/orders/ReorderButton';
 
 const STATUS_STEPS = ["Payment Confirmed", "Processing", "Delivered"];
 
@@ -32,7 +32,7 @@ export const OrderDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useContext(AuthContext);
-  const { businessInfo, bankDetails } = useBusiness();
+  const { businessInfo } = useBusiness();
   const isAdmin =
     user?.role === "admin" ||
     user?.role === "subAdmin" ||
@@ -43,13 +43,9 @@ export const OrderDetails = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // Payment upload state
-  const [screenshotFile, setScreenshotFile] = useState(null);
-  const [previewUrl, setPreviewUrl] = useState("");
+  // Paystack redirect state
   const [uploading, setUploading] = useState(false);
-  const [uploadSuccess, setUploadSuccess] = useState("");
   const [uploadError, setUploadError] = useState("");
-  const paymentUploadKeyRef = useRef(null);
 
   const fetchOrder = async () => {
     setLoading(true);
@@ -156,6 +152,7 @@ export const OrderDetails = () => {
           </div>
 
           <div className="text-left sm:text-right border-t sm:border-t-0 border-slate-100/60 pt-3 sm:pt-0">
+            {!isAdmin && <div className="mb-3"><ReorderButton orderId={order._id || id} /></div>}
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
               Total Payable
             </span>
@@ -286,13 +283,6 @@ export const OrderDetails = () => {
               <CreditCard className="w-4 h-4 text-brand-yellow-600" />
               Payment Verification
             </h3>
-
-            {uploadSuccess && (
-              <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold p-3 rounded-xl flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
-                <span>{uploadSuccess}</span>
-              </div>
-            )}
 
             {uploadError && (
               <div className="bg-red-50 border border-red-200 text-red-700 text-xs font-bold p-3 rounded-xl flex items-center gap-2">

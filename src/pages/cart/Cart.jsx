@@ -10,8 +10,6 @@ import {
   ShoppingCart,
 } from "lucide-react";
 import Button from "../../components/ui/Button";
-import useCloudinaryUpload from "../../hooks/useCloudinaryUpload";
-import { showModal } from "../../services/ui/modal";
 
 export const Cart = () => {
   const {
@@ -23,12 +21,9 @@ export const Cart = () => {
     subtotal,
     MIN_ORDER_THRESHOLD,
     meetsMinThreshold,
-    dbUpdateOrderPaymentScreenshot,
-    refreshCart,
   } = useContext(CartContext);
 
   const navigate = useNavigate();
-  const { upload: uploadImage, loading: uploadLoading } = useCloudinaryUpload();
 
   const handleCheckout = () => {
     if (meetsMinThreshold) {
@@ -36,28 +31,7 @@ export const Cart = () => {
     }
   };
 
-  const handlePaymentScreenshot = async (file, orderId) => {
-    if (!file) return;
-    try {
-      const res = await uploadImage(file, "payments");
-      // attach to order locally or call service to save
-      await dbUpdateOrderPaymentScreenshot(orderId, res.url);
-      await refreshCart();
-      await showModal({
-        title: "Upload Success",
-        message: "Payment proof uploaded successfully",
-      });
-    } catch (err) {
-      console.error("Payment upload failed", err);
-      await showModal({
-        title: "Upload Failed",
-        message: "Failed to upload payment screenshot: " + (err.message || err),
-      });
-    }
-  };
-
-  const shipping = 15.0; // Mock delivery freight
-  const total = subtotal + shipping;
+  const total = subtotal;
 
   if (cartItems.length === 0) {
     return (
@@ -220,18 +194,6 @@ export const Cart = () => {
                   {formatCurrency(subtotal)}
                 </span>
               </div>
-              <div className="flex items-center justify-between text-slate-500">
-                <span>VAT (7.5%)</span>
-                <span className="font-bold text-slate-800">
-                  {formatCurrency(0)}
-                </span>
-              </div>
-              <div className="flex items-center justify-between text-slate-500">
-                <span>Estimated Freight Fee</span>
-                <span className="font-bold text-slate-800">
-                  {formatCurrency(shipping)}
-                </span>
-              </div>
               <div className="border-t border-slate-100 pt-3 flex items-center justify-between text-sm font-black text-slate-900">
                 <span>Grand Total</span>
                 <span className="text-base text-brand-green-700">
@@ -247,15 +209,15 @@ export const Cart = () => {
               className="w-full py-3.5 rounded-2xl mt-4"
               icon={ArrowRight}
             >
-              Proceed to Wire Details
+              Proceed to Checkout
             </Button>
 
             <div className="bg-slate-50 border border-slate-200/50 rounded-xl p-3 text-[10px] text-slate-500 leading-relaxed flex gap-2">
               <ShieldCheck className="w-4 h-4 text-brand-green-600 flex-shrink-0" />
               <span>
-                By proceeding, you will generate a wholesale invoice. Wire
-                payment instructions and screenshot attachments can be completed
-                on the next page.
+                Review your order at checkout and pay securely with Paystack.
+                Approved VIP credit partners may choose available credit instead.
+                Reordering does not place an order or charge you automatically.
               </span>
             </div>
           </div>

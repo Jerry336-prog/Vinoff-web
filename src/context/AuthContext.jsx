@@ -2,6 +2,7 @@ import React, { createContext, useState, useEffect, useCallback } from "react";
 import api from "../services/api";
 import { unwrapApiRecord } from "../utils/apiResponse";
 import { getAvatarUrl } from "../utils/avatar";
+import { hasStaffPermission, isSuperAdminUser } from '../utils/staffPermissions';
 
 export const AuthContext = createContext(null);
 
@@ -23,6 +24,8 @@ const normalizeUser = (rawUser) => {
     photoURL: avatarUrl,
     isVipCreditPartner: Boolean(rawUser.isVipCreditPartner),
     outstandingCredit,
+    creditLimit: Number(rawUser.creditLimit || 0),
+    availableCredit: Math.max(0, Number(rawUser.creditLimit || 0) - outstandingCredit),
     isOwingCredit: outstandingCredit > 0,
   };
 };
@@ -172,10 +175,7 @@ export const AuthProvider = ({ children }) => {
     user?.role === "subAdmin" ||
     user?.role === "superadmin" ||
     user?.role === "super_admin";
-  const isSuperAdmin =
-    user?.role === "superadmin" ||
-    user?.role === "super_admin" ||
-    user?.role === "admin";
+  const isSuperAdmin = isSuperAdminUser(user);
 
   const value = {
     user,
@@ -188,6 +188,7 @@ export const AuthProvider = ({ children }) => {
     refreshUser,
     isAdmin,
     isSuperAdmin,
+    can: permission => hasStaffPermission(user, permission),
     isAuthenticated: !!user,
   };
 

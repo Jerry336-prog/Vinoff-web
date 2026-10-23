@@ -5,6 +5,7 @@ import { startPayment } from "../../services/paystack";
 import { createIdempotencyKey, withIdempotencyKey } from "../../services/idempotency";
 import { formatCurrency } from "../../utils/formatCurrency";
 import Badge from "../../components/ui/Badge";
+import DocumentWatermark from '../../components/ui/DocumentWatermark';
 import { AuthContext } from "../../context/AuthContext";
 import { useBusiness } from "../../context/BusinessContext";
 import {
@@ -24,17 +25,21 @@ import Button from "../../components/ui/Button";
 import { downloadInvoicePDF, createInvoicePDFFile } from "../../utils/generatePDF";
 import { useToast } from "../../context/ToastContext";
 import { unwrapApiList, unwrapApiRecord } from "../../utils/apiResponse";
+import { fetchInvoiceForExport, hasInvoiceStamp, isInvoiceStampRequiredError, showInvoiceStampNotice } from '../../services/invoice/downloadAccess';
 
 export const CustomerInvoiceDetails = () => {
   const { toast, showModal, showPrompt } = useToast();
-  const { user } = useContext(AuthContext);
-  const { businessInfo, bankDetails: contextBankDetails } = useBusiness();
+  const { user, can } = useContext(AuthContext);
+  const { businessInfo } = useBusiness();
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
   const isAdminView = location.pathname.startsWith("/admin");
+  const canManageInvoice = isAdminView && can('invoices.manage');
 
   const [invoice, setInvoice] = useState(null);
+  const invoiceStamped = hasInvoiceStamp(invoice);
+  const customerDownloadLocked = !isAdminView && !invoiceStamped;
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [downloading, setDownloading] = useState(false);
@@ -51,19 +56,6 @@ export const CustomerInvoiceDetails = () => {
   });
 
   const [products, setProducts] = useState([]);
-  const [bankDetails, setBankDetails] = useState({
-    bankName: contextBankDetails?.bankName || "Guaranty Trust Bank (GTB)",
-    accountName: contextBankDetails?.accountName || "Vinoff Wholesales Ltd",
-    accountNumber: contextBankDetails?.accountNumber || "0123456789",
-    instructions: contextBankDetails?.instructions || "",
-  });
-
-  useEffect(() => {
-    if (contextBankDetails?.bankName) {
-      setBankDetails(contextBankDetails);
-    }
-  }, [contextBankDetails]);
-
   useEffect(() => {
     const fetchInvoice = async () => {
       setLoading(true);
@@ -90,10 +82,6 @@ export const CustomerInvoiceDetails = () => {
             throw primaryErr;
           }
         }
-        const cachedStamp = localStorage.getItem(`vinoff_invoice_stamp_${id}`);
-        if (cachedStamp && !data.issuedBy && !data.createdBy) {
-          data.issuedBy = cachedStamp;
-        }
         setInvoice(data);
       } catch (err) {
         setError(err.message || "Failed to load invoice");
@@ -104,17 +92,35 @@ export const CustomerInvoiceDetails = () => {
 
     fetchInvoice();
 
-    api.get("/api/settings/bank-details")
-      .then((res) => {
-        const data = res.data?.data || res.data || res;
-        if (data?.bankName) setBankDetails(data);
-      })
-      .catch(() => {});
-
     api.get("/api/products")
       .then((res) => setProducts(unwrapApiList(res) || []))
       .catch(console.error);
   }, [id]);
+
+  useEffect(() => {
+    if (isAdminView) return;
+    let active = true;
+    let pending = false;
+    const refreshStamp = async () => {
+      if (pending || document.visibilityState !== 'visible') return;
+      pending = true;
+      try {
+        const latest = unwrapApiRecord(await api.get(`/api/invoices/${id}`));
+        if (active && latest) setInvoice(latest);
+      } catch (err) {
+        console.warn('Could not refresh invoice stamp:', err.message);
+      } finally { pending = false; }
+    };
+    const timer = !invoiceStamped ? window.setInterval(refreshStamp, 10000) : null;
+    window.addEventListener('focus', refreshStamp);
+    document.addEventListener('visibilitychange', refreshStamp);
+    return () => {
+      active = false;
+      if (timer) window.clearInterval(timer);
+      window.removeEventListener('focus', refreshStamp);
+      document.removeEventListener('visibilitychange', refreshStamp);
+    };
+  }, [id, isAdminView, invoiceStamped]);
 
   const handleEditProductSelect = (index, selectedId, selectedUnitType = "carton") => {
     const product = products.find((p) => (p.id || p._id) === selectedId);
@@ -154,15 +160,23 @@ export const CustomerInvoiceDetails = () => {
     });
   };
 
-  const handlePrint = () => {
-    window.print();
+  const handlePrint = async () => {
+    if (customerDownloadLocked) { await showInvoiceStampNotice(); return; }
+    try {
+      await fetchInvoiceForExport(invoice, { requireStamp: !isAdminView });
+      window.print();
+    } catch (err) {
+      if (isInvoiceStampRequiredError(err)) await showInvoiceStampNotice();
+      else toast.error(err.message || 'Could not prepare invoice for printing', 'Print Failed');
+    }
   };
 
   const handleDownload = async () => {
     if (!invoice) return;
+    if (customerDownloadLocked) { await showInvoiceStampNotice(); return; }
     setDownloading(true);
     try {
-      await downloadInvoicePDF(invoice);
+      await downloadInvoicePDF(invoice, { requireStamp: !isAdminView });
     } catch (err) {
       // Toast error handled inside downloadInvoicePDF
     } finally {
@@ -171,37 +185,25 @@ export const CustomerInvoiceDetails = () => {
   };
 
   const handleConfirmAndStampInvoice = async () => {
-    const adminName = user?.name || "Jerry Admin";
+    const adminName = user?.name || "Admin";
 
     try {
       setSaving(true);
       const res = await api.patch(
         `/api/invoices/${invoice._id || invoice.id}`,
         { issuedBy: adminName },
-        withIdempotencyKey(createIdempotencyKey(`invoice-paid-${invoice._id || invoice.id}`)),
+        withIdempotencyKey(createIdempotencyKey(`invoice-stamp-${invoice._id || invoice.id}`)),
       );
 
       const updatedRecord = unwrapApiRecord(res);
 
-      try {
-        localStorage.setItem(`vinoff_invoice_stamp_${invoice._id || invoice.id}`, adminName);
-      } catch (e) {
-        console.error(e);
-      }
-
       const updated = {
         ...(invoice || {}),
         ...(updatedRecord || {}),
-        issuedBy: adminName,
-        createdBy: {
-          ...(invoice?.createdBy || {}),
-          name: adminName,
-          firstName: adminName,
-        },
       };
 
       setInvoice(updated);
-      toast.success(`Invoice stamped by ${adminName}`, "Invoice Stamped & Saved");
+      toast.success(`Invoice stamped by ${updated.issuedBy || adminName}. Customer downloads are now available.`, "Invoice Stamped & Saved");
     } catch (err) {
       toast.error(err.message || "Failed to stamp invoice", "Stamp Failed");
     } finally {
@@ -288,7 +290,7 @@ export const CustomerInvoiceDetails = () => {
 
       let pdfFile = null;
       try {
-        pdfFile = await createInvoicePDFFile(invoice);
+        pdfFile = await createInvoicePDFFile(invoice, { requireStamp: !isAdminView });
       } catch (e) {
         console.warn("Could not create PDF file for attachment:", e);
       }
@@ -368,17 +370,11 @@ export const CustomerInvoiceDetails = () => {
     );
   }
 
-  const cachedStamp = invoice ? localStorage.getItem(`vinoff_invoice_stamp_${invoice._id || invoice.id}`) : null;
-
-  const adminIssuerName =
-    invoice?.issuedBy ||
-    cachedStamp ||
-    (typeof invoice?.createdBy === "object"
-      ? (invoice?.createdBy?.name || `${invoice?.createdBy?.firstName || ""} ${invoice?.createdBy?.lastName || ""}`.trim())
-      : invoice?.createdBy);
+  const adminIssuerName = String(invoice.issuedBy || '').trim();
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
+      {!isAdminView && !adminIssuerName && <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs leading-relaxed text-amber-900 print:hidden">Awaiting admin stamp. You can view and pay this invoice, but downloading or printing it will be available after an admin stamps it.</p>}
       {!isAdminView && invoice.status !== 'Paid' && invoice.status !== 'Cancelled' && invoice.status !== 'Draft' && <Button isLoading={saving} onClick={async () => {
         setSaving(true);
         try { await startPayment({ invoiceId: invoice._id || invoice.id }); } catch (err) { toast.error(err.message); setSaving(false); }
@@ -394,7 +390,7 @@ export const CustomerInvoiceDetails = () => {
         </Link>
 
         <div className="flex flex-wrap items-center gap-2">
-          {isAdminView && (
+          {canManageInvoice && (
             <>
               <Button
                 variant="outline"
@@ -421,6 +417,7 @@ export const CustomerInvoiceDetails = () => {
             variant="outline"
             size="sm"
             onClick={handlePrint}
+            disabled={customerDownloadLocked}
             icon={Printer}
             className="rounded-xl text-xs py-1.5 px-3 hidden sm:inline-flex"
           >
@@ -430,6 +427,7 @@ export const CustomerInvoiceDetails = () => {
             variant="primary"
             size="sm"
             onClick={handleDownload}
+            disabled={customerDownloadLocked}
             isLoading={downloading}
             icon={Download}
             className="rounded-xl text-xs py-1.5 px-3"
@@ -441,15 +439,7 @@ export const CustomerInvoiceDetails = () => {
 
       {/* Invoice Document Paper */}
       <div className="bg-white border border-slate-200 rounded-3xl p-4 sm:p-8 md:p-12 shadow-sm space-y-6 sm:space-y-8 relative overflow-hidden print:border-none print:shadow-none print:p-0">
-        {/* Invoice Watermark Overlay */}
-        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none select-none opacity-[0.06] -rotate-12 z-10 overflow-hidden">
-          <p className="text-xl sm:text-4xl font-black text-brand-green-800 tracking-widest uppercase text-center leading-tight">
-            {businessInfo?.watermarkText || "VINOFF & CO.NIG.LTD"}
-          </p>
-          <p className="text-lg sm:text-3xl font-black text-brand-green-800 tracking-widest uppercase text-center leading-tight mt-3">
-            {businessInfo?.watermarkText || "VINOFF & CO.NIG.LTD"}
-          </p>
-        </div>
+        <DocumentWatermark text={businessInfo?.watermarkText} repeatOnPrint />
 
         {/* Document Header */}
         <div className="flex flex-col sm:flex-row justify-between gap-4 sm:gap-6 border-b-2 border-brand-green-800 pb-6 sm:pb-8 relative z-10">
@@ -509,7 +499,7 @@ export const CustomerInvoiceDetails = () => {
                   <span className="w-24 border-b border-dashed border-slate-300 inline-block text-[10px] text-slate-400 text-center">
                     [Unconfirmed]
                   </span>
-                  {isAdminView && (
+                  {canManageInvoice && (
                     <button
                       onClick={handleConfirmAndStampInvoice}
                       className="ml-1 text-[10px] bg-brand-green-50 text-brand-green-800 border border-brand-green-200 px-2 py-0.5 rounded-md font-bold hover:bg-brand-green-100 transition print:hidden"
@@ -619,12 +609,8 @@ export const CustomerInvoiceDetails = () => {
             <strong className="block text-[10px] uppercase text-slate-400 font-bold mb-1">
               Payment Information
             </strong>
-            <p>Account Name: {bankDetails.accountName}</p>
-            <p>Bank: {bankDetails.bankName}</p>
-            <p>Account Number: {bankDetails.accountNumber}</p>
-            {bankDetails.instructions && (
-              <p className="pt-1 text-slate-600 italic">{bankDetails.instructions}</p>
-            )}
+            <p>Pay securely using the Paystack payment button on this invoice.</p>
+            <p>Confirmation is automatic. No payment receipt or screenshot upload is required.</p>
             {invoice.notes && (
               <p className="pt-2 text-slate-600 italic">Notes: {invoice.notes}</p>
             )}
@@ -660,7 +646,7 @@ export const CustomerInvoiceDetails = () => {
         </div>
       </div>
 
-      {isAdminView && isEditOpen && (
+      {canManageInvoice && isEditOpen && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto print:hidden">
           <div className="bg-white rounded-3xl max-w-2xl w-full p-6 space-y-5 shadow-2xl my-8">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">

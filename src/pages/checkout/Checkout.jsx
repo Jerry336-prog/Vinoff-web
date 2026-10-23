@@ -2,7 +2,6 @@ import React, { useContext, useState, useEffect, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { CartContext } from "../../context/CartContext";
 import { AuthContext } from "../../context/AuthContext";
-import { useBusiness } from "../../context/BusinessContext";
 import api from "../../services/api";
 import { payInPopup } from "../../services/paystack";
 import { createIdempotencyKey, withIdempotencyKey } from "../../services/idempotency";
@@ -10,32 +9,25 @@ import { formatCurrency } from "../../utils/formatCurrency";
 import {
   FileText,
   Landmark,
-  Upload,
   CheckCircle2,
   MessageSquare,
-  Loader2,
   ArrowRight,
   ShieldAlert,
   AlertTriangle,
   MapPin,
-  Clock,
   Package,
 } from "lucide-react";
 import { playNotificationChime } from "../../utils/soundEffects";
 import Button from "../../components/ui/Button";
-import Card from "../../components/ui/Card";
 
 export const Checkout = () => {
   const { cartItems, clearCart, subtotal } = useContext(CartContext);
   const { user, refreshUser } = useContext(AuthContext);
-  const { businessInfo, bankDetails: contextBankDetails } = useBusiness();
   const navigate = useNavigate();
 
   const [paymentMethod, setPaymentMethod] = useState(
-    user?.isVipCreditPartner ? "credit" : "paystack"
+    user?.isVipCreditPartner && Number(user.creditLimit || 0) > Number(user.outstandingCredit || 0) ? "credit" : "paystack"
   );
-  const [screenshotFile, setScreenshotFile] = useState(null);
-  const [screenshotPreview, setScreenshotPreview] = useState("");
   const [deliveryAddress, setDeliveryAddress] = useState("");
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -44,35 +36,19 @@ export const Checkout = () => {
   const orderSubmissionKeyRef = useRef(null);
   const pendingOrderRef = useRef(null);
   const submittingRef = useRef(false);
-  const paymentSubmissionKeyRef = useRef(null);
 
   // Ensure latest VIP Credit Partner status is loaded when entering Checkout
   useEffect(() => {
     refreshUser?.().then((freshUser) => {
-      if (freshUser?.isVipCreditPartner) {
+      if (freshUser?.isVipCreditPartner && Number(freshUser.creditLimit || 0) > Number(freshUser.outstandingCredit || 0)) {
         setPaymentMethod("credit");
       }
     });
   }, [refreshUser]);
 
   useEffect(() => {
-    if (user?.isVipCreditPartner) {
-      setPaymentMethod((prev) => (prev === "paystack" ? "credit" : prev));
-    }
+    if (!user?.isVipCreditPartner) setPaymentMethod('paystack');
   }, [user?.isVipCreditPartner]);
-
-  const [bankDetails, setBankDetails] = useState({
-    bankName: contextBankDetails?.bankName || "Guaranty Trust Bank (GTB)",
-    accountName: contextBankDetails?.accountName || "Vinoff Wholesales Ltd",
-    accountNumber: contextBankDetails?.accountNumber || "0123456789",
-    instructions: contextBankDetails?.instructions || "",
-  });
-
-  useEffect(() => {
-    if (contextBankDetails?.bankName) {
-      setBankDetails(contextBankDetails);
-    }
-  }, [contextBankDetails]);
 
   useEffect(() => {
     if (user?.profile?.address) {
@@ -91,13 +67,6 @@ export const Checkout = () => {
 
   // Fetch bank details and store operational status from admin settings
   useEffect(() => {
-    api.get("/api/settings/bank-details")
-      .then((res) => {
-        const data = res.data?.data || res.data || res;
-        if (data?.bankName) setBankDetails(data);
-      })
-      .catch(() => {});
-
     api.get("/api/settings/store-status")
       .then((res) => {
         const data = res.data?.data || res.data || res;
@@ -116,10 +85,14 @@ export const Checkout = () => {
   }, [cartItems.length, navigate, orderConfirmed]);
 
   const estimatedTotal = subtotal;
+  const creditLimit = Number(user?.creditLimit || 0);
+  const availableCredit = Math.max(0, creditLimit - Number(user?.outstandingCredit || 0));
+  const exceedsCredit = user?.isVipCreditPartner && paymentMethod === 'credit' && estimatedTotal > availableCredit;
 
   const handleSubmitOrder = async (e) => {
     e.preventDefault();
     if (cartItems.length === 0 || submittingRef.current) return;
+    if (exceedsCredit) { setErrorMsg('This order exceeds your available credit. Choose Pay with Paystack or contact the store for a limit review.'); return; }
 
     if (storeStatus?.isOpen === false) {
       setErrorMsg(
@@ -360,9 +333,8 @@ export const Checkout = () => {
           </div>
         </div>
 
-        {/* Right Column: Bank Info & Payment Proof */}
+        {/* Payment and credit options */}
         <div className="space-y-6">
-          {/* Payment & Wire Details */}
           <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-4">
             <h3 className="text-xs font-black uppercase tracking-wider text-slate-400 border-b border-slate-100 pb-3 flex items-center gap-2">
               <Landmark className="w-4 h-4 text-brand-yellow-600" />
@@ -390,7 +362,7 @@ export const Checkout = () => {
                         Order on VIP Credit Facility
                       </span>
                       <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">
-                        Instant wholesale fulfillment. Amount is added to your Credit Invoices ledger in NGN.
+                      Place this order within your approved available credit. The amount is added to your credit ledger.
                       </p>
                     </div>
                     <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-amber-200/80 text-amber-950 shrink-0">
@@ -428,8 +400,14 @@ export const Checkout = () => {
                     VIP Credit Partner Summary
                   </span>
                   <span className="text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-md">
-                    Active Facility
+                    {creditLimit > 0 ? 'Approved Facility' : 'Limit Required'}
                   </span>
+                </div>
+                <div className="flex justify-between text-slate-600 pt-1">
+                  <span>Approved Limit:</span><strong className="font-mono text-slate-900">{formatCurrency(creditLimit)}</strong>
+                </div>
+                <div className="flex justify-between text-slate-600">
+                  <span>Available Credit:</span><strong className="font-mono text-brand-green-800">{formatCurrency(availableCredit)}</strong>
                 </div>
                 <div className="flex justify-between text-slate-600 pt-1">
                   <span>Current Credit Owing:</span>
@@ -445,6 +423,7 @@ export const Checkout = () => {
                     {formatCurrency(Number(user?.outstandingCredit || 0) + Number(estimatedTotal || 0))}
                   </strong>
                 </div>
+                {exceedsCredit && <p role="alert" className="pt-2 text-amber-800">This order exceeds your available credit. Choose Pay with Paystack or request a limit review from the store.</p>}
               </div>
             ) : (
               <>
@@ -487,7 +466,7 @@ export const Checkout = () => {
               type="submit"
               variant="primary"
               size="lg"
-              disabled={storeStatus?.isOpen === false || submitting}
+              disabled={storeStatus?.isOpen === false || submitting || exceedsCredit}
               isLoading={submitting}
               className="w-full rounded-2xl mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
               icon={ArrowRight}

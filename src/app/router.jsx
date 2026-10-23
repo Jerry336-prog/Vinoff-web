@@ -1,4 +1,6 @@
 import PaymentReturn from '../pages/checkout/PaymentReturn';
+import StaffAccess from '../pages/admin/StaffAccess';
+import CreditApprovals from '../pages/admin/CreditApprovals';
 import React, { useContext, lazy, Suspense } from 'react';
 import { createBrowserRouter, Navigate, useLocation } from 'react-router-dom';
 import MainLayout from '../layouts/MainLayout';
@@ -225,6 +227,8 @@ export const router = createBrowserRouter([
         path: 'customers/:id',
         element: <AdminCustomerDetail />
       },
+      { path: 'access-control', element: <StaffAccess /> },
+      { path: 'credit-approvals', element: <CreditApprovals /> },
       {
         path: 'inventory',
         element: <AdminInventory />

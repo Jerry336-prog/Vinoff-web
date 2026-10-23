@@ -2,6 +2,7 @@ import React, { useState, useEffect, useContext } from "react";
 import api from "../../services/api";
 import { formatCurrency } from "../../utils/formatCurrency";
 import Button from "../../components/ui/Button";
+import ExportButton from "../../components/exports/ExportButton";
 import { useToast } from "../../context/ToastContext";
 import { AuthContext } from "../../context/AuthContext";
 import { unwrapApiRecord, unwrapApiList } from "../../utils/apiResponse";
@@ -231,7 +232,7 @@ export const ExpenseTracker = () => {
 
   if (loading) {
     return (
-      <div className="p-12 text-center bg-white border border-slate-200 rounded-3xl animate-pulse text-xs text-slate-400">
+      <div className="p-12 text-center bg-white border border-slate-200 rounded-2xl animate-pulse text-xs text-slate-400">
         Loading Daily Expense Tracker...
       </div>
     );
@@ -245,52 +246,53 @@ export const ExpenseTracker = () => {
   return (
     <div className="space-y-5 sm:space-y-6 max-w-6xl mx-auto pb-12 px-1 sm:px-0">
       {/* Header Banner */}
-      <div className="bg-slate-900 text-white border border-slate-800 rounded-2xl sm:rounded-3xl p-5 sm:p-8 shadow-md">
+      <div className="bg-white text-slate-800 border border-slate-200 rounded-2xl sm:rounded-2xl p-5 sm:p-8 shadow-none">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
           <div className="flex items-start sm:items-center gap-3.5 sm:gap-4">
-            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-brand-green-600/30 border border-brand-green-500/40 text-brand-green-400 rounded-2xl flex items-center justify-center shrink-0 shadow-xs">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-brand-green-50 border border-brand-green-100 text-brand-green-700 rounded-2xl flex items-center justify-center shrink-0 shadow-none">
               <Wallet className="w-5 h-5 sm:w-6 sm:h-6" />
             </div>
             <div>
               <div className="flex flex-wrap items-center gap-2">
-                <h1 className="text-lg sm:text-2xl font-black tracking-tight text-white">
-                  Daily Expense Tracker & Ledger
+                <h1 className="text-lg sm:text-2xl font-semibold tracking-tight text-slate-900">
+                  Expense Tracker
                 </h1>
                 <span
-                  className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full inline-flex items-center gap-1 ${
+                  className={`text-[10px] font-semibold px-2.5 py-0.5 rounded-full inline-flex items-center gap-1 ${
                     isClosed
-                      ? "bg-slate-800 text-emerald-400 border border-emerald-500/30"
-                      : "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 animate-pulse"
+                      ? "bg-slate-50 text-slate-700 border border-slate-200"
+                      : "bg-emerald-50 text-emerald-700 border border-emerald-200"
                   }`}
                 >
                   {isClosed ? (
                     <>
-                      <Lock className="w-3 h-3 text-emerald-400" />
+                      <Lock className="w-3 h-3 text-emerald-700" />
                       <span>Closed & Stamped</span>
                     </>
                   ) : (
                     <>
-                      <CheckCircle className="w-3 h-3 text-emerald-300" />
+                      <CheckCircle className="w-3 h-3 text-emerald-700" />
                       <span>Active Today</span>
                     </>
                   )}
                 </span>
               </div>
-              <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+              <p className="text-xs text-slate-500 mt-1 leading-relaxed">
                 Log daily business expenses, opening cash balance, income entries, and approve final closing ledger.
               </p>
             </div>
           </div>
 
           <div className="flex flex-wrap items-center w-full sm:w-auto gap-2 shrink-0">
+            <ExportButton kind="expenses" label="Export Expenses" defaultFormat="zip" />
             <button
               onClick={() => {
                 setActiveView("today");
               }}
               className={`px-3.5 py-2.5 text-xs font-bold rounded-xl transition text-center ${
                 activeView === "today"
-                  ? "bg-brand-green-600 text-white shadow-sm"
-                  : "bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700"
+                  ? "bg-brand-green-600 text-white shadow-none"
+                  : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
               }`}
             >
               Today's Sheet
@@ -302,8 +304,8 @@ export const ExpenseTracker = () => {
               }}
               className={`px-3.5 py-2.5 text-xs font-bold rounded-xl transition flex items-center justify-center gap-1.5 ${
                 activeView === "history"
-                  ? "bg-brand-green-600 text-white shadow-sm"
-                  : "bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700"
+                  ? "bg-brand-green-600 text-white shadow-none"
+                  : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
               }`}
             >
               <History className="w-3.5 h-3.5" /> Past Ledgers
@@ -313,7 +315,7 @@ export const ExpenseTracker = () => {
                 type="button"
                 disabled={isDownloadingPDF}
                 onClick={() => handleDownloadPDF(ledger)}
-                className="px-3.5 py-2.5 text-xs font-bold rounded-xl transition flex items-center justify-center gap-1.5 bg-emerald-700 hover:bg-emerald-600 text-white disabled:opacity-50 shadow-sm"
+                className="px-3.5 py-2.5 text-xs font-bold rounded-xl transition flex items-center justify-center gap-1.5 bg-emerald-700 hover:bg-emerald-600 text-white disabled:opacity-50 shadow-none"
                 title="Download today's daily expense statement as PDF"
               >
                 <Download className="w-3.5 h-3.5" />
@@ -328,41 +330,41 @@ export const ExpenseTracker = () => {
         <>
           {/* Top Metric Cards */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-            <div className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-3xl p-4 sm:p-5 shadow-xs flex flex-col justify-between">
-              <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">
+            <div className="bg-white border border-slate-200 rounded-2xl sm:rounded-2xl p-4 sm:p-5 shadow-none flex flex-col justify-between">
+              <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">
                 Opening Balance
               </span>
-              <p className="text-lg sm:text-xl font-black text-slate-900 mt-1 truncate">
+              <p className="text-lg sm:text-xl font-semibold text-slate-900 mt-1 truncate">
                 {formatCurrency(ledger?.openingBalance || 0)}
               </p>
               <span className="text-[10px] text-slate-400 mt-1 block">Carried over or initial balance</span>
             </div>
 
-            <div className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-3xl p-4 sm:p-5 shadow-xs flex flex-col justify-between">
-              <span className="text-[10px] font-extrabold text-emerald-600 uppercase tracking-wider block flex items-center gap-1">
+            <div className="bg-white border border-slate-200 rounded-2xl sm:rounded-2xl p-4 sm:p-5 shadow-none flex flex-col justify-between">
+              <span className="text-[10px] font-semibold text-emerald-600 uppercase tracking-wider block flex items-center gap-1">
                 <ArrowUpRight className="w-3.5 h-3.5" /> Total Income
               </span>
-              <p className="text-lg sm:text-xl font-black text-emerald-700 mt-1 truncate">
+              <p className="text-lg sm:text-xl font-semibold text-emerald-700 mt-1 truncate">
                 +{formatCurrency(ledger?.totalIncome || 0)}
               </p>
               <span className="text-[10px] text-slate-400 mt-1 block">{incomeList.length} entry(ies)</span>
             </div>
 
-            <div className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-3xl p-4 sm:p-5 shadow-xs flex flex-col justify-between">
-              <span className="text-[10px] font-extrabold text-red-600 uppercase tracking-wider block flex items-center gap-1">
+            <div className="bg-white border border-slate-200 rounded-2xl sm:rounded-2xl p-4 sm:p-5 shadow-none flex flex-col justify-between">
+              <span className="text-[10px] font-semibold text-red-600 uppercase tracking-wider block flex items-center gap-1">
                 <ArrowDownRight className="w-3.5 h-3.5" /> Total Expenses
               </span>
-              <p className="text-lg sm:text-xl font-black text-red-700 mt-1 truncate">
+              <p className="text-lg sm:text-xl font-semibold text-red-700 mt-1 truncate">
                 -{formatCurrency(ledger?.totalExpenses || 0)}
               </p>
               <span className="text-[10px] text-slate-400 mt-1 block">{expensesList.length} entry(ies)</span>
             </div>
 
-            <div className="col-span-2 lg:col-span-1 bg-slate-900 text-white border border-slate-800 rounded-2xl sm:rounded-3xl p-4 sm:p-5 shadow-xs flex flex-col justify-between">
-              <span className="text-[10px] font-extrabold text-amber-400 uppercase tracking-wider block">
+            <div className="col-span-2 lg:col-span-1 bg-white text-slate-800 border border-slate-200 rounded-2xl sm:rounded-2xl p-4 sm:p-5 shadow-none flex flex-col justify-between">
+              <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider block">
                 Closing Balance
               </span>
-              <p className="text-xl sm:text-2xl font-black text-white mt-1 truncate">
+              <p className="text-xl sm:text-2xl font-semibold text-slate-900 mt-1 truncate">
                 {formatCurrency(ledger?.closingBalance || 0)}
               </p>
               <span className="text-[10px] text-slate-400 mt-1 block">Opening + Income - Expenses</span>
@@ -371,29 +373,29 @@ export const ExpenseTracker = () => {
 
           {/* Admin Stamp & Lock Banner if Closed */}
           {isClosed ? (
-            <div className="bg-emerald-50 border-2 border-emerald-300/80 rounded-2xl sm:rounded-3xl p-4 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="bg-emerald-50 border border-emerald-200 rounded-2xl sm:rounded-2xl p-4 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div className="flex items-center gap-3.5">
-                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-emerald-600 text-white rounded-2xl flex items-center justify-center shrink-0 shadow-md">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-emerald-600 text-white rounded-2xl flex items-center justify-center shrink-0 shadow-none">
                   <Stamp className="w-5 h-5 sm:w-6 sm:h-6" />
                 </div>
                 <div>
-                  <h3 className="text-xs sm:text-sm font-black text-emerald-950 flex items-center gap-2">
-                    OFFICIALLY STAMPED & VERIFIED BY ADMIN
+                  <h3 className="text-xs sm:text-sm font-semibold text-emerald-950 flex items-center gap-2">
+                    Daily ledger closed and stamped
                   </h3>
                   <p className="text-xs text-emerald-800 mt-0.5 leading-relaxed">
-                    Stamped by: <strong className="font-extrabold text-emerald-950">{ledger?.stampedByAdmin || "Admin"}</strong> on{" "}
+                    Stamped by: <strong className="font-semibold text-emerald-950">{ledger?.stampedByAdmin || "Admin"}</strong> on{" "}
                     {new Date(ledger?.stampedAt || ledger?.updatedAt).toLocaleString()}
                   </p>
                 </div>
               </div>
-              <span className="text-xs font-bold text-emerald-900 bg-white border border-emerald-300 px-3.5 py-2 rounded-xl shadow-2xs w-full sm:w-auto text-center">
+              <span className="text-xs font-bold text-emerald-900 bg-white border border-emerald-300 px-3.5 py-2 rounded-xl shadow-none w-full sm:w-auto text-center">
                 Ledger Finalized & Locked
               </span>
             </div>
           ) : (
-            <div className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="bg-white border border-slate-200 rounded-2xl sm:rounded-2xl p-4 sm:p-6 shadow-none flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div>
-                <h3 className="text-xs sm:text-sm font-black text-slate-900 flex items-center gap-2">
+                <h3 className="text-xs sm:text-sm font-semibold text-slate-900 flex items-center gap-2">
                   <Stamp className="w-4 h-4 text-brand-green-600" /> Admin Approval & Stamp
                 </h3>
                 <p className="text-xs text-slate-500 mt-1 leading-relaxed">
@@ -403,7 +405,7 @@ export const ExpenseTracker = () => {
               <Button
                 onClick={handleCloseAndStamp}
                 isLoading={isClosingDay}
-                className="w-full sm:w-auto bg-brand-green-600 hover:bg-brand-green-700 text-white rounded-xl text-xs font-bold px-5 py-2.5 shrink-0 shadow-xs flex items-center justify-center gap-2"
+                className="w-full sm:w-auto bg-brand-green-600 hover:bg-brand-green-700 text-white rounded-xl text-xs font-bold px-5 py-2.5 shrink-0 shadow-none flex items-center justify-center gap-2"
               >
                 <Stamp className="w-4 h-4" /> Stamp & Save Today's Ledger
               </Button>
@@ -412,8 +414,8 @@ export const ExpenseTracker = () => {
 
           {/* Form to Add Entry */}
           {!isClosed && (
-            <div className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-xs">
-              <h3 className="text-xs font-black uppercase tracking-wider text-slate-400 mb-4 border-b border-slate-100 pb-2.5">
+            <div className="bg-white border border-slate-200 rounded-2xl sm:rounded-2xl p-4 sm:p-6 shadow-none">
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-4 border-b border-slate-100 pb-2.5">
                 + Add Daily Entry (Expense or Income)
               </h3>
               <form onSubmit={handleAddLineItem} className="grid grid-cols-1 sm:grid-cols-12 gap-3.5 items-end">
@@ -427,7 +429,7 @@ export const ExpenseTracker = () => {
                       onClick={() => setType("expense")}
                       className={`flex-1 py-2 text-xs font-bold rounded-lg transition ${
                         type === "expense"
-                          ? "bg-red-600 text-white shadow-2xs"
+                          ? "bg-red-600 text-white shadow-none"
                           : "text-slate-600 hover:text-slate-900"
                       }`}
                     >
@@ -438,7 +440,7 @@ export const ExpenseTracker = () => {
                       onClick={() => setType("income")}
                       className={`flex-1 py-2 text-xs font-bold rounded-lg transition ${
                         type === "income"
-                          ? "bg-emerald-600 text-white shadow-2xs"
+                          ? "bg-emerald-600 text-white shadow-none"
                           : "text-slate-600 hover:text-slate-900"
                       }`}
                     >
@@ -490,9 +492,9 @@ export const ExpenseTracker = () => {
           )}
 
           {/* Line Items Table */}
-          <div className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-3xl overflow-hidden shadow-xs">
+          <div className="bg-white border border-slate-200 rounded-2xl sm:rounded-2xl overflow-hidden shadow-none">
             <div className="p-4 sm:p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-1">
-              <h3 className="text-xs font-black uppercase tracking-wider text-slate-800">
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-800">
                 Today's Transaction Log ({lineItems.length})
               </h3>
               <span className="text-[11px] text-slate-400 font-medium">
@@ -534,7 +536,7 @@ export const ExpenseTracker = () => {
                       <span className="text-[10px] sm:hidden text-slate-400 font-semibold uppercase">Amount:</span>
                       <div className="flex items-center gap-3">
                         <span
-                          className={`font-mono font-black text-sm ${
+                          className={`font-mono font-semibold text-sm ${
                             item.type === "expense" ? "text-red-600" : "text-emerald-600"
                           }`}
                         >
@@ -561,10 +563,10 @@ export const ExpenseTracker = () => {
       )}
 
       {activeView === "history" && (
-        <div className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-xs space-y-4">
+        <div className="bg-white border border-slate-200 rounded-2xl sm:rounded-2xl p-4 sm:p-6 shadow-none space-y-4">
           <div className="flex items-center justify-between border-b border-slate-100 pb-3">
             <div>
-              <h3 className="text-xs font-black uppercase tracking-wider text-slate-800">
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-800">
                 Historical Expense Ledgers
               </h3>
               <p className="text-[11px] text-slate-400 mt-0.5">
@@ -598,7 +600,7 @@ export const ExpenseTracker = () => {
                 >
                   <div className="space-y-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-black text-slate-900 group-hover:text-brand-green-800 text-sm transition">
+                      <span className="font-semibold text-slate-900 group-hover:text-brand-green-800 text-sm transition">
                         {new Date(item.date).toLocaleDateString(undefined, {
                           weekday: "short",
                           year: "numeric",
@@ -607,7 +609,7 @@ export const ExpenseTracker = () => {
                         })}
                       </span>
                       <span
-                        className={`text-[9px] font-extrabold px-2.5 py-0.5 rounded-full ${
+                        className={`text-[9px] font-semibold px-2.5 py-0.5 rounded-full ${
                           item.status === "closed"
                             ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
                             : "bg-amber-100 text-amber-800 border border-amber-200"
@@ -632,7 +634,7 @@ export const ExpenseTracker = () => {
                   <div className="flex items-center justify-between sm:justify-end gap-3 border-t sm:border-t-0 border-slate-100/60 pt-2 sm:pt-0">
                     <div className="text-left sm:text-right">
                       <p className="text-[10px] text-slate-400 uppercase font-bold">Closing Balance</p>
-                      <p className="font-black text-brand-green-800 text-sm">
+                      <p className="font-semibold text-brand-green-800 text-sm">
                         {formatCurrency(item.closingBalance)}
                       </p>
                     </div>
@@ -645,7 +647,7 @@ export const ExpenseTracker = () => {
                           handleDownloadPDF(item);
                         }}
                         disabled={isDownloadingPDF}
-                        className="px-2.5 py-1.5 bg-brand-green-50 hover:bg-brand-green-100 text-brand-green-800 font-extrabold rounded-xl transition text-[11px] flex items-center gap-1 border border-brand-green-200"
+                        className="px-2.5 py-1.5 bg-brand-green-50 hover:bg-brand-green-100 text-brand-green-800 font-semibold rounded-xl transition text-[11px] flex items-center gap-1 border border-brand-green-200"
                         title="Download daily expense statement as PDF"
                       >
                         <Download className="w-3 h-3" />
@@ -666,24 +668,24 @@ export const ExpenseTracker = () => {
 
       {/* Day Ledger Details Modal */}
       {selectedHistoryLedger && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 z-50 overflow-y-auto">
-          <div className="max-w-3xl w-full bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden my-auto animate-scale-up max-h-[92vh] flex flex-col">
+        <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center p-3 sm:p-6 z-50 overflow-y-auto">
+          <div className="max-w-3xl w-full bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden my-auto  max-h-[92vh] flex flex-col">
             {/* Modal Header */}
-            <div className="bg-slate-900 text-white p-5 sm:p-6 border-b border-slate-800 flex items-start justify-between gap-4 shrink-0">
+            <div className="bg-white text-slate-800 p-5 sm:p-6 border-b border-slate-200 flex items-start justify-between gap-4 shrink-0">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-brand-green-600/30 border border-brand-green-500/40 text-brand-green-400 flex items-center justify-center shrink-0">
+                <div className="w-10 h-10 rounded-2xl bg-brand-green-50 border border-brand-green-100 text-brand-green-700 flex items-center justify-center shrink-0">
                   <Calendar className="w-5 h-5" />
                 </div>
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="text-base sm:text-lg font-black text-white">
+                    <h3 className="text-base sm:text-lg font-semibold text-slate-900">
                       Daily Expense Ledger
                     </h3>
                     <span
-                      className={`text-[9px] font-extrabold px-2.5 py-0.5 rounded-full ${
+                      className={`text-[9px] font-semibold px-2.5 py-0.5 rounded-full ${
                         selectedHistoryLedger.status === "closed"
-                          ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40"
-                          : "bg-amber-500/20 text-amber-300 border border-amber-500/40"
+                          ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                          : "bg-amber-50 text-amber-800 border border-amber-200"
                       }`}
                     >
                       {selectedHistoryLedger.status === "closed" ? "Audited & Closed" : "Open Ledger"}
@@ -705,7 +707,7 @@ export const ExpenseTracker = () => {
                   type="button"
                   onClick={() => handleDownloadPDF(selectedHistoryLedger)}
                   disabled={isDownloadingPDF}
-                  className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl transition text-xs flex items-center gap-1.5 shadow-sm disabled:opacity-50"
+                  className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl transition text-xs flex items-center gap-1.5 shadow-none disabled:opacity-50"
                   title="Download daily expense statement PDF"
                 >
                   <Download className="w-3.5 h-3.5" />
@@ -716,7 +718,7 @@ export const ExpenseTracker = () => {
                 <button
                   type="button"
                   onClick={() => setSelectedHistoryLedger(null)}
-                  className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition"
+                  className="p-1.5 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -749,37 +751,37 @@ export const ExpenseTracker = () => {
                     return (
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
                         <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3">
-                          <span className="text-[9px] font-extrabold uppercase text-slate-400 block">
+                          <span className="text-[9px] font-semibold uppercase text-slate-400 block">
                             Opening Balance
                           </span>
-                          <span className="text-xs sm:text-sm font-black text-slate-800 mt-1 block">
+                          <span className="text-xs sm:text-sm font-semibold text-slate-800 mt-1 block">
                             {formatCurrency(openBal)}
                           </span>
                         </div>
 
                         <div className="bg-emerald-50/50 border border-emerald-200 rounded-2xl p-3">
-                          <span className="text-[9px] font-extrabold uppercase text-emerald-700 block">
+                          <span className="text-[9px] font-semibold uppercase text-emerald-700 block">
                             Total Inflow
                           </span>
-                          <span className="text-xs sm:text-sm font-black text-emerald-800 mt-1 block">
+                          <span className="text-xs sm:text-sm font-semibold text-emerald-800 mt-1 block">
                             +{formatCurrency(inflowVal)}
                           </span>
                         </div>
 
                         <div className="bg-red-50/50 border border-red-200 rounded-2xl p-3">
-                          <span className="text-[9px] font-extrabold uppercase text-red-700 block">
+                          <span className="text-[9px] font-semibold uppercase text-red-700 block">
                             Total Outflow
                           </span>
-                          <span className="text-xs sm:text-sm font-black text-red-800 mt-1 block">
+                          <span className="text-xs sm:text-sm font-semibold text-red-800 mt-1 block">
                             -{formatCurrency(outflowVal)}
                           </span>
                         </div>
 
                         <div className="bg-brand-green-50 border border-brand-green-200 rounded-2xl p-3">
-                          <span className="text-[9px] font-extrabold uppercase text-brand-green-700 block">
+                          <span className="text-[9px] font-semibold uppercase text-brand-green-700 block">
                             Closing Balance
                           </span>
-                          <span className="text-xs sm:text-sm font-black text-brand-green-950 mt-1 block">
+                          <span className="text-xs sm:text-sm font-semibold text-brand-green-950 mt-1 block">
                             {formatCurrency(closeBal)}
                           </span>
                         </div>
@@ -790,7 +792,7 @@ export const ExpenseTracker = () => {
                   {/* Line Items Breakdown */}
                   <div className="space-y-3">
                     <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                      <h4 className="font-extrabold text-slate-800 uppercase tracking-wider text-[11px]">
+                      <h4 className="font-semibold text-slate-800 uppercase tracking-wider text-[11px]">
                         Tracked Line Items ({selectedHistoryLedger.lineItems?.length || 0})
                       </h4>
                     </div>
@@ -834,7 +836,7 @@ export const ExpenseTracker = () => {
                             </div>
 
                             <span
-                              className={`font-mono font-black text-xs sm:text-sm ${
+                              className={`font-mono font-semibold text-xs sm:text-sm ${
                                 item.type === "expense" ? "text-red-600" : "text-emerald-600"
                               }`}
                             >
@@ -851,7 +853,7 @@ export const ExpenseTracker = () => {
                   <div className="space-y-3 pt-2">
                     <div className="flex items-center justify-between border-b border-slate-100 pb-2">
                       <div>
-                        <h4 className="font-extrabold text-slate-800 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+                        <h4 className="font-semibold text-slate-800 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
                           <Paperclip className="w-3.5 h-3.5 text-brand-green-700" />
                           Attached Receipts &amp; Documents (
                           {selectedHistoryLedger.evidence?.length || 0})
@@ -891,7 +893,7 @@ export const ExpenseTracker = () => {
                         {selectedHistoryLedger.evidence.map((ev, i) => (
                           <div
                             key={ev._id || i}
-                            className="bg-slate-50 border border-slate-200 rounded-2xl p-3 flex items-center gap-3 hover:bg-white transition shadow-2xs"
+                            className="bg-slate-50 border border-slate-200 rounded-2xl p-3 flex items-center gap-3 hover:bg-white transition shadow-none"
                           >
                             <div className="w-12 h-12 rounded-xl bg-white border border-slate-200 overflow-hidden flex items-center justify-center shrink-0">
                               {ev.url && (ev.url.endsWith(".pdf") || ev.filename?.endsWith(".pdf")) ? (
@@ -905,7 +907,7 @@ export const ExpenseTracker = () => {
                               )}
                             </div>
                             <div className="min-w-0 flex-1">
-                              <p className="font-extrabold text-slate-800 text-xs truncate">
+                              <p className="font-semibold text-slate-800 text-xs truncate">
                                 {ev.filename || `Receipt File ${i + 1}`}
                               </p>
                               <p className="text-[10px] text-slate-400 mt-0.5">

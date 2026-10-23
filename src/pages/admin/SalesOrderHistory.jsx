@@ -2,15 +2,13 @@ import React, { useState, useEffect, useMemo } from 'react';
 import api from '../../services/api';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { unwrapApiList } from '../../utils/apiResponse';
-import { exportHistoryCSV, exportHistoryPDF } from '../../utils/exportHistory';
+import ExportButton from '../../components/exports/ExportButton';
 import {
   ShoppingBag,
-  Download,
   Search,
   Filter,
   Calendar,
   User,
-  FileSpreadsheet,
   RefreshCw,
   CreditCard,
   CheckCircle2,
@@ -77,87 +75,6 @@ export const SalesOrderHistory = () => {
     return { count: filteredOrders.length, revenue: rev, cartons };
   }, [filteredOrders]);
 
-  const handleExportCSV = () => {
-    if (filteredOrders.length === 0) return;
-
-    const headers = [
-      'Order Reference',
-      'Date & Time',
-      'Customer Name',
-      'Items Count',
-      'Total Amount (NGN)',
-      'Payment Method',
-      'Order Status',
-    ];
-
-    const rows = filteredOrders.map((ord) => {
-      const customerName =
-        ord.customerName ||
-        (ord.customer?.firstName
-          ? `${ord.customer.firstName} ${ord.customer.lastName || ''}`.trim()
-          : ord.customer?.name) ||
-        'Commercial Customer';
-      const itemCount = Array.isArray(ord.items) ? ord.items.length : 1;
-
-      return [
-        ord.orderNumber || ord._id || ord.id,
-        new Date(ord.createdAt || ord.date || Date.now()).toLocaleString(),
-        customerName,
-        itemCount,
-        ord.totalAmount || ord.total || 0,
-        ord.paymentMethod || 'Bank Transfer',
-        ord.status || 'Pending',
-      ];
-    });
-
-    exportHistoryCSV(
-      `vinoff_sales_order_history_${new Date().toISOString().slice(0, 10)}`,
-      headers,
-      rows
-    );
-  };
-
-  const handleExportPDF = () => {
-    if (filteredOrders.length === 0) return;
-
-    const headers = [
-      'Order Ref',
-      'Date & Time',
-      'Customer',
-      'Items',
-      'Total Amount',
-      'Payment Method',
-      'Status',
-    ];
-
-    const rows = filteredOrders.map((ord) => {
-      const customerName =
-        ord.customerName ||
-        (ord.customer?.firstName
-          ? `${ord.customer.firstName} ${ord.customer.lastName || ''}`.trim()
-          : ord.customer?.name) ||
-        'Commercial Customer';
-      const itemCount = Array.isArray(ord.items) ? ord.items.length : 1;
-
-      return [
-        ord.orderNumber || ord._id || ord.id,
-        new Date(ord.createdAt || ord.date || Date.now()).toLocaleString(),
-        customerName,
-        `${itemCount} item(s)`,
-        formatCurrency(ord.totalAmount || ord.total || 0),
-        ord.paymentMethod || 'Bank Transfer',
-        ord.status || 'Pending',
-      ];
-    });
-
-    exportHistoryPDF(
-      'Sales & Order History Log',
-      `vinoff_sales_order_history_${new Date().toISOString().slice(0, 10)}`,
-      headers,
-      rows
-    );
-  };
-
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -182,26 +99,8 @@ export const SalesOrderHistory = () => {
           >
             Refresh
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleExportCSV}
-            disabled={filteredOrders.length === 0}
-            className="rounded-xl border-slate-200 text-slate-700"
-            icon={FileSpreadsheet}
-          >
-            Download CSV
-          </Button>
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={handleExportPDF}
-            disabled={filteredOrders.length === 0}
-            className="rounded-xl shadow-sm"
-            icon={Download}
-          >
-            Download PDF
-          </Button>
+          <ExportButton kind="orders" label="Download CSV" defaultFormat="csv" />
+          <ExportButton kind="orders" label="Download PDF" defaultFormat="pdf" />
         </div>
       </div>
 
@@ -325,7 +224,7 @@ export const SalesOrderHistory = () => {
                       <td className="py-4 px-4 text-center">
                         <span className="inline-flex items-center gap-1 bg-slate-50 border border-slate-200 px-2.5 py-1 rounded-xl text-[10px] font-bold text-slate-600">
                           <CreditCard className="w-3 h-3 text-slate-400" />
-                          {ord.paymentMethod || 'Bank Transfer'}
+                          {ord.paymentMethod || 'Not recorded'}
                         </span>
                       </td>
 

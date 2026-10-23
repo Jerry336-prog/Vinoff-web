@@ -1,164 +1,127 @@
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import { getCachedBusinessInfo, fetchLiveBusinessInfo } from "../context/BusinessContext";
+import { appendCanvasToPDF, getDocumentWatermarkText } from './documentWatermark';
+import { createCSVContent, saveExportBlob, safeExportFilename } from './exportFiles';
+
+const escapeHTML = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 
 export const exportHistoryCSV = (filename, headers, rows) => {
-  const csvContent =
-    "data:text/csv;charset=utf-8," +
-    [
-      headers.join(","),
-      ...rows.map((row) =>
-        row
-          .map((cell) => `"${String(cell ?? "").replace(/"/g, '""')}"`)
-          .join(",")
-      ),
-    ].join("\n");
-
-  const encodedUri = encodeURI(csvContent);
-  const link = document.createElement("a");
-  link.setAttribute("href", encodedUri);
-  link.setAttribute("download", `${filename}.csv`);
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
+  saveExportBlob(new Blob([createCSVContent(headers, rows)], { type: 'text/csv;charset=utf-8' }), `${filename}.csv`);
 };
 
-export const exportHistoryPDF = async (title, filename, headers, rows) => {
-  const biz = (await fetchLiveBusinessInfo().catch(() => null)) || getCachedBusinessInfo();
-  const wm = biz?.watermarkText || "VINOFF & CO.NIG.LTD";
-  const brandTitle = biz?.brandTitle || "VINOFF WHOLESALES";
-  const businessName = biz?.businessName || "Vinoff Wholesales Ltd";
-  const contactLine = [biz?.emailContact, biz?.phoneContact].filter(Boolean).join(" • ");
+export const createHistoryPDFFile = async (title, filename, headers, rows, options = {}) => {
+  const biz = options.businessInfo || (await fetchLiveBusinessInfo().catch(() => null)) || getCachedBusinessInfo();
+  const wm = getDocumentWatermarkText(biz?.watermarkText);
+  const brandTitle = escapeHTML(biz?.brandTitle || "VINOFF WHOLESALES");
+  const businessName = escapeHTML(biz?.businessName || "Vinoff Wholesales Ltd");
+  const contactLine = escapeHTML([biz?.emailContact, biz?.phoneContact].filter(Boolean).join(" • "));
+  const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
 
-  const container = document.createElement("div");
-  container.style.position = "fixed";
-  container.style.left = "-9999px";
-  container.style.top = "0";
-  container.style.width = "1100px";
-  container.style.backgroundColor = "#ffffff";
-  container.style.padding = "40px";
-  container.style.fontFamily =
-    'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-  container.style.color = "#0f172a";
-  container.style.boxSizing = "border-box";
+  // Bound each canvas so long annual reports do not exceed browser canvas limits.
+  for (let offset = 0; offset < Math.max(rows.length, 1); offset += 100) {
+    options.signal?.throwIfAborted();
+    const pageRows = rows.slice(offset, offset + 100);
+    options.onProgress?.({ phase: 'rendering', message: `Rendering report records ${offset + 1}-${offset + pageRows.length} of ${rows.length}...`, completed: offset, total: rows.length });
 
-  container.innerHTML = `
-    <div style="position: relative; overflow: hidden; background-color: #ffffff;">
-      <!-- Watermark Overlay -->
-      <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column; align-items: center; justify-content: space-around; pointer-events: none; opacity: 0.10; transform: rotate(-22deg); z-index: 10; text-align: center;">
-        <div style="font-size: 48px; font-weight: 900; color: #047857; letter-spacing: 3px; text-transform: uppercase;">${wm}</div>
-        <div style="font-size: 48px; font-weight: 900; color: #047857; letter-spacing: 3px; text-transform: uppercase;">${wm}</div>
-        <div style="font-size: 48px; font-weight: 900; color: #047857; letter-spacing: 3px; text-transform: uppercase;">${wm}</div>
-      </div>
+    const container = document.createElement("div");
+    container.style.position = "fixed";
+    container.style.left = "-9999px";
+    container.style.top = "0";
+    container.style.width = "1100px";
+    container.style.backgroundColor = "#ffffff";
+    container.style.padding = "40px";
+    container.style.fontFamily =
+      'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    container.style.color = "#0f172a";
+    container.style.boxSizing = "border-box";
 
-      <div style="position: relative; z-index: 1;">
-        <!-- Header -->
-        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #064e3b; padding-bottom: 16px; margin-bottom: 24px;">
-          <div style="display: flex; align-items: center; gap: 12px;">
-            <img src="/VinoffLogo.webp" style="width: 48px; height: 48px; object-fit: contain;" />
-            <div>
-              <div style="font-size: 20px; font-weight: 900; color: #064e3b; text-transform: uppercase;">${brandTitle}</div>
-              <div style="font-size: 11px; color: #64748b; font-weight: 600;">OFFICIAL AUDIT REPORT • ${title.toUpperCase()}</div>
-              ${contactLine ? `<div style="font-size: 10px; color: #94a3b8; margin-top: 2px;">${contactLine}</div>` : ""}
+    container.innerHTML = `
+      <div style="position: relative; overflow: hidden; background-color: #ffffff;">
+        <div style="position: relative; z-index: 1;">
+          <!-- Header -->
+          <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #064e3b; padding-bottom: 16px; margin-bottom: 24px;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <img src="/VinoffLogo.webp" style="width: 48px; height: 48px; object-fit: contain;" />
+              <div>
+                <div style="font-size: 20px; font-weight: 900; color: #064e3b; text-transform: uppercase;">${brandTitle}</div>
+                <div style="font-size: 11px; color: #64748b; font-weight: 600;">OFFICIAL AUDIT REPORT • ${escapeHTML(title.toUpperCase())}</div>
+                ${options.subtitle ? `<div style="font-size: 10px; color: #64748b; margin-top: 4px;">${escapeHTML(options.subtitle)}</div>` : ''}
+                ${contactLine ? `<div style="font-size: 10px; color: #94a3b8; margin-top: 2px;">${contactLine}</div>` : ""}
+              </div>
+            </div>
+            <div style="text-align: right; font-size: 11px; color: #64748b;">
+              <div>Generated: <strong>${new Date().toLocaleString()}</strong></div>
+              <div>Platform: ${businessName}</div>
             </div>
           </div>
-          <div style="text-align: right; font-size: 11px; color: #64748b;">
-            <div>Generated: <strong>${new Date().toLocaleString()}</strong></div>
-            <div>Platform: ${businessName}</div>
-          </div>
-        </div>
 
-        <!-- Table -->
-        <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
-          <thead>
-            <tr style="background-color: #064e3b; color: #ffffff; text-align: left;">
-              ${headers
-                .map(
-                  (h) =>
-                    `<th style="padding: 10px 12px; font-weight: 900; font-size: 10px; text-transform: uppercase;">${h}</th>`
-                )
-                .join("")}
-            </tr>
-          </thead>
-          <tbody>
-            ${rows
-              .map(
-                (r, idx) => `
-              <tr style="border-bottom: 1px solid #e2e8f0; background-color: ${
-                idx % 2 === 0 ? "#ffffff" : "#f8fafc"
-              };">
-                ${r
+          <!-- Table -->
+          <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
+            <thead>
+              <tr style="background-color: #064e3b; color: #ffffff; text-align: left;">
+                ${headers
                   .map(
-                    (cell) =>
-                      `<td style="padding: 10px 12px; font-weight: 600; color: #334155;">${
-                        cell ?? ""
-                      }</td>`
+                    (h) =>
+                      `<th style="padding: 10px 12px; font-weight: 900; font-size: 10px; text-transform: uppercase;">${escapeHTML(h)}</th>`
                   )
                   .join("")}
               </tr>
-            `
-              )
-              .join("")}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              ${pageRows
+                .map(
+                  (r, idx) => `
+                <tr style="border-bottom: 1px solid #e2e8f0; background-color: ${
+                  idx % 2 === 0 ? "#ffffff" : "#f8fafc"
+                };">
+                  ${r
+                    .map(
+                      (cell) =>
+                        `<td style="padding: 10px 12px; font-weight: 600; color: #334155;">${
+                          escapeHTML(cell)
+                        }</td>`
+                    )
+                    .join("")}
+                </tr>
+              `
+                )
+                .join("")}
+            </tbody>
+          </table>
 
-        <!-- Footer -->
-        <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid #e2e8f0; text-align: center; font-size: 10px; color: #94a3b8;">
-          Confidential Audit Log • ${wm} • Total Records: ${rows.length}
+          <!-- Footer -->
+          <div style="margin-top: 24px; padding-top: 16px; padding-bottom: 8px; line-height: 1.5; border-top: 1px solid #e2e8f0; text-align: center; font-size: 10px; color: #94a3b8;">
+            Confidential Audit Log • ${escapeHTML(wm)} • Total Records: ${rows.length}
+          </div>
         </div>
       </div>
-    </div>
-  `;
+    `;
 
-  document.body.appendChild(container);
+    document.body.appendChild(container);
 
-  const canvas = await html2canvas(container, {
-    scale: 2,
-    useCORS: true,
-    backgroundColor: "#ffffff",
-    logging: false,
-  });
-  document.body.removeChild(container);
-
-  const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
-  const imgData = canvas.toDataURL("image/jpeg", 0.92);
-  const pageWidth = pdf.internal.pageSize.getWidth();
-  const pageHeight = pdf.internal.pageSize.getHeight();
-  const imgWidth = pageWidth;
-  const pageCanvasHeight = Math.floor((canvas.width * pageHeight) / pageWidth);
-
-  let yOffset = 0;
-  let pageIndex = 0;
-
-  while (yOffset < canvas.height) {
-    const currentSliceHeight = Math.min(pageCanvasHeight, canvas.height - yOffset);
-
-    const sliceCanvas = document.createElement("canvas");
-    sliceCanvas.width = canvas.width;
-    sliceCanvas.height = currentSliceHeight;
-
-    const ctx = sliceCanvas.getContext("2d");
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, sliceCanvas.width, sliceCanvas.height);
-
-    ctx.drawImage(
-      canvas,
-      0, yOffset, canvas.width, currentSliceHeight,
-      0, 0, canvas.width, currentSliceHeight
-    );
-
-    const sliceImgData = sliceCanvas.toDataURL("image/jpeg", 0.92);
-    const slicePdfHeight = (currentSliceHeight * pageWidth) / canvas.width;
-
-    if (pageIndex > 0) {
-      pdf.addPage();
+    let canvas;
+    try {
+      canvas = await html2canvas(container, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: "#ffffff",
+        logging: false,
+      });
+    } finally {
+      container.remove();
     }
 
-    pdf.addImage(sliceImgData, "JPEG", 0, 0, pageWidth, slicePdfHeight);
-
-    yOffset += pageCanvasHeight;
-    pageIndex++;
+    options.signal?.throwIfAborted();
+    if (offset > 0) pdf.addPage();
+    appendCanvasToPDF(pdf, canvas, wm);
+    canvas.width = 0;
+    await new Promise(resolve => setTimeout(resolve, 0));
   }
+  return new File([pdf.output('blob')], `${safeExportFilename(filename)}.pdf`, { type: 'application/pdf' });
+};
 
-  pdf.save(`${filename}.pdf`);
+export const exportHistoryPDF = async (title, filename, headers, rows) => {
+  const file = await createHistoryPDFFile(title, filename, headers, rows);
+  saveExportBlob(file, file.name);
 };

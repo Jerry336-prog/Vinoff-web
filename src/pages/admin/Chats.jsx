@@ -20,6 +20,7 @@ import { downloadInvoicePDF } from "../../utils/generatePDF";
 import { unwrapApiList } from "../../utils/apiResponse";
 import { getInitials } from "../../utils/avatar";
 import Button from "../../components/ui/Button";
+import ExportButton from "../../components/exports/ExportButton";
 import { useToast } from "../../context/ToastContext";
 
 export const Chats = () => {
@@ -177,7 +178,7 @@ export const Chats = () => {
             Customer Communication Hub
           </h1>
           <p className="text-xs text-slate-500 font-medium mt-0.5">
-            Review customer inquiries, confirm payment transfers, and dispatch system updates.
+            Answer customer inquiries, help with Paystack transaction references, and share order updates.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -366,6 +367,18 @@ export const Chats = () => {
                 </span>
               </h3>
 
+              {activeCustomerId && (
+                <div className="mb-2">
+                  <ExportButton
+                    key={activeCustomerId}
+                    kind="invoices"
+                    customerId={activeCustomerId}
+                    customerName={activeRoom.customerName}
+                    label="Export Invoices"
+                    defaultFormat="zip"
+                  />
+                </div>
+              )}
               {customerInvoices.length === 0 ? (
                 <p className="text-[11px] text-slate-400 italic">No invoices issued yet.</p>
               ) : (
@@ -399,7 +412,7 @@ export const Chats = () => {
                         </Link>
                         <button
                           type="button"
-                          onClick={() => downloadInvoicePDF(recordId(inv))}
+                          onClick={() => downloadInvoicePDF(recordId(inv), { requireStamp: false })}
                           className="inline-flex items-center justify-center gap-1 rounded-lg border border-brand-green-200 bg-brand-green-50 px-2 py-1 text-[9px] font-bold text-brand-green-700 hover:bg-brand-green-100"
                           title="Download Invoice PDF"
                         >

@@ -5,6 +5,7 @@ import { useBusiness } from '../../context/BusinessContext';
 import { LogIn, Key, Mail, ShieldAlert } from 'lucide-react';
 import Button from '../../components/ui/Button';
 import { useToast } from '../../context/ToastContext';
+import { canOpenAdminPage, getAdminLandingPath } from '../../utils/staffPermissions';
 
 export const Login = () => {
   const { login } = useContext(AuthContext);
@@ -46,10 +47,12 @@ export const Login = () => {
         logged.role === 'superadmin' ||
         logged.role === 'super_admin';
 
-      if (target) {
+      if (target?.startsWith('/admin') && isAdminRole && !canOpenAdminPage(logged, target)) {
+        navigate(getAdminLandingPath(logged), { replace: true });
+      } else if (target) {
         navigate(target, { replace: true });
       } else if (isAdminRole) {
-        navigate('/admin/dashboard', { replace: true });
+        navigate(getAdminLandingPath(logged), { replace: true });
       } else {
         navigate('/shop', { replace: true });
       }

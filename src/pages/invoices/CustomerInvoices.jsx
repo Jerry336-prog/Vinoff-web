@@ -18,7 +18,9 @@ import {
   XCircle,
 } from "lucide-react";
 import Button from "../../components/ui/Button";
+import ExportButton from "../../components/exports/ExportButton";
 import { downloadInvoicePDF } from "../../utils/generatePDF";
+import { hasInvoiceStamp } from '../../services/invoice/downloadAccess';
 import { toast } from "../../context/ToastContext";
 
 export const CustomerInvoices = () => {
@@ -30,8 +32,8 @@ export const CustomerInvoices = () => {
   const [downloadingId, setDownloadingId] = useState(null);
   const navigate = useNavigate();
 
-  const fetchInvoices = async () => {
-    setLoading(true);
+  const fetchInvoices = async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const res = await api.get("/api/invoices");
       const list = res.data?.items || res.data || [];
@@ -39,12 +41,16 @@ export const CustomerInvoices = () => {
     } catch (err) {
       console.error("Failed to fetch invoices:", err);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
   useEffect(() => {
     fetchInvoices();
+    const refresh = () => { if (document.visibilityState === 'visible') fetchInvoices(true); };
+    const timer = window.setInterval(refresh, 15000);
+    window.addEventListener('focus', refresh);
+    return () => { window.clearInterval(timer); window.removeEventListener('focus', refresh); };
   }, []);
 
   const handleDownload = async (e, invoiceId) => {
@@ -91,6 +97,16 @@ export const CustomerInvoices = () => {
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
+          {(user?._id || user?.id) && (
+            <ExportButton
+              key={user._id || user.id}
+              kind="invoices"
+              customerId={user._id || user.id}
+              customerName={user.name}
+              label="Export Invoices"
+              defaultFormat="zip"
+            />
+          )}
           {user?.isVipCreditPartner === true && <Link
             to="/credit-invoices"
             className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold bg-brand-green-700 hover:bg-brand-green-800 text-white shadow-2xs transition"
@@ -199,13 +215,13 @@ export const CustomerInvoices = () => {
                       <div className="flex items-center justify-end gap-2">
                         <button
                           onClick={(e) => handleDownload(e, inv._id)}
-                          disabled={downloadingId === inv._id}
-                          className={`p-1.5 rounded-lg transition ${
+                          disabled={downloadingId === inv._id || !hasInvoiceStamp(inv)}
+                          className={`p-1.5 rounded-lg transition disabled:cursor-not-allowed disabled:opacity-40 ${
                             downloadingId === inv._id
                               ? "bg-brand-green-50 text-brand-green-600 animate-pulse"
                               : "hover:bg-slate-100 text-slate-500 hover:text-brand-green-700"
                           }`}
-                          title="Download Official Vinoff PDF"
+                          title={hasInvoiceStamp(inv) ? 'Download Official Vinoff PDF' : 'Awaiting admin stamp'}
                         >
                           <Download className="w-4 h-4" />
                         </button>

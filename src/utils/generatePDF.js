@@ -1,14 +1,12 @@
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import api from "../services/api";
-import { formatCurrency } from "./formatCurrency";
+import { appendCanvasToPDF, getDocumentWatermarkText } from './documentWatermark';
 import { toast } from "../context/ToastContext";
-import { unwrapApiRecord } from "./apiResponse";
+import { fetchInvoiceForExport, isInvoiceStampRequiredError, showInvoiceStampNotice } from '../services/invoice/downloadAccess';
 import {
   getCachedBusinessInfo,
   fetchLiveBusinessInfo,
-  getCachedBankDetails,
-  fetchLiveBankDetails,
 } from "../context/BusinessContext";
 
 /**
@@ -35,20 +33,14 @@ const buildInvoiceHTML = ({
   deliveryFee,
   total,
   notes,
-  bankName,
-  accountName,
-  accountNumber,
-  bankInstructions,
   businessName,
   brandTitle,
   tagline,
-  watermarkText,
   emailContact,
   phoneContact,
   secondaryPhone,
   storeAddress,
 }) => {
-  const wm = watermarkText || "VINOFF & CO.NIG.LTD";
   const bTitle = (brandTitle || "VINOFF WHOLESALES").trim();
   const bParts = bTitle.split(/\s+/);
   const bPrimary = bParts[0] || "VINOFF";
@@ -56,22 +48,6 @@ const buildInvoiceHTML = ({
 
   return `
   <div style="position: relative; overflow: hidden; background-color: #ffffff;">
-    <!-- Overlay Watermark -->
-    <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column; align-items: center; justify-content: space-around; pointer-events: none; opacity: 0.11; transform: rotate(-22deg); z-index: 10; text-align: center; padding: 100px 0;">
-      <div style="margin: 40px 0;">
-        <div style="font-size: 46px; font-weight: 900; color: #047857; letter-spacing: 3px; text-transform: uppercase; white-space: nowrap; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">${wm}</div>
-        <div style="font-size: 38px; font-weight: 900; color: #047857; letter-spacing: 3px; text-transform: uppercase; white-space: nowrap; margin-top: 10px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">${wm}</div>
-      </div>
-      <div style="margin: 40px 0;">
-        <div style="font-size: 46px; font-weight: 900; color: #047857; letter-spacing: 3px; text-transform: uppercase; white-space: nowrap; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">${wm}</div>
-        <div style="font-size: 38px; font-weight: 900; color: #047857; letter-spacing: 3px; text-transform: uppercase; white-space: nowrap; margin-top: 10px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">${wm}</div>
-      </div>
-      <div style="margin: 40px 0;">
-        <div style="font-size: 46px; font-weight: 900; color: #047857; letter-spacing: 3px; text-transform: uppercase; white-space: nowrap; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">${wm}</div>
-        <div style="font-size: 38px; font-weight: 900; color: #047857; letter-spacing: 3px; text-transform: uppercase; white-space: nowrap; margin-top: 10px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">${wm}</div>
-      </div>
-    </div>
-
     <!-- Foreground Content -->
     <div style="position: relative; z-index: 1;">
       <div style="border-bottom: 3px solid #064e3b; padding-bottom: 20px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: flex-start; box-sizing: border-box;">
@@ -188,18 +164,12 @@ const buildInvoiceHTML = ({
       <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; padding-top: 16px; border-top: 1px solid #e2e8f0; margin-bottom: 28px; box-sizing: border-box;">
         <div style="max-width: 320px;">
           <div style="font-size: 10px; font-weight: 900; text-transform: uppercase; color: #94a3b8; letter-spacing: 0.5px; margin-bottom: 6px;">
-            Payment Instructions (Bank Transfer)
+            Secure Payment with Paystack
           </div>
           <div style="font-size: 11px; color: #334155; line-height: 1.6;">
-            <div>Bank: <strong>${bankName || "Guaranty Trust Bank (GTB)"}</strong></div>
-            <div>Account Name: <strong>${accountName || businessName || "Vinoff Wholesales Ltd"}</strong></div>
-            <div>Account Number: <strong style="font-family: monospace; font-size: 12px; color: #047857;">${accountNumber || "0123456789"}</strong></div>
+            <div>Sign in to your account and open this invoice to pay securely with Paystack.</div>
+            <div>Successful payments are confirmed automatically. No receipt upload is required.</div>
           </div>
-          ${
-            bankInstructions
-              ? `<div style="margin-top: 8px; font-size: 11px; color: #64748b; font-style: italic; background-color: #f8fafc; padding: 6px 10px; border-radius: 8px;">${bankInstructions}</div>`
-              : ""
-          }
           ${
             notes
               ? `<div style="margin-top: 8px; font-size: 11px; color: #64748b; font-style: italic; background-color: #f8fafc; padding: 6px 10px; border-radius: 8px;">
@@ -240,7 +210,7 @@ const buildInvoiceHTML = ({
         </div>
       </div>
 
-      <div style="border-top: 1px solid #f1f5f9; padding-top: 18px; text-align: center; font-size: 10px; color: #94a3b8;">
+      <div style="border-top: 1px solid #f1f5f9; padding-top: 18px; padding-bottom: 8px; line-height: 1.5; text-align: center; font-size: 10px; color: #94a3b8;">
         Official Commercial Invoice &bull; Thank you for your partnership with ${businessName || "Vinoff Wholesales Ltd"}.
       </div>
     </div>
@@ -249,59 +219,10 @@ const buildInvoiceHTML = ({
 };
 
 /**
- * Adds canvas to jsPDF supporting multiple pages for long documents with high visual quality and minimal file size.
- * Slices the canvas per A4 page and compresses each page as high-quality JPEG.
- */
-const appendCanvasToJsPDF = (pdf, canvas) => {
-  const pageWidth = pdf.internal.pageSize.getWidth();   // 210 mm
-  const pageHeight = pdf.internal.pageSize.getHeight(); // 297 mm
-
-  // Calculate canvas pixel height corresponding to one A4 page
-  const pageCanvasHeight = Math.floor((canvas.width * pageHeight) / pageWidth);
-
-  let yOffset = 0;
-  let pageIndex = 0;
-
-  while (yOffset < canvas.height) {
-    const currentSliceHeight = Math.min(pageCanvasHeight, canvas.height - yOffset);
-
-    // Create temporary canvas for current page slice
-    const sliceCanvas = document.createElement("canvas");
-    sliceCanvas.width = canvas.width;
-    sliceCanvas.height = currentSliceHeight;
-
-    const ctx = sliceCanvas.getContext("2d");
-    // Draw solid white background so transparent areas render white in JPEG
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, sliceCanvas.width, sliceCanvas.height);
-
-    // Draw slice of original canvas onto temporary slice canvas
-    ctx.drawImage(
-      canvas,
-      0, yOffset, canvas.width, currentSliceHeight,
-      0, 0, canvas.width, currentSliceHeight
-    );
-
-    const sliceImgData = sliceCanvas.toDataURL("image/jpeg", 0.92);
-    const slicePdfHeight = (currentSliceHeight * pageWidth) / canvas.width;
-
-    if (pageIndex > 0) {
-      pdf.addPage();
-    }
-
-    pdf.addImage(sliceImgData, "JPEG", 0, 0, pageWidth, slicePdfHeight);
-
-    yOffset += pageCanvasHeight;
-    pageIndex++;
-  }
-};
-
-/**
  * Helper to prepare normalized invoice parameters
  */
 const extractInvoiceParams = (invData) => {
   const cachedBiz = getCachedBusinessInfo();
-  const cachedBank = getCachedBankDetails();
 
   const invoiceNumber = invData.invoiceNumber || "INV-000";
   const issuedDate = new Date(invData.date || invData.createdAt || Date.now()).toLocaleDateString();
@@ -358,19 +279,7 @@ const extractInvoiceParams = (invData) => {
   const notes = invData.notes || "";
   const orderRef = invData.order?.orderNumber || (typeof invData.order === "string" ? invData.order : null);
 
-  let issuedBy = "";
-  if (invData.createdBy) {
-    if (typeof invData.createdBy === "object") {
-      issuedBy =
-        invData.createdBy.name ||
-        `${invData.createdBy.firstName || ""} ${invData.createdBy.lastName || ""}`.trim();
-    } else if (typeof invData.createdBy === "string") {
-      issuedBy = invData.createdBy;
-    }
-  }
-  if (!issuedBy && invData.issuedBy) {
-    issuedBy = invData.issuedBy;
-  }
+  const issuedBy = String(invData.issuedBy || '').trim();
 
   const statusBg = status === "PAID" ? "#ecfdf5" : status === "CANCELLED" ? "#fef2f2" : "#fffbeb";
   const statusColor = status === "PAID" ? "#047857" : status === "CANCELLED" ? "#b91c1c" : "#b45309";
@@ -397,10 +306,6 @@ const extractInvoiceParams = (invData) => {
     deliveryFee,
     total,
     notes,
-    bankName: cachedBank?.bankName || "",
-    accountName: cachedBank?.accountName || "",
-    accountNumber: cachedBank?.accountNumber || "",
-    bankInstructions: cachedBank?.instructions || "",
     businessName: cachedBiz?.businessName || "Vinoff Wholesales Ltd",
     brandTitle: cachedBiz?.brandTitle || "VINOFF WHOLESALES",
     tagline: cachedBiz?.tagline || "Commercial Toiletries, Sanitizers & Industrial Detergents",
@@ -413,13 +318,10 @@ const extractInvoiceParams = (invData) => {
 };
 
 /**
- * Fetches live bank and business details from the API / shared cache
+ * Fetches live document branding from the API / shared cache.
  */
-const applyLiveBusinessAndBankParams = async (params) => {
-  const [bizData, bankData] = await Promise.all([
-    fetchLiveBusinessInfo().catch(() => getCachedBusinessInfo()),
-    fetchLiveBankDetails().catch(() => getCachedBankDetails()),
-  ]);
+const applyLiveBusinessAndBankParams = async (params, options = {}) => {
+  const bizData = await (options.businessInfo || fetchLiveBusinessInfo().catch(() => getCachedBusinessInfo()));
 
   if (bizData) {
     params.businessName = bizData.businessName || params.businessName;
@@ -434,12 +336,6 @@ const applyLiveBusinessAndBankParams = async (params) => {
       .join(", ");
   }
 
-  if (bankData) {
-    params.bankName = bankData.bankName || params.bankName;
-    params.accountName = bankData.accountName || params.accountName;
-    params.accountNumber = bankData.accountNumber || params.accountNumber;
-    params.bankInstructions = bankData.instructions || "";
-  }
 };
 
 /**
@@ -447,26 +343,9 @@ const applyLiveBusinessAndBankParams = async (params) => {
  * Does not invoke browser print dialogs or popups. Multi-page ready.
  * @param {string|object} invoiceOrId - The invoice ID string or the full invoice object
  */
-export const downloadInvoicePDF = async (invoiceOrId) => {
-  let invData = null;
-
+export const downloadInvoicePDF = async (invoiceOrId, options) => {
   try {
-    if (typeof invoiceOrId === "string") {
-      try {
-        const res = await api.get(`/api/invoices/${invoiceOrId}/download`);
-        invData = unwrapApiRecord(res);
-      } catch (e) {
-        // Fallback to standard invoice endpoint
-        const res = await api.get(`/api/invoices/${invoiceOrId}`);
-        invData = unwrapApiRecord(res);
-      }
-    } else if (invoiceOrId && typeof invoiceOrId === "object") {
-      invData = invoiceOrId;
-    }
-
-    if (!invData) {
-      throw new Error("Unable to retrieve invoice data for download.");
-    }
+    const invData = await fetchInvoiceForExport(invoiceOrId, options);
 
     const params = extractInvoiceParams(invData);
     await applyLiveBusinessAndBankParams(params);
@@ -501,7 +380,7 @@ export const downloadInvoicePDF = async (invoiceOrId) => {
       format: "a4",
     });
 
-    appendCanvasToJsPDF(pdf, canvas);
+    appendCanvasToPDF(pdf, canvas, params.watermarkText);
 
     const filename = `Invoice-${params.invoiceNumber.replace(/[^a-zA-Z0-9-_]/g, "_")}.pdf`;
     pdf.save(filename);
@@ -509,6 +388,10 @@ export const downloadInvoicePDF = async (invoiceOrId) => {
     toast.success(`Invoice ${params.invoiceNumber} downloaded successfully as PDF`, "Download Complete");
     return true;
   } catch (err) {
+    if (isInvoiceStampRequiredError(err)) {
+      await showInvoiceStampNotice();
+      return false;
+    }
     console.error("Failed to generate PDF:", err);
     toast.error(err.message || "Could not generate invoice PDF", "Download Failed");
     throw err;
@@ -518,23 +401,12 @@ export const downloadInvoicePDF = async (invoiceOrId) => {
 /**
  * Generates an invoice PDF File object for uploading or sharing to chat (multi-page support)
  */
-export const createInvoicePDFFile = async (invoiceOrId) => {
-  let invData = null;
-  if (typeof invoiceOrId === "string") {
-    try {
-      const res = await api.get(`/api/invoices/${invoiceOrId}`);
-      invData = unwrapApiRecord(res);
-    } catch (e) {
-      // ignore
-    }
-  } else if (invoiceOrId && typeof invoiceOrId === "object") {
-    invData = invoiceOrId;
-  }
-
-  if (!invData) throw new Error("Invoice data unavailable");
+export const createInvoicePDFFile = async (invoiceOrId, options) => {
+  const invData = await fetchInvoiceForExport(invoiceOrId, options);
+  options?.signal?.throwIfAborted();
 
   const params = extractInvoiceParams(invData);
-  await applyLiveBusinessAndBankParams(params);
+  await applyLiveBusinessAndBankParams(params, options);
 
   const container = document.createElement("div");
   container.style.position = "fixed";
@@ -550,11 +422,16 @@ export const createInvoicePDFFile = async (invoiceOrId) => {
   container.innerHTML = buildInvoiceHTML(params);
   document.body.appendChild(container);
 
-  const canvas = await html2canvas(container, { scale: 2, useCORS: true, backgroundColor: "#ffffff", logging: false });
-  document.body.removeChild(container);
+  let canvas;
+  try {
+    canvas = await html2canvas(container, { scale: 2, useCORS: true, backgroundColor: "#ffffff", logging: false });
+  } finally {
+    container.remove();
+  }
+  options?.signal?.throwIfAborted();
 
   const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-  appendCanvasToJsPDF(pdf, canvas);
+  appendCanvasToPDF(pdf, canvas, params.watermarkText);
 
   const filename = `Invoice-${params.invoiceNumber.replace(/[^a-zA-Z0-9-_]/g, "_")}.pdf`;
   const pdfBlob = pdf.output("blob");
@@ -594,7 +471,8 @@ export const generateInvoicePDF = async (elementId, filename) => {
       format: "a4",
     });
 
-    appendCanvasToJsPDF(pdf, canvas);
+    const bizData = (await fetchLiveBusinessInfo().catch(() => null)) || getCachedBusinessInfo();
+    appendCanvasToPDF(pdf, canvas, bizData?.watermarkText);
     pdf.save(filename || "Invoice.pdf");
     toast.success("Document downloaded as PDF");
   } catch (error) {
@@ -607,7 +485,7 @@ export const generateInvoicePDF = async (elementId, filename) => {
  * Downloads a certified Daily Financial Ledger & Expense Statement PDF
  * @param {string|object} ledgerOrDate - The day date string (YYYY-MM-DD) or full ledger object
  */
-export const downloadDailyExpensePDF = async (ledgerOrDate) => {
+export const downloadDailyExpensePDF = async (ledgerOrDate, { asFile = false, businessInfo, signal } = {}) => {
   let ledger = null;
 
   try {
@@ -621,9 +499,10 @@ export const downloadDailyExpensePDF = async (ledgerOrDate) => {
     if (!ledger) {
       throw new Error("Expense ledger details could not be retrieved.");
     }
+    signal?.throwIfAborted();
 
-    const bizData = (await fetchLiveBusinessInfo().catch(() => null)) || getCachedBusinessInfo();
-    const wmText = bizData?.watermarkText || "VINOFF OFFICIAL AUDIT";
+    const bizData = businessInfo || (await fetchLiveBusinessInfo().catch(() => null)) || getCachedBusinessInfo();
+    const wmText = getDocumentWatermarkText(bizData?.watermarkText);
     const bTitle = (bizData?.brandTitle || "VINOFF & CO. NIG. LTD").trim();
     const bParts = bTitle.split(/\s+/);
     const bPrimary = bParts[0] || "VINOFF";
@@ -653,13 +532,6 @@ export const downloadDailyExpensePDF = async (ledgerOrDate) => {
 
     const htmlContent = `
       <div style="position: relative; overflow: hidden; background-color: #ffffff;">
-        <!-- Watermark -->
-        <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column; align-items: center; justify-content: space-around; pointer-events: none; opacity: 0.07; transform: rotate(-22deg); z-index: 10; text-align: center; padding: 80px 0;">
-          <div style="margin: 40px 0; font-size: 42px; font-weight: 900; color: #047857; letter-spacing: 4px; text-transform: uppercase;">${wmText}</div>
-          <div style="margin: 40px 0; font-size: 42px; font-weight: 900; color: #047857; letter-spacing: 4px; text-transform: uppercase;">${wmText}</div>
-          <div style="margin: 40px 0; font-size: 42px; font-weight: 900; color: #047857; letter-spacing: 4px; text-transform: uppercase;">${wmText}</div>
-        </div>
-
         <div style="position: relative; z-index: 1;">
           <!-- Header -->
           <div style="border-bottom: 3px solid #064e3b; padding-bottom: 18px; margin-bottom: 22px; display: flex; justify-content: space-between; align-items: flex-start;">
@@ -841,14 +713,18 @@ export const downloadDailyExpensePDF = async (ledgerOrDate) => {
     container.innerHTML = htmlContent;
     document.body.appendChild(container);
 
-    const canvas = await html2canvas(container, {
-      scale: 2,
-      useCORS: true,
-      backgroundColor: "#ffffff",
-      logging: false,
-    });
-
-    document.body.removeChild(container);
+    let canvas;
+    try {
+      canvas = await html2canvas(container, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: "#ffffff",
+        logging: false,
+      });
+    } finally {
+      container.remove();
+    }
+    signal?.throwIfAborted();
 
     const pdf = new jsPDF({
       orientation: "portrait",
@@ -856,22 +732,24 @@ export const downloadDailyExpensePDF = async (ledgerOrDate) => {
       format: "a4",
     });
 
-    appendCanvasToJsPDF(pdf, canvas);
+    appendCanvasToPDF(pdf, canvas, wmText);
 
     const filename = `Daily-Expense-Statement-${dateStr}.pdf`;
+    if (asFile) return new File([pdf.output('blob')], filename, { type: 'application/pdf' });
     pdf.save(filename);
 
     toast.success(`Daily expense statement for ${dateStr} downloaded as PDF`, "Statement Downloaded");
     return true;
   } catch (err) {
     console.error("Failed to generate daily expense PDF:", err);
-    toast.error(err.message || "Could not generate PDF", "Download Failed");
+    if (!asFile) toast.error(err.message || "Could not generate PDF", "Download Failed");
     throw err;
   }
 };
 
 // Backwards-compatible alias
 export const downloadExpenseEvidencePDF = downloadDailyExpensePDF;
+export const createDailyExpensePDFFile = (ledger, options) => downloadDailyExpensePDF(ledger, { ...options, asFile: true });
 
 export default downloadInvoicePDF;
 

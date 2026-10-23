@@ -266,7 +266,7 @@ export const ChatProvider = ({ children }) => {
   }, [activeRoom]);
 
   const refreshRooms = useCallback(async () => {
-    if (!user) {
+    if (!user || (isAdmin && user.role !== 'superadmin' && !user.staffPermissions?.includes('chats.manage'))) {
       setRooms([]);
       return [];
     }

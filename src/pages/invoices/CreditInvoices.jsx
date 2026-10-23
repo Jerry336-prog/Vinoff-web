@@ -5,8 +5,11 @@ import { AuthContext } from "../../context/AuthContext";
 import { formatCurrency } from "../../utils/formatCurrency";
 import Badge from "../../components/ui/Badge";
 import Button from "../../components/ui/Button";
+import ExportButton from "../../components/exports/ExportButton";
 import { downloadInvoicePDF } from "../../utils/generatePDF";
 import { unwrapApiList } from "../../utils/apiResponse";
+import { fetchInvoiceForExport, hasInvoiceStamp, isInvoiceStampRequiredError, showInvoiceStampNotice } from '../../services/invoice/downloadAccess';
+import { showModal } from '../../services/ui/modal';
 import {
   CreditCard,
   FileText,
@@ -31,25 +34,29 @@ export const CreditInvoices = () => {
   const [tabFilter, setTabFilter] = useState("active"); // "active" | "settled" | "all"
   const [downloadingId, setDownloadingId] = useState(null);
 
-  const fetchCreditInvoices = async () => {
-    setLoading(true);
+  const fetchCreditInvoices = async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const res = await api.get("/api/invoices?limit=100");
       const allInvoices = unwrapApiList(res);
       const list = Array.isArray(allInvoices) ? allInvoices : [];
       setInvoices(list);
-      if (refreshUser) {
+      if (refreshUser && !silent) {
         refreshUser().catch(() => {});
       }
     } catch (err) {
       console.error("Failed to fetch credit invoices:", err);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
   useEffect(() => {
     fetchCreditInvoices();
+    const refresh = () => { if (document.visibilityState === 'visible') fetchCreditInvoices(true); };
+    const timer = window.setInterval(refresh, 15000);
+    window.addEventListener('focus', refresh);
+    return () => { window.clearInterval(timer); window.removeEventListener('focus', refresh); };
   }, []);
 
   // Credit invoices are those marked isCredit === true OR status === "On Credit"
@@ -116,8 +123,15 @@ export const CreditInvoices = () => {
     }
   };
 
-  const handlePrint = (e, inv) => {
+  const handlePrint = async (e, inv) => {
     e.stopPropagation();
+    try {
+      await fetchInvoiceForExport(inv);
+    } catch (err) {
+      if (isInvoiceStampRequiredError(err)) await showInvoiceStampNotice();
+      else await showModal({ title: 'Print Failed', message: err.message || 'Could not prepare invoice for printing.', tone: 'danger' });
+      return;
+    }
     const invId = inv._id || inv.id;
     navigate(`/invoices/${invId}`);
     setTimeout(() => {
@@ -146,8 +160,20 @@ export const CreditInvoices = () => {
           </Link>
         </div>
 
-        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 text-xs font-bold w-fit">
-          <span>VIP Credit Partner Facility</span>
+        <div className="flex flex-wrap items-center gap-2">
+          {(user?._id || user?.id) && (
+            <ExportButton
+              key={user._id || user.id}
+              kind="credit-invoices"
+              customerId={user._id || user.id}
+              customerName={user.name}
+              label="Export Credit Invoices"
+              defaultFormat="zip"
+            />
+          )}
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 text-xs font-bold w-fit">
+            <span>VIP Credit Partner Facility</span>
+          </div>
         </div>
       </div>
 
@@ -315,6 +341,7 @@ export const CreditInvoices = () => {
         </div>
       </div>
 
+      <section className="grid grid-cols-1 gap-3 sm:grid-cols-2" aria-label="Approved credit allowance">{[['Approved Credit Limit', Number(user?.creditLimit || 0)], ['Available Credit', Math.max(0, Number(user?.creditLimit || 0) - Number(user?.outstandingCredit || 0))]].map(([label, value]) => <div key={label} className="rounded-xl border border-slate-200 bg-white p-4"><p className="text-xs text-slate-500">{label}</p><p className="mt-1 text-xl font-semibold tabular-nums text-slate-900">{formatCurrency(value)}</p></div>)}</section>
       {/* Credit Invoices List */}
       {loading ? (
         <div className="p-12 text-center bg-white border border-slate-200 rounded-2xl animate-pulse text-xs text-slate-500 shadow-2xs">
@@ -467,6 +494,7 @@ export const CreditInvoices = () => {
                         variant="primary"
                         icon={Download}
                         isLoading={downloadingId === invId}
+                        disabled={!hasInvoiceStamp(inv)}
                         onClick={(e) => handleDownload(e, inv)}
                         className="rounded-xl text-xs py-1.5 px-3"
                       >
@@ -476,6 +504,7 @@ export const CreditInvoices = () => {
                       <button
                         type="button"
                         onClick={(e) => handlePrint(e, inv)}
+                        disabled={!hasInvoiceStamp(inv)}
                         className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition"
                         title="Print Invoice"
                       >

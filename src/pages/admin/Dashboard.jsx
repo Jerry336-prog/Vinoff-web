@@ -3,6 +3,7 @@ import api from '../../services/api';
 import { createIdempotencyKey, withIdempotencyKey } from '../../services/idempotency';
 import { formatCurrency } from '../../utils/formatCurrency';
 import StatCard from '../../components/dashboard/StatCard';
+import ExportButton from '../../components/exports/ExportButton';
 import Badge from '../../components/ui/Badge';
 import Avatar from '../../components/ui/Avatar';
 import { Link, useNavigate } from 'react-router-dom';
@@ -64,10 +65,9 @@ export const Dashboard = () => {
     const invoiceId = inv._id || inv.id;
     setSettlingId(invoiceId);
     try {
-      const adminName = user?.name || "System Admin";
       await api.patch(
         `/api/invoices/${invoiceId}`,
-        { status: "Paid", issuedBy: adminName },
+        { status: "Paid" },
         withIdempotencyKey(createIdempotencyKey(`dash-settle-${invoiceId}`)),
       );
       toast.success(
@@ -146,12 +146,16 @@ export const Dashboard = () => {
           </button>
         </div>
 
-        <Link
-          to="/admin/customers"
-          className="text-xs font-bold text-brand-green-800 hover:underline px-3 py-1.5 flex items-center gap-1"
-        >
-          Manage VIP Credit Partners ({vipCustomers.length})
-        </Link>
+        <div className="flex flex-wrap items-center gap-2">
+          <ExportButton kind="invoices" label="Export Invoices" defaultFormat="zip" />
+          <ExportButton kind="orders" label="Export Orders" />
+          <Link
+            to="/admin/customers"
+            className="text-xs font-bold text-brand-green-800 hover:underline px-3 py-1.5 flex items-center gap-1"
+          >
+            Manage VIP Credit Partners ({vipCustomers.length})
+          </Link>
+        </div>
       </div>
 
       {activeTab === 'credit-invoices' ? (
@@ -204,7 +208,7 @@ export const Dashboard = () => {
                     VIP Credit Invoices Ledger ({creditInvoices.length})
                   </h3>
                   <p className="text-[11px] text-slate-400 mt-0.5">
-                    Settle credit invoices when payment is received to deduct from customer credit and add to realized revenue.
+                    Customers settle credit invoices through Paystack. Verified payments automatically update their outstanding balance.
                   </p>
                 </div>
               </div>
@@ -276,7 +280,7 @@ export const Dashboard = () => {
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    downloadInvoicePDF(invId);
+                                    downloadInvoicePDF(invId, { requireStamp: false });
                                   }}
                                   className="p-1.5 hover:bg-slate-100 text-slate-500 hover:text-brand-green-700 rounded-lg transition"
                                   title="Download PDF"

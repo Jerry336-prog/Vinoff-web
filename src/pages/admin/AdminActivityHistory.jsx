@@ -2,15 +2,13 @@ import React, { useState, useEffect, useMemo, useContext } from 'react';
 import api from '../../services/api';
 import { AuthContext } from '../../context/AuthContext';
 import { unwrapApiList } from '../../utils/apiResponse';
-import { exportHistoryCSV, exportHistoryPDF } from '../../utils/exportHistory';
+import ExportButton from '../../components/exports/ExportButton';
 import {
   ShieldAlert,
-  Download,
   Search,
   Filter,
   Calendar,
   User,
-  FileSpreadsheet,
   RefreshCw,
   Sliders,
   PackageCheck,
@@ -120,59 +118,6 @@ export const AdminActivityHistory = () => {
     });
   }, [activities, searchQuery, categoryFilter]);
 
-  const handleExportCSV = () => {
-    if (filteredActivities.length === 0) return;
-
-    const headers = [
-      'Date & Time',
-      'Admin / Actor',
-      'Category',
-      'Action Description',
-      'Details & Notes',
-    ];
-
-    const rows = filteredActivities.map((act) => [
-      new Date(act.timestamp).toLocaleString(),
-      act.adminName,
-      act.category,
-      act.action,
-      act.details,
-    ]);
-
-    exportHistoryCSV(
-      `vinoff_admin_activity_log_${new Date().toISOString().slice(0, 10)}`,
-      headers,
-      rows
-    );
-  };
-
-  const handleExportPDF = () => {
-    if (filteredActivities.length === 0) return;
-
-    const headers = [
-      'Date & Time',
-      'Administrator',
-      'Category',
-      'Action Executed',
-      'Log Details',
-    ];
-
-    const rows = filteredActivities.map((act) => [
-      new Date(act.timestamp).toLocaleString(),
-      act.adminName,
-      act.category,
-      act.action,
-      act.details,
-    ]);
-
-    exportHistoryPDF(
-      'Admin Activity & Audit Trail Log',
-      `vinoff_admin_activity_log_${new Date().toISOString().slice(0, 10)}`,
-      headers,
-      rows
-    );
-  };
-
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -197,26 +142,8 @@ export const AdminActivityHistory = () => {
           >
             Refresh
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleExportCSV}
-            disabled={filteredActivities.length === 0}
-            className="rounded-xl border-slate-200 text-slate-700"
-            icon={FileSpreadsheet}
-          >
-            Download CSV
-          </Button>
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={handleExportPDF}
-            disabled={filteredActivities.length === 0}
-            className="rounded-xl shadow-sm"
-            icon={Download}
-          >
-            Download PDF
-          </Button>
+          <ExportButton kind="admin-activity" label="Download CSV" defaultFormat="csv" />
+          <ExportButton kind="admin-activity" label="Download PDF" defaultFormat="pdf" />
         </div>
       </div>
 

@@ -110,6 +110,7 @@ export const CartProvider = ({ children }) => {
     toggleItemMode,
     removeFromCart,
     clearCart,
+    replaceCart: items => setCartItems(items),
     subtotal,
     cartCount: getCartCount(),
     MIN_ORDER_THRESHOLD,

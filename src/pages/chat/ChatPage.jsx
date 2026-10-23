@@ -57,7 +57,7 @@ export const ChatPage = () => {
           Message Admin &mdash; Sales &amp; Support
         </h1>
         <p className="text-xs text-slate-500 font-medium mt-0.5">
-          Chat directly with Vinoff administration to discuss wholesale orders, custom quotations, and payment verification.
+          Chat directly with Vinoff administration about wholesale orders, custom quotations, and Paystack payment support.
         </p>
       </div>
 
@@ -115,10 +115,10 @@ export const ChatPage = () => {
 
             <div>
               <p className="font-bold text-slate-700 flex items-center gap-1">
-                📸 Payment Slip Verification
+                Paystack Payment Support
               </p>
               <p className="text-slate-500 mt-1">
-                You can attach transfer receipts by clicking the attachment icon. Once uploaded, admins confirm transactions and dispatch items.
+                Pay from checkout, your order, or your invoice using Paystack. Confirmation is automatic. If a payment needs help, share its transaction reference with support, not a payment screenshot.
               </p>
             </div>
 
@@ -127,7 +127,7 @@ export const ChatPage = () => {
                 ⚡ Real-time System Updates
               </p>
               <p className="text-slate-500 mt-1">
-                Status changes, proof submissions, and invoices automatically trigger system updates right inside this room.
+                Order updates and shared invoices appear here. Use attachments for product images and documents, not to confirm payments.
               </p>
             </div>
           </div>

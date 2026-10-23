@@ -1,37 +1,48 @@
-import React, { useContext, useState, useEffect, useRef } from 'react';
+import { useContext, useState, useEffect, useRef } from 'react';
 import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { ChatContext } from '../context/ChatContext';
 import { NotificationContext } from '../context/NotificationContext';
 import Avatar from '../components/ui/Avatar';
 import AnnouncementModal from '../components/ui/AnnouncementModal';
+import AdminSidebarNavigation from '../components/admin/AdminSidebarNavigation';
+import CreditApprovalPopup from '../components/admin/CreditApprovalPopup';
+import { canOpenAdminPage, getAdminLandingPath, isSuperAdminUser } from '../utils/staffPermissions';
+import { getAdminNavItem } from './adminNavigation';
 import { getInitials } from '../utils/avatar';
 import { 
-  LayoutGrid, ShoppingBag, ClipboardList, MessageSquare, 
-  FileSpreadsheet, Users, Warehouse, History, LogOut, Bell, Menu, X, ArrowLeft, UserCircle2, ChevronDown, Wallet, Megaphone, Settings, BarChart3, BookOpen
+  LogOut, Bell, Menu, X, ArrowLeft
 } from 'lucide-react';
 
 export const AdminLayout = () => {
   const { user, logout, isAdmin, loading } = useContext(AuthContext);
   const { rooms } = useContext(ChatContext);
-  const { notifications, unreadCount: unreadNotifs, markAllAsRead, markAsRead } = useContext(NotificationContext);
+  const { notifications, markAllAsRead, markAsRead } = useContext(NotificationContext);
   const navigate = useNavigate();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isDesktop, setIsDesktop] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const notifRef = useRef(null);
+  const menuToggleRef = useRef(null);
+  const sidebarCloseRef = useRef(null);
+  const wasMobileSidebarOpen = useRef(false);
 
-  const isHistoryActive =
-    location.pathname.startsWith('/admin/history') ||
-    location.pathname === '/admin/inventory-history';
-
-  const [historyDropdownOpen, setHistoryDropdownOpen] = useState(isHistoryActive);
+  const closeMobileSidebar = () => {
+    if (!isDesktop) {
+      setSidebarOpen(false);
+    }
+  };
 
   useEffect(() => {
-    if (isHistoryActive) {
-      setHistoryDropdownOpen(true);
+    if (isDesktop) {
+      wasMobileSidebarOpen.current = false;
+      return;
     }
-  }, [isHistoryActive]);
+    if (sidebarOpen) sidebarCloseRef.current?.focus();
+    else if (wasMobileSidebarOpen.current) menuToggleRef.current?.focus();
+    wasMobileSidebarOpen.current = sidebarOpen;
+  }, [sidebarOpen, isDesktop]);
 
   // Auto-close sidebar on mobile/tablet view when navigating
   useEffect(() => {
@@ -43,6 +54,7 @@ export const AdminLayout = () => {
   // Set default sidebar state based on screen width on initial load
   useEffect(() => {
     const handleResize = () => {
+      setIsDesktop(window.innerWidth >= 1024);
       if (window.innerWidth >= 1024) {
         setSidebarOpen(true);
       } else {
@@ -93,6 +105,7 @@ export const AdminLayout = () => {
     inventory: 0,
     announcements: 0,
     expenses: 0,
+    approvals: unreadSystemNotifs.filter(item => item.type === 'CREDIT_LIMIT_REQUESTED').length,
   };
 
   unreadSystemNotifs.forEach((n) => {
@@ -133,60 +146,13 @@ export const AdminLayout = () => {
     }
   });
 
-  const menuItems = [
-    { name: 'Dashboard', path: '/admin/dashboard', icon: LayoutGrid },
-    { name: 'Operating Guide', path: '/admin/guide', icon: BookOpen },
-    { name: 'Products', path: '/admin/products', icon: ShoppingBag, tabKey: 'products' },
-    { name: 'Orders', path: '/admin/orders', icon: ClipboardList, tabKey: 'orders' },
-    { name: 'Chats', path: '/admin/chats', icon: MessageSquare, badge: true },
-    { name: 'Invoices', path: '/admin/invoices', icon: FileSpreadsheet, tabKey: 'invoices' },
-    { name: 'Customers', path: '/admin/customers', icon: Users, tabKey: 'customers' },
-    { name: 'Inventory', path: '/admin/inventory', icon: Warehouse, tabKey: 'inventory' },
-    { name: 'Inventory History', path: '/admin/inventory-history', icon: History },
-    { name: 'Expense Tracker', path: '/admin/expenses', icon: Wallet, tabKey: 'expenses' },
-    { name: 'Traffic Analytics', path: '/admin/analytics', icon: BarChart3 },
-    { name: 'Announcements', path: '/admin/announcements', icon: Megaphone, tabKey: 'announcements' },
-    { name: 'Notifications', path: '/admin/notifications', icon: Bell, notifBadge: true },
-    { name: 'Settings', path: '/admin/settings', icon: Settings },
-    { name: 'Profile', path: '/admin/profile', icon: UserCircle2 },
-  ];
-
-  // Show spinner while auth session is loading
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 border-4 border-amber-500 border-t-transparent rounded-full animate-spin" />
-          <p className="text-xs font-semibold text-slate-500 tracking-wide">Verifying admin access...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Auth resolved but user is not an admin
-  if (!isAdmin) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <div className="text-center p-6 bg-white rounded-2xl shadow-md border border-slate-200">
-          <p className="text-red-500 font-bold text-lg mb-2">Access Denied</p>
-          <p className="text-slate-600 text-sm mb-4">You do not have Administrator permissions.</p>
-          <button 
-            onClick={() => navigate('/shop')}
-            className="px-4 py-2 bg-brand-green-600 text-white rounded-xl text-sm font-semibold hover:bg-brand-green-700 transition"
-          >
-            Go to Shop Shelf
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   // Auto-clear category notifications when the admin is actively viewing that tab
   useEffect(() => {
-    if (!user || !unreadSystemNotifs.length) return;
+    if (loading || !isAdmin || !user || !notifications.length) return;
     const currentPath = location.pathname;
 
-    const notifsToClear = unreadSystemNotifs.filter((n) => {
+    const notifsToClear = notifications.filter((n) => {
+      if (n.isRead || n.read) return false;
       const t = (n.type || '').toUpperCase();
       const title = (n.title || '').toLowerCase();
       const msg = (n.message || '').toLowerCase();
@@ -220,29 +186,72 @@ export const AdminLayout = () => {
         markAsRead(n._id);
       });
     }
-  }, [location.pathname, unreadSystemNotifs, markAsRead, user]);
+  }, [location.pathname, notifications, markAsRead, user, isAdmin, loading]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-10 h-10 border-4 border-amber-500 border-t-transparent rounded-full animate-spin" />
+          <p className="text-xs font-semibold text-slate-500 tracking-wide">Verifying admin access...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAdmin) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="text-center p-6 bg-white rounded-2xl shadow-md border border-slate-200">
+          <p className="text-red-500 font-bold text-lg mb-2">Access Denied</p>
+          <p className="text-slate-600 text-sm mb-4">You do not have Administrator permissions.</p>
+          <button onClick={() => navigate('/shop')} className="px-4 py-2 bg-brand-green-600 text-white rounded-xl text-sm font-semibold hover:bg-brand-green-700 transition">Go to Shop Shelf</button>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="flex h-screen bg-slate-100 overflow-hidden text-slate-800 print:h-auto print:overflow-visible print:bg-white relative">
-      <AnnouncementModal />
+    <div className="flex h-dvh bg-slate-100 overflow-hidden text-slate-800 print:h-auto print:overflow-visible print:bg-white relative">
+      <div className="absolute z-[70]"><AnnouncementModal /></div>
       
       {/* Mobile/Tablet Overlay Backdrop */}
       {sidebarOpen && (
         <div 
           onClick={() => setSidebarOpen(false)} 
-          className="fixed inset-0 bg-slate-950/70 backdrop-blur-xs z-40 lg:hidden transition-opacity duration-300"
+          className="fixed inset-0 bg-slate-950/60 z-50 lg:hidden"
         />
       )}
 
       {/* Sidebar for Desktop, Tablet, and Mobile */}
       <aside 
-        className={`fixed inset-y-0 left-0 z-50 w-64 bg-slate-900 text-slate-300 border-r border-slate-800 transition-all duration-300 transform lg:relative lg:translate-x-0 print:hidden flex flex-col shadow-2xl lg:shadow-none ${
+        id="admin-sidebar"
+        aria-label="Admin sidebar"
+        role={!isDesktop ? 'dialog' : undefined}
+        aria-modal={!isDesktop && sidebarOpen ? true : undefined}
+        aria-hidden={!sidebarOpen || undefined}
+        inert={!sidebarOpen || undefined}
+        onKeyDown={event => {
+          if (isDesktop) return;
+          if (event.key === 'Escape') {
+            event.preventDefault();
+            closeMobileSidebar();
+          }
+          if (event.key === 'Tab') {
+            const controls = [...event.currentTarget.querySelectorAll('a[href], button:not(:disabled)')].filter(element => element.getClientRects().length > 0);
+            const first = controls[0];
+            const last = controls.at(-1);
+            if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+            else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+          }
+        }}
+        className={`admin-sidebar fixed inset-y-0 left-0 z-[60] w-64 shrink-0 bg-slate-900 text-slate-300 border-r border-slate-800 transition-transform duration-200 motion-reduce:transition-none transform lg:relative lg:translate-x-0 print:hidden flex flex-col shadow-xl lg:shadow-none ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
         {/* Sidebar Header Logo */}
-        <div className="flex items-center justify-between h-16 px-5 bg-slate-950 border-b border-slate-800 shrink-0">
-          <div className="flex items-center gap-3 min-w-0">
+        <div className="admin-sidebar-header flex items-center justify-between h-16 px-5 bg-slate-950 border-b border-slate-800 shrink-0">
+          <Link to={getAdminLandingPath(user)} onClick={closeMobileSidebar} className="flex items-center gap-3 min-w-0 rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand-green-400">
             <div className="w-9 h-9 bg-white rounded-full flex items-center justify-center p-1 shadow-sm shrink-0 ring-2 ring-white/20">
               <img src="/VinoffLogo.webp" alt="Vinoff Logo" className="w-7 h-7 object-contain" />
             </div>
@@ -250,14 +259,15 @@ export const AdminLayout = () => {
               <span className="font-bold text-sm tracking-tight text-white block">
                 VINOFF <span className="text-brand-yellow-400">ADMIN</span>
               </span>
-              <span className="text-[9px] text-brand-green-400 font-semibold tracking-wider block">
+              <span className="text-[10px] text-slate-500 font-medium block mt-0.5">
                 Management Suite
               </span>
             </div>
-          </div>
+          </Link>
           
           <button 
-            onClick={() => setSidebarOpen(false)}
+            ref={sidebarCloseRef}
+            onClick={closeMobileSidebar}
             className="lg:hidden text-slate-400 hover:text-white p-1.5 rounded-xl hover:bg-slate-800 transition cursor-pointer"
             title="Close Sidebar"
             aria-label="Close Sidebar"
@@ -266,108 +276,12 @@ export const AdminLayout = () => {
           </button>
         </div>
 
-        {/* Navigation Sidebar List */}
-        <nav className="flex-1 px-4 py-6 space-y-1.5 overflow-y-auto">
-          {menuItems.map((item) => {
-            if (item.isDropdown) {
-              const isParentActive = isHistoryActive;
-              return (
-                <div key={item.name} className="space-y-1">
-                  <button
-                    type="button"
-                    onClick={() => setHistoryDropdownOpen(!historyDropdownOpen)}
-                    className={`w-full flex items-center justify-between px-4 py-3 text-sm font-semibold tracking-wide transition-all group ${
-                      isParentActive
-                        ? 'bg-slate-800 text-brand-yellow-400 rounded-xl font-bold'
-                        : 'hover:bg-slate-800/80 hover:text-white text-slate-400 rounded-xl'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3.5">
-                      <item.icon className={`w-5 h-5 transition-colors ${
-                        isParentActive ? 'text-brand-yellow-400' : 'text-slate-500 group-hover:text-brand-yellow-400'
-                      }`} />
-                      <span>{item.name}</span>
-                    </div>
-                    <ChevronDown
-                      className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${
-                        historyDropdownOpen ? 'rotate-180 text-brand-yellow-400' : ''
-                      }`}
-                    />
-                  </button>
-
-                  {historyDropdownOpen && (
-                    <div className="pl-7 pr-2 py-1.5 space-y-1 bg-slate-950/60 rounded-2xl border border-slate-800/50">
-                      {item.subItems.map((sub) => {
-                        const isSubSelected =
-                          location.pathname === sub.path ||
-                          (sub.path === '/admin/history/inventory' && location.pathname === '/admin/inventory-history');
-                        return (
-                          <Link
-                            key={sub.name}
-                            to={sub.path}
-                            className={`block px-3 py-2 text-xs font-semibold rounded-xl transition-all ${
-                              isSubSelected
-                                ? 'bg-brand-green-600 text-white font-bold shadow-xs'
-                                : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
-                            }`}
-                          >
-                            {sub.name}
-                          </Link>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              );
-            }
-
-            const Icon = item.icon;
-            const isSelected = location.pathname === item.path || location.pathname.startsWith(item.path + '/');
-            const isChatBadge = item.badge && unreadChatRoomsCount > 0;
-            const isNotifBadge = item.notifBadge && unreadTotalCount > 0;
-            const tabBadgeCount = item.tabKey ? (tabCounts[item.tabKey] || 0) : 0;
-            const isTabBadge = tabBadgeCount > 0;
-
-            return (
-              <Link
-                key={item.name}
-                to={item.path}
-                className={`flex items-center justify-between px-4 py-3 text-sm font-semibold tracking-wide transition-all group ${
-                  isSelected 
-                    ? 'bg-brand-green-600 text-white shadow-md rounded-2xl font-bold' 
-                    : 'hover:bg-slate-800/80 hover:text-white text-slate-400 rounded-xl'
-                }`}
-              >
-                <div className="flex items-center gap-3.5 min-w-0">
-                  <Icon className={`w-5 h-5 shrink-0 transition-colors ${
-                    isSelected ? 'text-white' : 'text-slate-500 group-hover:text-brand-yellow-400'
-                  }`} />
-                  <span className="truncate">{item.name}</span>
-                </div>
-                {isChatBadge && (
-                  <span className="bg-brand-yellow-400 text-slate-950 text-[10px] font-bold min-w-5 h-5 px-1.5 flex items-center justify-center rounded-full animate-bounce shrink-0 shadow-sm">
-                    {unreadChatRoomsCount}
-                  </span>
-                )}
-                {isNotifBadge && (
-                  <span className="bg-emerald-500 text-white text-[10px] font-bold min-w-5 h-5 px-1.5 flex items-center justify-center rounded-full animate-pulse shrink-0 shadow-sm">
-                    {unreadTotalCount}
-                  </span>
-                )}
-                {isTabBadge && (
-                  <span className="bg-emerald-500 text-white text-[10px] font-bold min-w-5 h-5 px-1.5 flex items-center justify-center rounded-full animate-pulse shrink-0 shadow-sm">
-                    {tabBadgeCount}
-                  </span>
-                )}
-              </Link>
-            );
-          })}
-        </nav>
+        <AdminSidebarNavigation counts={{ ...tabCounts, chats: unreadChatRoomsCount, notifications: unreadNotifsCount }} onNavigate={closeMobileSidebar} />
 
         {/* Sidebar Footer Account Details */}
-        <div className="p-4 border-t border-slate-800 bg-slate-950">
+        <div className="admin-sidebar-footer shrink-0 px-4 py-3 border-t border-slate-800 bg-slate-950">
           <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2.5 min-w-0">
+            <Link to="/admin/profile" onClick={closeMobileSidebar} className="flex items-center gap-2.5 min-w-0 rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-green-400" aria-label="View your admin profile">
               <Avatar
                 src={user?.avatarUrl}
                 alt={user?.name || "Admin"}
@@ -376,49 +290,53 @@ export const AdminLayout = () => {
                 className="rounded-xl bg-brand-green-100 text-brand-green-800 shrink-0"
               />
               <div className="truncate">
-                <p className="text-xs font-bold text-white truncate">{user?.name}</p>
+                <p className="text-xs font-semibold text-white truncate">{user?.name}</p>
                 <p className="text-[10px] text-slate-500 truncate">{user?.email}</p>
               </div>
-            </div>
+            </Link>
             <button 
               onClick={handleLogout}
               className="p-2 hover:bg-slate-800 hover:text-red-400 rounded-lg text-slate-500 transition-colors"
               title="Sign Out"
+              aria-label="Sign out"
             >
               <LogOut className="w-4.5 h-4.5" />
             </button>
           </div>
           <Link 
             to="/" 
-            className="mt-3 flex items-center justify-center gap-1.5 text-xs text-brand-green-400 hover:text-brand-yellow-400 transition-colors border-t border-slate-800 pt-2.5"
+            className="admin-sidebar-store-link mt-2 flex items-center gap-2 text-[11px] text-slate-400 hover:text-white transition-colors border-t border-slate-800 pt-2"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
-            Back to Retail Outlet
+            View Store
           </Link>
         </div>
       </aside>
 
       {/* Main Panel Content Window */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden print:overflow-visible">
+      <div inert={sidebarOpen && !isDesktop || undefined} className="flex-1 flex flex-col min-w-0 overflow-hidden print:overflow-visible">
         
         {/* Top bar header */}
-        <header className="relative h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6 z-50 print:hidden">
-          <div className="flex items-center gap-4">
+        <header className="relative h-16 shrink-0 bg-white border-b border-slate-200 flex items-center justify-between gap-3 px-4 sm:px-6 z-30 print:hidden">
+          <div className="flex min-w-0 flex-1 items-center gap-3 sm:gap-4">
             <button 
+              ref={menuToggleRef}
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="p-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200/80 transition cursor-pointer lg:hidden"
+              aria-expanded={sidebarOpen}
+              aria-controls="admin-sidebar"
+              className="shrink-0 p-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200/80 transition cursor-pointer lg:hidden"
               title="Toggle Menu"
               aria-label="Toggle Menu"
             >
               <Menu className="w-5 h-5" />
             </button>
             {/* Page Title — shows current section name */}
-            <h1 className="text-lg font-bold text-slate-800 tracking-tight">
-              {menuItems.find(item => location.pathname === item.path || location.pathname.startsWith(item.path + '/'))?.name || 'Admin Suite'}
+            <h1 title={getAdminNavItem(location.pathname)?.name} className="min-w-0 truncate text-sm sm:text-lg font-bold text-slate-800 tracking-tight">
+              {getAdminNavItem(location.pathname)?.name || 'Admin Suite'}
             </h1>
           </div>
 
-          <div className="flex items-center gap-4 relative">
+          <div className="flex shrink-0 items-center gap-2 sm:gap-4 relative">
             
             {/* Notification Bell Button */}
             <button 
@@ -496,7 +414,7 @@ export const AdminLayout = () => {
                       {unreadSystemNotifs.map((notif) => (
                         <Link
                           key={notif._id}
-                          to="/admin/notifications"
+                          to={notif.type.startsWith('CREDIT_LIMIT_') ? '/admin/credit-approvals' : '/admin/notifications'}
                           onClick={() => setShowNotifications(false)}
                           className="flex items-start gap-3 p-3 hover:bg-slate-50 rounded-2xl transition-colors border border-transparent hover:border-slate-100 group"
                         >
@@ -564,8 +482,9 @@ export const AdminLayout = () => {
         </header>
 
         {/* Dashboard Pages Mount */}
-        <main className="flex-1 overflow-y-auto p-3.5 sm:p-6 md:p-8 print:p-0 print:overflow-visible">
-          <Outlet />
+        <main className={`min-h-0 flex-1 p-3.5 sm:p-6 md:p-8 print:p-0 print:overflow-visible ${location.pathname === '/admin/guide' ? 'overflow-y-auto lg:overflow-hidden' : 'overflow-y-auto'}`}>
+          {canOpenAdminPage(user, location.pathname) ? <Outlet /> : <div className="mx-auto max-w-lg rounded-2xl border border-slate-200 bg-white p-6"><h1 className="text-lg font-semibold text-slate-900">Permission Required</h1><p className="mt-2 text-sm text-slate-500">The super admin has not granted your account access to this section. Choose an available section in the sidebar or request access.</p><Link to="/admin/guide" className="mt-4 inline-block text-sm font-semibold text-brand-green-700">Open Operating Guide</Link></div>}
+          {isSuperAdminUser(user) && <CreditApprovalPopup />}
         </main>
       </div>
       

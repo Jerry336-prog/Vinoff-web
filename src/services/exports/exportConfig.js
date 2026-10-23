@@ -1,0 +1,15 @@
+export const EXPORT_TYPES = {
+  invoices: { title: 'Invoices', category: 'invoice', customerFilter: true, description: 'Download separate invoice PDFs in one ZIP, or a summary report.' },
+  'credit-invoices': { title: 'Credit Invoices', category: 'invoice', description: 'Export your credit invoices. Only admin-stamped invoices can be downloaded.' },
+  expenses: { title: 'Expense Statements', category: 'expense', description: 'Download a ZIP with a separate PDF for each ledger day, or a balance summary.' },
+  orders: { title: 'Orders and Sales', customerFilter: true },
+  products: { title: 'Product Catalog', description: 'Current prices and stock. Dates filter when products were created, not historical prices or balances.' },
+  inventory: { title: 'Inventory Snapshot', description: 'Current carton and loose-unit stock. Dates filter product creation. Use Inventory History for movements.' },
+  customers: { title: 'Customer and User Directory', customerFilter: true, description: 'Account details and current credit balances, filtered by account registration date.' },
+  'customer-history': { title: 'Customer Purchase History', customerFilter: true, description: 'Orders, quantities and spending within the chosen purchase dates, not lifetime totals.' },
+  'admin-activity': { title: 'Admin Activity Log', description: 'Recorded backend audit events, rather than events inferred from the current screen.' },
+  'inventory-history': { title: 'Inventory Movement History', customerFilter: true, description: 'Stock movement records and their sources. Customer filters exclude administrator restocks.' },
+  analytics: { title: 'Traffic Analytics', description: 'Daily page views and unique visitors from the analytics timeline, grouped by session creation day.' },
+  announcements: { title: 'Announcements' },
+  notifications: { title: 'My Notifications', description: 'Export notifications belonging to the account you are signed in to.' },
+};

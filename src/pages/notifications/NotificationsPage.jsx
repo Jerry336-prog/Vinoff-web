@@ -14,6 +14,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 import Button from "../../components/ui/Button";
+import ExportButton from "../../components/exports/ExportButton";
 
 export const NotificationsPage = () => {
   const { notifications, unreadCount, markAsRead, markAllAsRead, fetchNotifications } =
@@ -49,7 +50,9 @@ export const NotificationsPage = () => {
 
     // Determine target route based on type / metadata / relatedEntity
     const entityId = item.relatedEntityId || item.relatedEntity?.id;
-    if (item.type === "PROFILE_UPDATED") {
+    if (item.type === 'CREDIT_LIMIT_REQUESTED' || item.type === 'CREDIT_LIMIT_REVIEWED') {
+      navigate(`/admin/credit-approvals${item.relatedApproval ? `?request=${item.relatedApproval._id || item.relatedApproval}` : ''}`);
+    } else if (item.type === "PROFILE_UPDATED") {
       if (isAdmin && entityId) {
         navigate(`/admin/customers/${entityId}`);
       } else if (isAdmin) {
@@ -94,17 +97,20 @@ export const NotificationsPage = () => {
           </p>
         </div>
 
-        {unreadCount > 0 && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={markAllAsRead}
-            icon={CheckCheck}
-            className="rounded-xl w-full sm:w-auto shrink-0 justify-center text-xs py-2.5"
-          >
-            Mark All as Read ({unreadCount})
-          </Button>
-        )}
+        <div className="flex flex-wrap items-center gap-2">
+          <ExportButton kind="notifications" />
+          {unreadCount > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={markAllAsRead}
+              icon={CheckCheck}
+              className="rounded-xl w-full sm:w-auto shrink-0 justify-center text-xs py-2.5"
+            >
+              Mark All as Read ({unreadCount})
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* List */}

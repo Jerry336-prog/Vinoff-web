@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import api from '../../services/api';
+import ExportButton from '../../components/exports/ExportButton';
 import {
   TrendingUp,
   Users,
@@ -159,7 +160,8 @@ export const Analytics = () => {
         </div>
 
         {/* Time Filters & Refresh */}
-        <div className="flex items-center justify-between sm:justify-end gap-2 pt-2.5 sm:pt-0 border-t sm:border-t-0 border-slate-100">
+        <div className="flex flex-wrap items-center justify-between sm:justify-end gap-2 pt-2.5 sm:pt-0 border-t sm:border-t-0 border-slate-100">
+          <ExportButton kind="analytics" />
           <div className="inline-flex bg-slate-100 p-0.5 sm:p-1 rounded-xl border border-slate-200 overflow-x-auto">
             {[
               { id: '24h', label: '24h' },
@@ -217,28 +219,28 @@ export const Analytics = () => {
             </div>
           </div>
           <div className="text-xl sm:text-3xl font-black text-slate-900 tracking-tight">
-            {summary.totalPageviews.toLocaleString()}
+            {(summary.totalViews ?? summary.uniqueVisitors).toLocaleString()}
           </div>
           <p className="text-[10px] sm:text-[11px] text-slate-500 mt-1 flex items-center gap-1 font-medium truncate">
             <Layers className="w-3 h-3 text-slate-400 shrink-0" />
-            {summary.totalSessions.toLocaleString()} sessions
+            One view per IP address
           </p>
         </div>
 
         {/* Unique Visitors */}
         <div className="bg-white p-3.5 sm:p-5 rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-xs flex flex-col justify-between">
           <div className="flex items-center justify-between text-slate-500 mb-1.5 sm:mb-2">
-            <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-400">Unique People</span>
+            <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-400">Page Views</span>
             <div className="p-1.5 sm:p-2 bg-brand-green-50 text-brand-green-600 rounded-lg sm:rounded-xl">
               <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </div>
           </div>
           <div className="text-xl sm:text-3xl font-black text-slate-900 tracking-tight">
-            {summary.uniqueVisitors.toLocaleString()}
+            {summary.totalPageviews.toLocaleString()}
           </div>
           <p className="text-[10px] sm:text-[11px] text-brand-green-700 mt-1 flex items-center gap-1 font-semibold truncate">
             <UserCheck className="w-3 h-3 text-brand-green-600 shrink-0" />
-            {summary.newVisitorsCount.toLocaleString()} new visitors
+            {summary.totalSessions.toLocaleString()} sessions, including repeat visits
           </p>
         </div>
 
@@ -262,7 +264,7 @@ export const Analytics = () => {
         {/* Returning Visitors */}
         <div className="bg-white p-3.5 sm:p-5 rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-xs flex flex-col justify-between">
           <div className="flex items-center justify-between text-slate-500 mb-1.5 sm:mb-2">
-            <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-400">Repeat Guests</span>
+            <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-400">Returning IPs</span>
             <div className="p-1.5 sm:p-2 bg-indigo-50 text-indigo-600 rounded-lg sm:rounded-xl">
               <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </div>
@@ -272,7 +274,7 @@ export const Analytics = () => {
           </div>
           <p className="text-[10px] sm:text-[11px] text-slate-500 mt-1 flex items-center gap-1 font-medium truncate">
             <ShieldCheck className="w-3 h-3 text-indigo-500 shrink-0" />
-            Returning shoppers
+            IPs with multiple page views
           </p>
         </div>
       </div>
@@ -290,7 +292,7 @@ export const Analytics = () => {
             </p>
           </div>
           <span className="text-[11px] sm:text-xs font-bold text-slate-500 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200/60 self-start sm:self-auto">
-            {summary.totalPageviews} Total Visits
+            {summary.totalPageviews} page views
           </span>
         </div>
 
@@ -319,8 +321,8 @@ export const Analytics = () => {
 
                 <div className="mt-3 pt-2.5 border-t border-slate-200/60">
                   <div className="flex items-center justify-between text-[11px] font-semibold text-slate-700 mb-1.5">
-                    <span>{item.count.toLocaleString()} visits</span>
-                    <span className="text-slate-400 font-normal">{item.uniqueVisitors} unique</span>
+                    <span>{item.count.toLocaleString()} page views</span>
+                    <span className="text-slate-400 font-normal">{item.uniqueVisitors} unique IPs</span>
                   </div>
                   <div className="w-full bg-slate-200 rounded-full h-1.5 sm:h-2 overflow-hidden">
                     <div
@@ -494,14 +496,14 @@ export const Analytics = () => {
           <div>
             <h3 className="text-sm sm:text-base font-black text-slate-900 tracking-tight flex items-center gap-2">
               <Clock className="w-4 h-4 text-brand-green-600" />
-              Live Incoming Visitor Stream
+              Visitor IP Records
             </h3>
             <p className="text-[11px] sm:text-xs text-slate-500 mt-0.5">
-              Recent people entering your website, whether guest or logged-in account
+              One record per IP in the selected period, with repeat page views and sessions. Shared Wi-Fi may use one public IP for several devices.
             </p>
           </div>
           <span className="text-[11px] font-bold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-lg self-start sm:self-auto">
-            Latest {recentVisits.length} entries
+            Latest {recentVisits.length} unique visitors
           </span>
         </div>
 
@@ -511,6 +513,7 @@ export const Analytics = () => {
             <thead className="bg-slate-50/80 text-slate-500 font-bold uppercase tracking-wider text-[10px] border-b border-slate-100">
               <tr>
                 <th className="py-3 px-4">Time</th>
+                <th className="py-3 px-4">IP Address / Repeat Visits</th>
                 <th className="py-3 px-4">Visitor Type</th>
                 <th className="py-3 px-4">Source Channel</th>
                 <th className="py-3 px-4">Page Entered</th>
@@ -521,14 +524,14 @@ export const Analytics = () => {
             <tbody className="divide-y divide-slate-100 text-slate-700">
               {recentVisits.length === 0 ? (
                 <tr>
-                  <td colSpan="6" className="py-8 text-center text-slate-400">
+                  <td colSpan="7" className="py-8 text-center text-slate-400">
                     No visitor logs recorded yet in this timeframe.
                   </td>
                 </tr>
               ) : (
                 recentVisits.map((visit) => {
                   const config = SOURCE_CONFIG[visit.source] || SOURCE_CONFIG['Other Referral'];
-                  const visitDate = new Date(visit.createdAt);
+                  const visitDate = new Date(visit.lastSeenAt || visit.createdAt);
                   const timeFormatted = visitDate.toLocaleTimeString([], {
                     hour: '2-digit',
                     minute: '2-digit',
@@ -546,6 +549,10 @@ export const Analytics = () => {
                         <div className="text-[10px] text-slate-400">{dateFormatted}</div>
                       </td>
 
+                      <td className="py-3 px-4 whitespace-nowrap">
+                        <p className="font-mono text-[11px] text-slate-800">{visit.ip || 'IP unavailable'}</p>
+                        <p className="mt-1 text-[10px] text-slate-500">{visit.pageViewsCount} page views · {visit.sessionCount || 1} sessions</p>
+                      </td>
                       <td className="py-3 px-4 whitespace-nowrap">
                         {visit.user ? (
                           <div className="flex items-center gap-1.5">
@@ -585,7 +592,7 @@ export const Analytics = () => {
                                 </span>
                                 {pageCount > 1 && (
                                   <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200">
-                                    {pageCount} pages
+                                    {pageCount} views
                                   </span>
                                 )}
                               </div>
@@ -662,7 +669,7 @@ export const Analytics = () => {
                             </span>
                             {pageCount > 1 && (
                               <span className="shrink-0 px-1.5 py-0.5 rounded text-[9px] font-bold bg-slate-100 text-slate-600 border border-slate-200">
-                                {pageCount} pages
+                                {pageCount} views
                               </span>
                             )}
                           </div>
@@ -685,6 +692,7 @@ export const Analytics = () => {
                     );
                   })()}
 
+                  <p className="text-[11px] text-slate-600"><span className="font-mono">{visit.ip || 'IP unavailable'}</span> · {visit.pageViewsCount} page views · {visit.sessionCount || 1} sessions</p>
                   <div className="text-[10px] text-slate-400 flex items-center gap-1.5">
                     <span className={`w-1.5 h-1.5 rounded-full ${visit.user ? 'bg-brand-green-500' : 'bg-slate-300'}`} />
                     <span>

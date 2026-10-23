@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import api from "../services/api";
 import { unwrapApiRecord } from "../utils/apiResponse";
+import { PAYSTACK_INSTRUCTIONS, normalizePaymentInstructions } from '../utils/paymentInstructions';
 
 export const DEFAULT_BUSINESS_INFO = {
   businessName: "Vinoff Wholesales Ltd",
@@ -19,14 +20,14 @@ export const DEFAULT_BUSINESS_INFO = {
   googleMapsUrl: "https://maps.google.com/?q=Trade+Fair+Complex+Badagry+Expressway+Lagos",
   walkthroughVideoUrl: "/store/VINOFF_CO_walkthrough.MP4",
   footerNote:
-    "Wire payments transfer slips proof must be submitted in support chats to begin packing and logistics.",
+    PAYSTACK_INSTRUCTIONS,
 };
 
 export const DEFAULT_BANK_DETAILS = {
   bankName: "Guaranty Trust Bank (GTB)",
   accountName: "Vinoff Wholesales Ltd",
   accountNumber: "0123456789",
-  instructions: "Please use your Order # or Invoice # as the transfer payment narration.",
+  instructions: PAYSTACK_INSTRUCTIONS,
 };
 
 const BUSINESS_CACHE_KEY = "vinoff_business_info_v1";
@@ -34,6 +35,7 @@ const BANK_CACHE_KEY = "vinoff_bank_details_v1";
 
 const normalizeBusinessInfo = (raw = {}) => {
   const merged = { ...DEFAULT_BUSINESS_INFO, ...(raw || {}) };
+  merged.footerNote = normalizePaymentInstructions(merged.footerNote);
   if (
     merged.walkthroughVideoUrl === "/VINOFF_C0_walkthrough.MP4" ||
     merged.walkthroughVideoUrl === "/VINOFF_CO_walkthrough.MP4"
@@ -49,7 +51,7 @@ export const getCachedBusinessInfo = () => {
     if (raw) {
       return normalizeBusinessInfo(JSON.parse(raw));
     }
-  } catch (_) {}
+  } catch { /* Invalid browser cache falls back to the default business details. */ }
   return { ...DEFAULT_BUSINESS_INFO };
 };
 
@@ -57,7 +59,7 @@ export const setCachedBusinessInfo = (data) => {
   const normalized = normalizeBusinessInfo(data);
   try {
     localStorage.setItem(BUSINESS_CACHE_KEY, JSON.stringify(normalized));
-  } catch (_) {}
+  } catch { /* Business details remain available when browser storage is full. */ }
   return normalized;
 };
 
@@ -67,7 +69,7 @@ export const getCachedBankDetails = () => {
     if (raw) {
       return { ...DEFAULT_BANK_DETAILS, ...JSON.parse(raw) };
     }
-  } catch (_) {}
+  } catch { /* Invalid browser cache falls back to the default bank details. */ }
   return { ...DEFAULT_BANK_DETAILS };
 };
 
@@ -75,29 +77,29 @@ export const setCachedBankDetails = (data) => {
   const normalized = { ...DEFAULT_BANK_DETAILS, ...(data || {}) };
   try {
     localStorage.setItem(BANK_CACHE_KEY, JSON.stringify(normalized));
-  } catch (_) {}
+  } catch { /* Bank details remain available when browser storage is full. */ }
   return normalized;
 };
 
-export const fetchLiveBusinessInfo = async () => {
+export const fetchLiveBusinessInfo = async (options = {}) => {
   try {
-    const res = await api.get("/api/settings/store-location");
+    const res = await api.get("/api/settings/store-location", options);
     const record = unwrapApiRecord(res) || res.data?.data || res.data || res;
     if (record && typeof record === "object") {
       return setCachedBusinessInfo(record);
     }
-  } catch (_) {}
+  } catch { /* Offline or cancelled requests keep the last known business details. */ }
   return getCachedBusinessInfo();
 };
 
-export const fetchLiveBankDetails = async () => {
+export const fetchLiveBankDetails = async (options = {}) => {
   try {
-    const res = await api.get("/api/settings/bank-details");
+    const res = await api.get("/api/settings/bank-details", options);
     const record = unwrapApiRecord(res) || res.data?.data || res.data || res;
     if (record && record.bankName) {
       return setCachedBankDetails(record);
     }
-  } catch (_) {}
+  } catch { /* Offline or cancelled requests keep the last known bank details. */ }
   return getCachedBankDetails();
 };
 
@@ -128,12 +130,8 @@ export const BusinessProvider = ({ children }) => {
   }, []);
 
   const refreshBusinessData = useCallback(async () => {
-    const [liveBiz, liveBank] = await Promise.all([
-      fetchLiveBusinessInfo(),
-      fetchLiveBankDetails(),
-    ]);
+    const liveBiz = await fetchLiveBusinessInfo();
     if (liveBiz) setBusinessInfo(liveBiz);
-    if (liveBank) setBankDetails(liveBank);
   }, []);
 
   useEffect(() => {

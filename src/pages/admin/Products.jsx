@@ -14,6 +14,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import Button from "../../components/ui/Button";
+import ExportButton from "../../components/exports/ExportButton";
 import useCloudinaryUpload from "../../hooks/useCloudinaryUpload";
 import { showConfirm, showModal } from "../../services/ui/modal";
 
@@ -284,7 +285,8 @@ export const Products = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-2 self-start sm:self-auto">
+        <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+          <ExportButton kind="products" />
           {!isSelectMode ? (
             <Button
               variant="secondary"

@@ -3,12 +3,12 @@ export const adminGuideContent = [
     id: 'daily-routine', title: 'Start Here: Daily Operating Routine', path: '/admin/dashboard',
     purpose: 'Use this checklist at the start and end of every working day.',
     steps: ['Open Dashboard and review orders, unpaid invoices, VIP credit balances and low-stock items.', 'Read Notifications and Chats. Answer customer questions and check the linked order or invoice before taking action.', 'Review paid orders in Orders. Paystack confirms payment and moves paid orders to Processing automatically. Mark an order Delivered only after delivery is confirmed.', 'Check Inventory and restock cartons or loose units as needed. Review Expense Tracker and close the daily ledger only after checking its entries.'],
-    note: 'Use the live record as your source of truth. Dashboard summaries and history views may show only the records currently loaded.',
+    note: 'Use the grouped sidebar to navigate: Sales & Customers, Catalog & Stock, Communication, Finance & Insights, History & Audit, and Administration. One group opens at a time. The active page opens its group automatically. Dashboard summaries and history views may show only the records currently loaded; use the live record as your source of truth.',
   },
   {
     id: 'dashboard', title: 'Dashboard', path: '/admin/dashboard',
     purpose: 'An overview of sales activity, orders, customer conversations, invoices and credit exposure.',
-    steps: ['Review the summary cards and available overview tabs.', 'Open the relevant order, customer, invoice or chat to investigate a summary.', 'Use the dedicated management tab to make changes and revisit the overview to check the result.'],
+    steps: ['Review the summary cards and available overview tabs.', 'Open the relevant order, customer, invoice or chat to investigate a summary.', 'Use Export Invoices or Export Orders to open the shared export selector. Choose All Dates, Month, Quarter (3 months), Year or Custom dates. Select all customers or one customer where available, choose PDF, CSV or ZIP, and click Prepare Export to check the count before Download. ZIP reports can be separated by day, month or year; invoice ZIPs always contain individual invoice PDFs. Dates are inclusive and use Lagos time.', 'Use the dedicated management tab to make changes and revisit the overview to check the result.'],
     note: 'Payment is confirmed by Paystack. Do not use a legacy settle-credit shortcut to mark an invoice paid manually.',
   },
   {
@@ -33,25 +33,25 @@ export const adminGuideContent = [
     id: 'chats', title: 'Chats', path: '/admin/chats',
     purpose: 'Respond to customers and review the orders and invoices associated with their account.',
     steps: ['Search for a customer and open their conversation. Unread counts identify conversations needing attention.', 'Use New Conversation to select a customer when starting a chat.', 'Type and send a message, or use the attachment control to upload an image, PDF or document.', 'Review customer details, recent orders and invoices in the side panel. Open the specific record when you need its full details.', 'Delete a conversation only when you want to remove its history from the chat list. You can start a new conversation with that customer later.'],
-    note: 'Share an invoice from its invoice detail page to send its PDF to the correct customer chat. Check the selected customer before sharing.',
+    note: 'Share an invoice from its invoice detail page to send its PDF to the correct customer chat. Check the selected customer before sharing. Export Invoices in the right panel opens the range selector locked to the selected customer, including invoices beyond the recent preview.',
   },
   {
     id: 'invoices', title: 'Invoices', path: '/admin/invoices',
     purpose: 'Create and maintain customer invoices, including VIP credit invoices.',
-    steps: ['Search or filter invoices. Click an invoice to open that particular invoice viewer.', 'Choose Create Invoice, select the customer, add item descriptions or products, quantities and prices, then check discount, delivery fee, due date and notes before saving.', 'On the invoice viewer use Edit to change permitted details, Download for its PDF, Print for a paper copy, and Share to send it to the customer chat.', 'Stamp an invoice to record the issuing admin. Stamping is separate from payment verification.', 'Delete only the intended invoice and read the confirmation carefully. Ask the customer to pay using the invoice payment button.'],
+    steps: ['Search or filter invoices. Click an invoice to open that particular invoice viewer.', 'Use Export Invoices for a batch download. Choose a date-range preset or custom dates and all customers or a specific customer. The default ZIP contains a separate PDF for each invoice, not one combined report, and fetches every page in the selected range rather than just the visible list.', 'Choose Create Invoice, select the customer, add item descriptions or products, quantities and prices, then check discount, delivery fee, due date and notes before saving.', 'On the invoice viewer use Edit to change permitted details, Download for its PDF, Print for a paper copy, and Share to send it to the customer chat.', 'Use Stamp & Save on the invoice viewer to save the issuing admin stamp and unlock customer downloads. Before stamping, the customer download and print buttons are disabled. The invoice view checks for a saved stamp in the background; when stamped, the warning disappears and downloading becomes available. Stamping is separate from payment verification.', 'Delete only the intended invoice and read the confirmation carefully. Ask the customer to pay using the invoice payment button.'],
     note: 'Paid is assigned after Paystack verification. Avoid changing an invoice while a customer is paying it; a changed total can require payment reconciliation. Deleting an invoice does not refund a payment.',
   },
   {
     id: 'vip-credit', title: 'VIP Credit Partners', path: '/admin/customers',
     purpose: 'Allow approved customers to order on credit and track what remains owing.',
     steps: ['Find a customer in Customers and use Make VIP Credit Partner to grant credit access. Confirm the account identity first.', 'A VIP partner can choose Pay Now or Place Order on VIP Credit at checkout.', 'Credit orders are processed without immediate payment and appear in the customer credit ledger. The customer uses Settle / Pay to open the linked order payment option.', 'Review outstanding credit in customer and invoice records. Successful Paystack settlement marks the invoice Paid and recalculates the customer credit balance.', 'Use Revoke VIP Credit when the customer should no longer place new credit orders. Existing debt is not erased.'],
-    note: 'The VIP Credit Ledger button is shown only to VIP credit partner accounts. Granting credit is a business decision; check existing balances before approving more credit.',
+    note: 'VIP status alone does not grant an amount of credit. The default limit is zero. On the customer profile, use Approved Credit Facility to set a limit as super admin, or request a change as permitted staff. An admin request leaves the current limit unchanged until the super admin approves it. The limit covers all unpaid credit invoices; payments free available credit automatically. Existing debt is never erased by reducing a limit or revoking VIP status.',
   },
   {
     id: 'customers', title: 'Customers', path: '/admin/customers',
     purpose: 'Review buyer information, credit status and account access.',
-    steps: ['Use search and filters to find customers, admins, VIP partners, active accounts or suspended accounts.', 'Open a customer to review their profile, orders, invoices and account history.', 'Use the account actions to suspend or reactivate an account, grant or revoke VIP credit, or change a role where your permissions allow it.', 'Ask customers to use Update My Profile to correct their names, contact information and delivery details.'],
-    note: 'An admin role grants access to business management tools. Only grant it to staff who need that access. Some actions depend on the signed-in admin role.',
+    steps: ['Use search and filters to find customers, admins, VIP partners, active accounts or suspended accounts.', 'Open a customer to review their profile, orders, invoices and account history.', 'Use Export on the registry for customer records. On a customer profile, Download Customer Invoices locks the export to that customer; choose the date preset or custom range to download their invoices as separate PDFs in a ZIP.', 'Use the account actions to suspend or reactivate an account, grant or revoke VIP credit, or change a role where your permissions allow it.', 'Ask customers to use Update My Profile to correct their names, contact information and delivery details.'],
+    note: 'Only a super admin can promote staff. New admins start with no operational permissions. Open Administration > Staff Permissions to choose their access. A view permission does not allow edits; credit requests never grant approval authority.',
   },
   {
     id: 'inventory', title: 'Inventory', path: '/admin/inventory',
@@ -61,21 +61,21 @@ export const adminGuideContent = [
   },
   {
     id: 'inventory-history', title: 'Inventory History', path: '/admin/inventory-history',
-    purpose: 'Review stock movements and export the records visible in the history view.',
-    steps: ['Refresh the log, search by product, customer or order, and filter deductions or restocks.', 'Open an associated order to understand why stock was reserved.', 'Use Download CSV or Download PDF to export the filtered records.'],
+    purpose: 'Review stock movements and export available records for a selected date range.',
+    steps: ['Refresh the log, search by product, customer or order, and filter deductions or restocks.', 'Open an associated order to understand why stock was reserved.', 'Export CSV and Export PDF open the shared selector with that format preselected. Choose a range preset or custom dates and a customer where available; exports fetch the complete selected range independently of the visible list and its search filters.'],
     note: 'This history combines order information with available restock records; some restock records are stored in the browser. It is not a complete shared warehouse audit ledger. Keep separate receiving records for reconciliation.',
   },
   {
     id: 'expenses', title: 'Expense Tracker', path: '/admin/expenses',
     purpose: 'Maintain the daily cash ledger and supporting evidence.',
-    steps: ['Review the current daily ledger and its balances.', 'Add a line item using the available entry fields and correct amount. Check each entry before saving; remove mistaken entries only after confirming.', 'Upload supporting evidence where available and download the daily PDF for records.', 'Use Close & Stamp after completing the daily review. Open past ledgers to inspect earlier days, evidence and statements.'],
+    steps: ['Review the current daily ledger and its balances.', 'Add a line item using the available entry fields and correct amount. Check each entry before saving; remove mistaken entries only after confirming.', 'Upload supporting evidence where available and download the daily PDF for records.', 'Use Export Expenses to select a date-range preset or custom dates. The default ZIP contains a separate daily expense PDF for each ledger day in the range, including days not currently displayed.', 'Use Close & Stamp after completing the daily review. Open past ledgers to inspect earlier days, evidence and statements.'],
     note: 'A ledger entry records money movement; it does not initiate a Paystack payment, transfer or refund.',
   },
   {
     id: 'analytics', title: 'Traffic Analytics', path: '/admin/analytics',
     purpose: 'Understand website visits, referral channels and device activity.',
-    steps: ['Choose 24h, 7 Days, 30 Days or All and refresh the data.', 'Review available visit summaries, referral sources, pages and device breakdowns.', 'Use trends to evaluate marketing campaigns and popular pages.'],
-    note: 'Traffic activity is not a verified sales total. Use orders, invoices and Paystack records to reconcile payments.',
+    steps: ['Choose 24h, 7 Days, 30 Days or All and refresh the data. Total Views counts each public IP once in the selected period; Page Views includes repeated visits.', 'Review visit summaries, referral sources, pages and device breakdowns. Visitor IP Records groups sessions by IP and shows each IP address with its repeat page-view and session counts.', 'Use trends to evaluate marketing campaigns and popular pages.'],
+    note: 'Several devices on the same public Wi-Fi can share one IP and count as one visitor. Older records without an IP use their saved browser identifier. Traffic activity is not a verified sales total. Use orders, invoices and Paystack records to reconcile payments.',
   },
   {
     id: 'announcements', title: 'Announcements', path: '/admin/announcements',
@@ -93,7 +93,7 @@ export const adminGuideContent = [
     id: 'settings', title: 'Settings', path: '/admin/settings',
     purpose: 'Manage store operations, business information, alerts and sessions.',
     steps: ['Use Store Status to open or pause ordering and set a clear notice explaining the pause.', 'Use alert preferences to configure low-stock thresholds, category thresholds, new-order alerts and available sound/email options. Save changes.', 'Update the company contact details, store location, hours, branding and other business information in their respective sections.', 'Review device sessions and sign out other devices when needed. Some controls are restricted to the permitted admin role.'],
-    note: 'Legacy bank-detail fields do not configure Paystack checkout. Paystack credentials, settlement bank details and webhooks are managed through backend configuration and the Paystack dashboard.',
+    note: 'The Paystack Payments tab explains the payment workflow. Paystack credentials and webhooks are managed through backend configuration; settlement bank details are managed in the Paystack dashboard. Do not ask customers to upload payment screenshots.',
   },
   {
     id: 'profile', title: 'Admin Profile', path: '/admin/profile',
@@ -104,9 +104,15 @@ export const adminGuideContent = [
   {
     id: 'history', title: 'Sales, Account and Activity Records', path: '/admin/history/sales-orders',
     purpose: 'Review the additional history pages available in the management suite.',
-    steps: ['Sales Order History lists order records and provides its available search, filters and exports.', 'Customer Account History helps review account-related records. Open the underlying customer or invoice to confirm its current state.', 'Admin Activity History and Activity display recorded management actions. Filter or search the available records when investigating a change.'],
+    steps: ['Sales Order History lists order records and provides its available search, filters and exports.', 'Customer Account History helps review account-related records. Open the underlying customer or invoice to confirm its current state.', 'Admin Activity History and Activity display recorded management actions. Filter or search the available records when investigating a change.', 'Download CSV and Download PDF open the shared range and customer selector with the requested format preselected, rather than immediately downloading the visible rows. Choose a preset or custom dates; all pages of the selected range are fetched for export.'],
     note: 'These are review tools. An exported history or an activity log does not reverse an action or issue a refund.',
     links: [{ label: 'Customer Account History', path: '/admin/history/customer-accounts' }, { label: 'Admin Activity History', path: '/admin/history/admin-activity' }, { label: 'Activity', path: '/admin/activity' }],
+  },
+  {
+    id: 'staff-access', title: 'Staff Permissions and Credit Approvals', path: '/admin/access-control',
+    purpose: 'Super admins control staff access and approve changes to customer credit limits.',
+    steps: ['Promote the intended staff account in Customers, then open Staff Permissions. Select the admin, choose only the permissions needed and save. Changes apply on the next API request.', 'To request a credit limit change, open the VIP customer profile, choose Request Limit Change, enter the new total limit and a reason. The existing limit stays unchanged.', 'Super admins receive a popup and bell notification. Open Credit Approvals, review the customer, requesting admin, current limit, proposed limit and reason, then Approve or Reject.', 'Approval applies the exact proposed limit and records the reviewer. Rejection does not change the limit. Requests made stale by account or permission changes cannot be applied; submit a fresh request.', 'Customers use Reorder on a previous order to prepare a new cart at current prices and availability. They review the cart and complete the normal checkout; reordering never charges automatically.'],
+    note: 'Only super admins can edit staff permissions or approve requests. Staff can review their own request history in Credit Approvals. Reducing a limit below existing debt blocks more credit but does not erase debt or prevent Paystack repayment.',
   },
   {
     id: 'troubleshooting', title: 'Common Problems and What to Do', path: '/admin/chats',

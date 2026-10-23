@@ -6,6 +6,7 @@ import { formatCurrency } from '../../utils/formatCurrency';
 import { AlertTriangle, ArrowUp, RefreshCw, Search } from 'lucide-react';
 import { showModal, showPrompt } from '../../services/ui/modal';
 import { AuthContext } from '../../context/AuthContext';
+import ExportButton from '../../components/exports/ExportButton';
 
 const LOW_STOCK_THRESHOLD = 100;
 
@@ -136,7 +137,8 @@ export const Inventory = () => {
           <p className="text-xs text-slate-500 font-medium">Live product stock refreshes every 15 seconds and on tab focus. Orders reduce stock automatically.</p>
         </div>
 
-        <div className="flex w-full sm:w-auto items-center gap-2">
+        <div className="flex flex-wrap w-full sm:w-auto items-center gap-2">
+          <ExportButton kind="inventory" />
           <button
             type="button"
             onClick={fetchInventory}

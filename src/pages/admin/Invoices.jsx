@@ -24,6 +24,7 @@ import {
   Check,
 } from "lucide-react";
 import Button from "../../components/ui/Button";
+import ExportButton from "../../components/exports/ExportButton";
 import { downloadInvoicePDF } from "../../utils/generatePDF";
 import { toast } from "../../context/ToastContext";
 import { unwrapApiList, unwrapApiRecord } from "../../utils/apiResponse";
@@ -32,7 +33,7 @@ const ALLOWED_STATUSES = ["On Credit", "Pending", "Paid", "Draft", "Cancelled"];
 
 export const Invoices = () => {
   const navigate = useNavigate();
-  const { user } = useContext(AuthContext);
+  const { user, can } = useContext(AuthContext);
   const [invoices, setInvoices] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [products, setProducts] = useState([]);
@@ -89,16 +90,15 @@ export const Invoices = () => {
 
   const handleStatusUpdate = async (invoiceId, newStatus) => {
     try {
-      const adminName = user?.name || "System Admin";
       await api.patch(
         `/api/invoices/${invoiceId}`,
-        { status: newStatus, issuedBy: adminName },
+        { status: newStatus },
         withIdempotencyKey(createIdempotencyKey(`invoice-status-${invoiceId}-${newStatus}`)),
       );
       setInvoices((prev) =>
-        prev.map((inv) => ((inv._id || inv.id) === invoiceId ? { ...inv, status: newStatus, issuedBy: adminName } : inv))
+        prev.map((inv) => ((inv._id || inv.id) === invoiceId ? { ...inv, status: newStatus } : inv))
       );
-      toast.success(`Invoice status updated to '${newStatus}' & stamped by ${adminName}`, "Status Updated");
+      toast.success(`Invoice status updated to '${newStatus}'`, "Status Updated");
     } catch (err) {
       toast.error(err.message || "Failed to update invoice status", "Update Failed");
     }
@@ -107,7 +107,7 @@ export const Invoices = () => {
   const handleDownload = async (invoiceId) => {
     setDownloadingId(invoiceId);
     try {
-      await downloadInvoicePDF(invoiceId);
+      await downloadInvoicePDF(invoiceId, { requireStamp: false });
     } catch (err) {
       // toast error handled inside downloadInvoicePDF
     } finally {
@@ -277,7 +277,7 @@ export const Invoices = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <div className="relative w-full sm:w-60">
             <input
               type="text"
@@ -289,11 +289,13 @@ export const Invoices = () => {
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
           </div>
 
+          <ExportButton kind="invoices" label="Export Invoices" defaultFormat="zip" />
           <Button
             size="sm"
             variant="primary"
             icon={Plus}
             onClick={() => setIsCreateOpen(true)}
+            disabled={!can('invoices.manage')}
             className="rounded-xl shrink-0"
           >
             Create Invoice
@@ -303,7 +305,7 @@ export const Invoices = () => {
 
       {/* Filter Tabs including Credit Invoices Tab */}
       <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-        {["All", "Credit Invoices", ...ALLOWED_STATUSES].map((st) => {
+        {["All", "Credit Invoices", ...ALLOWED_STATUSES.filter(status => status !== "On Credit")].map((st) => {
           const isCreditTab = st === "Credit Invoices" || st === "On Credit";
           const isActive = statusFilter === st;
           return (
@@ -396,13 +398,7 @@ export const Invoices = () => {
               </thead>
               <tbody className="divide-y divide-slate-100 font-semibold text-slate-700">
                 {filtered.map((inv) => {
-                  const cachedStamp = localStorage.getItem(`vinoff_invoice_stamp_${inv._id || inv.id}`);
-                  const issuer =
-                    inv.issuedBy ||
-                    cachedStamp ||
-                    (typeof inv.createdBy === "object"
-                      ? (inv.createdBy?.name || `${inv.createdBy?.firstName || ""} ${inv.createdBy?.lastName || ""}`.trim())
-                      : inv.createdBy);
+                  const issuer = String(inv.issuedBy || '').trim();
                   const customerOwing =
                     Number(inv.customer?.outstandingCredit || 0) > 0 ||
                     Boolean(inv.customer?.isOwingCredit) ||

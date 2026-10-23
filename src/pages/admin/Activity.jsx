@@ -13,6 +13,7 @@ import {
   Clock,
 } from "lucide-react";
 import Button from "../../components/ui/Button";
+import ExportButton from "../../components/exports/ExportButton";
 
 export const Activity = () => {
   const [logs, setLogs] = useState([]);
@@ -85,7 +86,8 @@ export const Activity = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <ExportButton kind="admin-activity" />
           <div className="relative w-full sm:w-64">
             <input
               type="text"

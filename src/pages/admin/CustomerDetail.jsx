@@ -25,7 +25,9 @@ import {
   CreditCard,
 } from "lucide-react";
 import Button from "../../components/ui/Button";
+import ExportButton from "../../components/exports/ExportButton";
 import Avatar from "../../components/ui/Avatar";
+import CustomerCreditControl from '../../components/admin/CustomerCreditControl';
 import { useToast } from "../../context/ToastContext";
 import { AuthContext } from "../../context/AuthContext";
 import { downloadInvoicePDF } from "../../utils/generatePDF";
@@ -34,7 +36,7 @@ import { getAvatarUrl, getInitials } from "../../utils/avatar";
 
 export const CustomerDetail = () => {
   const { toast, showModal } = useToast();
-  const { refreshUser } = useContext(AuthContext);
+  const { refreshUser, can } = useContext(AuthContext);
   const { id } = useParams();
   const navigate = useNavigate();
 
@@ -117,12 +119,13 @@ export const CustomerDetail = () => {
 
   const handleVipCreditToggle = () => {
     if (!customer) return;
+    if (!can('customers.manage')) { toast.warning('Ask the super admin for customer-management permission.'); return; }
     const nextVipState = !customer.isVipCreditPartner;
 
     showModal({
       title: nextVipState ? "Grant VIP Credit Partner Status" : "Revoke VIP Credit Partner Status",
       message: nextVipState
-        ? `Upgrade ${customer.firstName} ${customer.lastName} to a VIP Credit Partner? They will be able to place orders on credit and track their credit invoices in NGN.`
+        ? `Upgrade ${customer.firstName} ${customer.lastName} to a VIP Credit Partner? Credit orders require an approved limit. Set or request that limit from their customer profile after granting VIP status.`
         : `Revoke VIP Credit Partner status from ${customer.firstName} ${customer.lastName}?`,
       confirmText: nextVipState ? "Grant VIP Credit" : "Revoke VIP Credit",
       cancelText: "Cancel",
@@ -187,6 +190,7 @@ export const CustomerDetail = () => {
 
   return (
     <div className="space-y-5 sm:space-y-6 max-w-5xl mx-auto px-1 sm:px-0">
+      <CustomerCreditControl key={customer._id} customer={customer} onUpdated={updated => setCustomer(previous => ({ ...previous, ...updated }))} />
       {/* Back Button & Header Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <Link
@@ -198,10 +202,25 @@ export const CustomerDetail = () => {
         </Link>
 
         <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+          <ExportButton
+            key={customer._id || customer.id || id}
+            kind="invoices"
+            customerId={customer._id || customer.id || id}
+            customerName={customer.name || `${customer.firstName || ""} ${customer.lastName || ""}`.trim() || customer.email}
+            label="Download Customer Invoices"
+            defaultFormat="zip"
+          />
+          <ExportButton
+            kind="orders"
+            customerId={customer._id || customer.id || id}
+            customerName={customer.name || `${customer.firstName || ""} ${customer.lastName || ""}`.trim() || customer.email}
+            label="Export Customer Orders"
+          />
           <Button
             size="sm"
             variant="outline"
             onClick={handleVipCreditToggle}
+            disabled={!can('customers.manage')}
             isLoading={statusUpdating}
             icon={CreditCard}
             className={`flex-1 sm:flex-initial justify-center rounded-xl text-xs py-2 ${
@@ -217,6 +236,7 @@ export const CustomerDetail = () => {
             size="sm"
             variant={isSuspended ? "primary" : "outline"}
             onClick={handleStatusToggle}
+            disabled={!can('customers.manage') || statusUpdating}
             isLoading={statusUpdating}
             className={`flex-1 sm:flex-initial justify-center rounded-xl text-xs py-2 ${
               isSuspended ? "bg-emerald-600 hover:bg-emerald-700 text-white" : "text-red-600 hover:bg-red-50 border-red-200"
@@ -391,8 +411,8 @@ export const CustomerDetail = () => {
               </h3>
               <p className="text-xs text-slate-500 max-w-xl leading-relaxed">
                 {customer.isVipCreditPartner
-                  ? "This account can place wholesale orders on credit, view live credit balances in their storefront header, and manage credit invoices on the Credit Ledger page."
-                  : "Granting VIP Credit Partner status unlocks ordering on credit, a live credit balance indicator in the customer header, and access to the dedicated VIP Credit Invoices ledger."}
+                  ? "This account can order within its approved available credit and track outstanding invoices in the Credit Ledger. A zero limit does not allow additional credit."
+                  : "VIP partners can access the Credit Ledger. A super-admin-approved limit is required before they can place orders on credit."}
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2.5 shrink-0">
@@ -400,6 +420,7 @@ export const CustomerDetail = () => {
                 size="sm"
                 variant={customer.isVipCreditPartner ? "outline" : "primary"}
                 onClick={handleVipCreditToggle}
+                disabled={!can('customers.manage')}
                 isLoading={statusUpdating}
                 className={`rounded-xl text-xs font-bold px-4 py-2.5 ${
                   customer.isVipCreditPartner
@@ -539,7 +560,7 @@ export const CustomerDetail = () => {
                         <p className="text-[10px] text-slate-400">{inv.status}</p>
                       </div>
                       <button
-                        onClick={() => downloadInvoicePDF(inv._id)}
+                        onClick={() => downloadInvoicePDF(inv._id, { requireStamp: false })}
                         className="p-1.5 hover:bg-slate-100 text-slate-400 hover:text-brand-green-700 rounded-lg transition"
                         title="Download Invoice PDF"
                       >

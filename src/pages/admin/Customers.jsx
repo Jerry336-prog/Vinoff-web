@@ -21,14 +21,35 @@ import {
 } from "lucide-react";
 import Avatar from "../../components/ui/Avatar";
 import Button from "../../components/ui/Button";
+import ExportButton from "../../components/exports/ExportButton";
 import { useToast } from "../../context/ToastContext";
 import { AuthContext } from "../../context/AuthContext";
 import { unwrapApiList, unwrapApiRecord } from "../../utils/apiResponse";
 import { getAvatarUrl, getInitials } from "../../utils/avatar";
 
+const accountRoleStyles = {
+  customer: { label: 'Customer', icon: Users, colors: 'border-slate-200 bg-slate-50 text-slate-600' },
+  vip: { label: 'VIP Credit Partner', icon: CreditCard, colors: 'border-teal-200 bg-teal-50 text-teal-800' },
+  admin: { label: 'Admin', icon: Shield, colors: 'border-sky-200 bg-sky-50 text-sky-800' },
+  superadmin: { label: 'Super Admin', icon: ShieldCheck, colors: 'border-slate-800 bg-slate-800 text-white' },
+};
+
+const AccountRoleChip = ({ role, vip = false }) => {
+  const key = vip ? 'vip' : ['superadmin', 'super_admin'].includes(role)
+    ? 'superadmin' : ['admin', 'subAdmin'].includes(role) ? 'admin' : 'customer';
+  const { label, icon: Icon, colors } = accountRoleStyles[key];
+
+  return (
+    <span className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-md border px-2 py-1 text-[10px] font-semibold leading-none ${colors}`}>
+      <Icon className="h-3 w-3 shrink-0" aria-hidden="true" />
+      {label}
+    </span>
+  );
+};
+
 export const Customers = () => {
   const { toast, showModal } = useToast();
-  const { user: currentUser, isSuperAdmin, refreshUser } = useContext(AuthContext);
+  const { user: currentUser, isSuperAdmin, refreshUser, can } = useContext(AuthContext);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -68,6 +89,7 @@ export const Customers = () => {
 
   const handleStatusToggle = (e, targetUser) => {
     if (e) e.stopPropagation();
+    if (!can('customers.manage')) { toast.warning('Ask the super admin for customer-management permission.'); return; }
     const newStatus = targetUser.accountStatus === "suspended" ? "active" : "suspended";
     const isSuspending = newStatus === "suspended";
 
@@ -105,12 +127,13 @@ export const Customers = () => {
 
   const handleVipCreditToggle = (e, targetUser) => {
     if (e) e.stopPropagation();
+    if (!can('customers.manage')) { toast.warning('Ask the super admin for customer-management permission.'); return; }
     const nextVipState = !targetUser.isVipCreditPartner;
 
     showModal({
       title: nextVipState ? "Grant VIP Credit Partner Status" : "Revoke VIP Credit Partner Status",
       message: nextVipState
-        ? `Upgrade ${targetUser.firstName} ${targetUser.lastName} to a VIP Credit Partner? They will be able to place wholesale orders on credit and access the dedicated VIP Credit Invoices ledger.`
+        ? `Upgrade ${targetUser.firstName} ${targetUser.lastName} to a VIP Credit Partner? Credit orders require an approved limit. Set or request that limit from their customer profile after granting VIP status.`
         : `Revoke VIP Credit Partner privilege from ${targetUser.firstName} ${targetUser.lastName}? Any existing unpaid credit invoices will still remain on their balance until settled.`,
       confirmText: nextVipState ? "Grant VIP Credit" : "Revoke VIP Credit",
       cancelText: "Cancel",
@@ -158,7 +181,7 @@ export const Customers = () => {
     showModal({
       title: isPromoting ? "Promote User to Admin" : "Dismiss Admin to Customer",
       message: isPromoting
-        ? `Are you sure you want to promote ${targetUser.firstName} ${targetUser.lastName} (${targetUser.email}) to an Admin? They will have full administrative access.`
+        ? `Promote ${targetUser.firstName} ${targetUser.lastName} (${targetUser.email}) to an Admin? This does not grant operational permissions. Assign them under Administration > Staff Permissions after promotion.`
         : `Are you sure you want to dismiss ${targetUser.firstName} ${targetUser.lastName} (${targetUser.email}) from Admin back to a regular Customer?`,
       confirmText: isPromoting ? "Yes, Make Admin" : "Yes, Dismiss Admin",
       cancelText: "Cancel",
@@ -228,7 +251,8 @@ export const Customers = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-3 w-full sm:w-auto shrink-0">
+        <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto shrink-0">
+          <ExportButton kind="customers" />
           <div className="relative w-full sm:w-72">
             <input
               type="text"
@@ -246,9 +270,10 @@ export const Customers = () => {
       <div className="flex items-center gap-1.5 overflow-x-auto pb-1.5 scrollbar-none flex-nowrap">
         <button
           onClick={() => setStatusFilter("all")}
+          aria-pressed={statusFilter === 'all'}
           className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap shrink-0 ${
             statusFilter === "all"
-              ? "bg-brand-green-600 text-white shadow-xs"
+              ? "bg-slate-800 text-white border border-slate-800"
               : "bg-white text-slate-600 hover:bg-slate-50 border border-slate-200"
           }`}
         >
@@ -256,14 +281,15 @@ export const Customers = () => {
         </button>
         <button
           onClick={() => setStatusFilter("vip")}
+          aria-pressed={statusFilter === 'vip'}
           className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap shrink-0 ${
             statusFilter === "vip"
-              ? "bg-amber-600 text-white shadow-xs"
-              : "bg-white text-amber-900 hover:bg-amber-50 border border-amber-200"
+              ? "bg-teal-50 text-teal-900 border border-teal-500 ring-1 ring-inset ring-teal-500"
+              : "bg-white text-slate-600 hover:bg-teal-50 border border-slate-200"
           }`}
         >
           <span>VIP Credit Partners</span>
-          <span className="text-[10px] px-2 py-0.2 bg-amber-100 text-amber-900 rounded-full font-extrabold">
+          <span className="text-[10px] px-2 py-0.5 bg-teal-50 text-teal-800 rounded-md font-semibold tabular-nums">
             {vipCount}
           </span>
         </button>
@@ -283,23 +309,25 @@ export const Customers = () => {
         </button>
         <button
           onClick={() => setStatusFilter("admins")}
+          aria-pressed={statusFilter === 'admins'}
           className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap shrink-0 ${
             statusFilter === "admins"
-              ? "bg-purple-700 text-white shadow-xs"
-              : "bg-white text-purple-900 hover:bg-purple-50 border border-purple-200"
+              ? "bg-sky-50 text-sky-900 border border-sky-500 ring-1 ring-inset ring-sky-500"
+              : "bg-white text-slate-600 hover:bg-sky-50 border border-slate-200"
           }`}
         >
-          <Shield className="w-3.5 h-3.5 text-purple-600" />
+          <Shield className="w-3.5 h-3.5 text-sky-700" />
           <span>Admins</span>
-          <span className="text-[10px] px-2 py-0.2 bg-purple-100 text-purple-900 rounded-full font-extrabold">
+          <span className="text-[10px] px-2 py-0.5 bg-sky-50 text-sky-800 rounded-md font-semibold tabular-nums">
             {users.filter((u) => u.role === "admin" || u.role === "subAdmin" || u.role === "superadmin").length}
           </span>
         </button>
         <button
           onClick={() => setStatusFilter("customers")}
+          aria-pressed={statusFilter === 'customers'}
           className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap shrink-0 ${
             statusFilter === "customers"
-              ? "bg-brand-green-600 text-white shadow-xs"
+              ? "bg-slate-100 text-slate-900 border border-slate-400 ring-1 ring-inset ring-slate-400"
               : "bg-white text-slate-600 hover:bg-slate-50 border border-slate-200"
           }`}
         >
@@ -349,7 +377,6 @@ export const Customers = () => {
               const isSuspended = u.accountStatus === "suspended";
               const hasProfileUpdate = Boolean(u.profileUpdatedAt);
               const isSuperadminRole = u.role === "superadmin" || u.role === "super_admin";
-              const isAdminRole = u.role === "admin" || u.role === "subAdmin";
               const owingAmount = Number(u.outstandingCredit || 0);
               const isOwing = owingAmount > 0 || Boolean(u.isOwingCredit);
 
@@ -388,9 +415,7 @@ export const Customers = () => {
                             )}
                           </p>
                           {u.isVipCreditPartner && (
-                            <span className="inline-flex items-center gap-0.5 text-[9px] font-black bg-amber-100 text-amber-900 border border-amber-300 px-1.5 py-0.2 rounded-full">
-                              VIP Credit Partner
-                            </span>
+                            <AccountRoleChip vip />
                           )}
                           {hasProfileUpdate && (
                             <span className="inline-flex items-center text-[9px] font-extrabold bg-emerald-100 text-emerald-900 px-1.5 py-0.2 rounded-full">
@@ -439,9 +464,9 @@ export const Customers = () => {
                               setOpenMenuId(null);
                               handleVipCreditToggle(e, u);
                             }}
-                            className="w-full text-left px-4 py-2 text-xs font-bold text-amber-800 hover:bg-amber-50 flex items-center gap-2"
+                            className="w-full text-left px-4 py-2 text-xs font-semibold text-teal-800 hover:bg-teal-50 flex items-center gap-2"
                           >
-                            <CreditCard className="w-4 h-4 text-amber-600" />
+                            <CreditCard className="w-4 h-4 text-teal-700" />
                             {u.isVipCreditPartner ? "Revoke VIP Credit" : "Make VIP Credit Partner"}
                           </button>
 
@@ -453,9 +478,9 @@ export const Customers = () => {
                                     setOpenMenuId(null);
                                     handleRoleChange(e, u, "admin");
                                   }}
-                                  className="w-full text-left px-4 py-2 text-xs font-bold text-purple-700 hover:bg-purple-50 flex items-center gap-2"
+                                  className="w-full text-left px-4 py-2 text-xs font-semibold text-sky-800 hover:bg-sky-50 flex items-center gap-2"
                                 >
-                                  <UserPlus className="w-4 h-4 text-purple-600" /> Make Admin
+                                  <UserPlus className="w-4 h-4 text-sky-700" /> Make Admin
                                 </button>
                               ) : (
                                 <button
@@ -463,9 +488,9 @@ export const Customers = () => {
                                     setOpenMenuId(null);
                                     handleRoleChange(e, u, "customer");
                                   }}
-                                  className="w-full text-left px-4 py-2 text-xs font-bold text-amber-800 hover:bg-amber-50 flex items-center gap-2"
+                                  className="w-full text-left px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 flex items-center gap-2"
                                 >
-                                  <UserMinus className="w-4 h-4 text-amber-600" /> Dismiss Admin
+                                  <UserMinus className="w-4 h-4 text-slate-500" /> Dismiss Admin
                                 </button>
                               )}
                             </>
@@ -510,28 +535,16 @@ export const Customers = () => {
 
                   <div className="flex items-center justify-between pt-1 gap-2">
                     <div className="flex flex-wrap items-center gap-1.5">
-                      {isSuperadminRole ? (
-                        <span className="inline-flex items-center gap-1 text-[9px] font-black bg-amber-100 text-amber-900 border border-amber-300 px-2 py-0.5 rounded-full">
-                          <ShieldCheck className="w-3 h-3 text-amber-700" /> SUPERADMIN
-                        </span>
-                      ) : isAdminRole ? (
-                        <span className="inline-flex items-center gap-1 text-[9px] font-bold bg-purple-100 text-purple-900 border border-purple-200 px-2 py-0.5 rounded-full">
-                          <Shield className="w-3 h-3 text-purple-600" /> ADMIN
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center text-[9px] font-semibold bg-slate-100 text-slate-600 border border-slate-200 px-2 py-0.5 rounded-full">
-                          CUSTOMER
-                        </span>
-                      )}
+                      <AccountRoleChip role={u.role} />
 
                       <button
                         type="button"
                         onClick={(e) => handleVipCreditToggle(e, u)}
                         disabled={updatingId === u._id}
-                        className={`inline-flex items-center gap-1 text-[9px] font-black px-2 py-0.5 rounded-full border transition cursor-pointer ${
+                        className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-1 rounded-md border transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600 disabled:cursor-not-allowed disabled:opacity-50 ${
                           u.isVipCreditPartner
-                            ? "bg-amber-100 text-amber-900 border-amber-300 hover:bg-amber-200"
-                            : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-amber-50 hover:text-amber-800 hover:border-amber-300"
+                            ? "bg-teal-50 text-teal-800 border-teal-200 hover:bg-teal-100"
+                            : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
                         }`}
                       >
                         {u.isVipCreditPartner ? "VIP Partner ✓" : "+ Make VIP Partner"}
@@ -573,7 +586,6 @@ export const Customers = () => {
                     const isSuspended = u.accountStatus === "suspended";
                     const hasProfileUpdate = Boolean(u.profileUpdatedAt);
                     const isSuperadminRole = u.role === "superadmin" || u.role === "super_admin";
-                    const isAdminRole = u.role === "admin" || u.role === "subAdmin";
                     const owingAmount = Number(u.outstandingCredit || 0);
                     const isOwing = owingAmount > 0 || Boolean(u.isOwingCredit);
 
@@ -631,25 +643,9 @@ export const Customers = () => {
 
                         <td className="py-4 px-4 whitespace-nowrap">
                           <div className="flex flex-col items-start gap-1">
-                            {isSuperadminRole ? (
-                              <span className="inline-flex items-center gap-1 text-[10px] font-black bg-amber-100 text-amber-900 border border-amber-300 px-2.5 py-0.5 rounded-full">
-                                <ShieldCheck className="w-3 h-3 text-amber-700" />
-                                SUPERADMIN
-                              </span>
-                            ) : isAdminRole ? (
-                              <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-purple-100 text-purple-900 border border-purple-200 px-2.5 py-0.5 rounded-full">
-                                <Shield className="w-3 h-3 text-purple-600" />
-                                ADMIN
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center text-[10px] font-semibold bg-slate-100 text-slate-600 border border-slate-200 px-2.5 py-0.5 rounded-full">
-                                CUSTOMER
-                              </span>
-                            )}
+                            <AccountRoleChip role={u.role} />
                             {u.isVipCreditPartner && (
-                              <span className="inline-flex items-center gap-1 text-[9px] font-black bg-amber-50 text-amber-900 border border-amber-300 px-2 py-0.5 rounded-full">
-                                VIP CREDIT PARTNER
-                              </span>
+                              <AccountRoleChip vip />
                             )}
                           </div>
                         </td>
@@ -702,10 +698,10 @@ export const Customers = () => {
                               type="button"
                               onClick={(e) => handleVipCreditToggle(e, u)}
                               disabled={updatingId === u._id}
-                              className={`inline-flex items-center gap-1 text-[10px] font-extrabold px-2.5 py-1.5 rounded-xl border transition cursor-pointer ${
+                              className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2.5 py-1.5 rounded-lg border transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600 disabled:cursor-not-allowed disabled:opacity-50 ${
                                 u.isVipCreditPartner
-                                  ? "bg-amber-100 text-amber-900 border-amber-300 hover:bg-amber-200"
-                                  : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-amber-50 hover:text-amber-800 hover:border-amber-300"
+                                  ? "bg-teal-50 text-teal-800 border-teal-200 hover:bg-teal-100"
+                                  : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
                               }`}
                               title={u.isVipCreditPartner ? "Click to revoke VIP Credit Partner status" : "Click to upgrade to VIP Credit Partner"}
                             >
@@ -743,9 +739,9 @@ export const Customers = () => {
                                       setOpenMenuId(null);
                                       handleVipCreditToggle(e, u);
                                     }}
-                                    className="w-full text-left px-4 py-2 text-xs font-bold text-amber-800 hover:bg-amber-50 flex items-center gap-2"
+                                    className="w-full text-left px-4 py-2 text-xs font-semibold text-teal-800 hover:bg-teal-50 flex items-center gap-2"
                                   >
-                                    <CreditCard className="w-4 h-4 text-amber-600" />
+                                    <CreditCard className="w-4 h-4 text-teal-700" />
                                     {u.isVipCreditPartner ? "Revoke VIP Credit" : "Make VIP Credit Partner"}
                                   </button>
 
@@ -757,9 +753,9 @@ export const Customers = () => {
                                             setOpenMenuId(null);
                                             handleRoleChange(e, u, "admin");
                                           }}
-                                          className="w-full text-left px-4 py-2 text-xs font-bold text-purple-700 hover:bg-purple-50 flex items-center gap-2"
+                                          className="w-full text-left px-4 py-2 text-xs font-semibold text-sky-800 hover:bg-sky-50 flex items-center gap-2"
                                         >
-                                          <UserPlus className="w-4 h-4 text-purple-600" /> Make Admin
+                                          <UserPlus className="w-4 h-4 text-sky-700" /> Make Admin
                                         </button>
                                       ) : (
                                         <button
@@ -767,9 +763,9 @@ export const Customers = () => {
                                             setOpenMenuId(null);
                                             handleRoleChange(e, u, "customer");
                                           }}
-                                          className="w-full text-left px-4 py-2 text-xs font-bold text-amber-800 hover:bg-amber-50 flex items-center gap-2"
+                                          className="w-full text-left px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 flex items-center gap-2"
                                         >
-                                          <UserMinus className="w-4 h-4 text-amber-600" /> Dismiss Admin
+                                          <UserMinus className="w-4 h-4 text-slate-500" /> Dismiss Admin
                                         </button>
                                       )}
                                     </>

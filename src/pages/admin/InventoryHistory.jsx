@@ -2,11 +2,10 @@ import React, { useState, useEffect, useMemo, useContext, useCallback } from 're
 import { Link } from 'react-router-dom';
 import api from '../../services/api';
 import { unwrapApiList } from '../../utils/apiResponse';
-import { exportHistoryCSV, exportHistoryPDF } from '../../utils/exportHistory';
+import ExportButton from '../../components/exports/ExportButton';
 import { AuthContext } from '../../context/AuthContext';
 import {
   History,
-  Download,
   Search,
   Filter,
   ArrowDownRight,
@@ -14,7 +13,6 @@ import {
   Package,
   Calendar,
   User,
-  FileSpreadsheet,
   RefreshCw,
   ExternalLink,
   ArrowRight,
@@ -389,81 +387,6 @@ export const InventoryHistory = () => {
     });
   }, [historyItems, searchQuery, filterType]);
 
-  // Export CSV Report
-  const handleExportCSV = () => {
-    if (filteredItems.length === 0) return;
-
-    const headers = [
-      'Date & Time',
-      'Product Name',
-      'Category',
-      'Movement Type',
-      'Stock Change',
-      'Unit Type',
-      'Previous Stock',
-      'Updated Stock',
-      'Actor / Customer',
-      'Order / Invoice Reference',
-      'Notes',
-    ];
-
-    const rows = filteredItems.map((item) => [
-      new Date(item.timestamp).toLocaleString(),
-      item.productName,
-      item.category,
-      item.type === 'deduction' ? 'Stock Deduction (Order)' : 'Restock Addition',
-      item.change > 0 ? `+${item.change}` : item.change,
-      item.unitType,
-      item.previousStock != null ? `${item.previousStock} ${item.unitType}` : '—',
-      item.newStock != null ? `${item.newStock} ${item.unitType}` : '—',
-      item.actorName,
-      item.invoiceNumber && item.invoiceNumber !== item.orderRef
-        ? `${item.orderRef} (${item.invoiceNumber})`
-        : item.orderRef,
-      item.notes,
-    ]);
-
-    exportHistoryCSV(
-      `vinoff_inventory_history_${new Date().toISOString().slice(0, 10)}`,
-      headers,
-      rows
-    );
-  };
-
-  // Export PDF Report
-  const handleExportPDF = () => {
-    if (filteredItems.length === 0) return;
-
-    const headers = [
-      'Date & Time',
-      'Product',
-      'Type',
-      'Change',
-      'Stock Update',
-      'Actor / Customer',
-      'Order / Invoice Ref',
-    ];
-
-    const rows = filteredItems.map((item) => [
-      new Date(item.timestamp).toLocaleString(),
-      item.productName,
-      item.type === 'deduction' ? 'Deduction' : 'Restock',
-      `${item.change > 0 ? '+' : ''}${item.change} ${item.unitType}`,
-      item.previousStock != null && item.newStock != null
-        ? `${item.previousStock} -> ${item.newStock} ${item.unitType}`
-        : '—',
-      item.actorName,
-      item.orderRef,
-    ]);
-
-    exportHistoryPDF(
-      'Inventory Stock Movement Audit Log',
-      `vinoff_inventory_history_${new Date().toISOString().slice(0, 10)}`,
-      headers,
-      rows
-    );
-  };
-
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -478,7 +401,7 @@ export const InventoryHistory = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-2 shrink-0 flex-nowrap">
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
           <Button
             variant="outline"
             size="sm"
@@ -489,26 +412,8 @@ export const InventoryHistory = () => {
           >
             {refreshing ? 'Syncing...' : 'Refresh'}
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleExportCSV}
-            disabled={filteredItems.length === 0}
-            className="rounded-xl border-slate-200 text-slate-700 text-xs px-3 py-1.5 whitespace-nowrap shrink-0"
-            icon={FileSpreadsheet}
-          >
-            Export CSV
-          </Button>
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={handleExportPDF}
-            disabled={filteredItems.length === 0}
-            className="rounded-xl shadow-sm text-xs px-3 py-1.5 whitespace-nowrap shrink-0"
-            icon={Download}
-          >
-            Export PDF
-          </Button>
+          <ExportButton kind="inventory-history" label="Export CSV" defaultFormat="csv" />
+          <ExportButton kind="inventory-history" label="Export PDF" defaultFormat="pdf" />
         </div>
       </div>
 

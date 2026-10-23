@@ -62,7 +62,7 @@ const STORE_IMAGES = [
 
 export const Home = () => {
   const { user } = useContext(AuthContext);
-  const { businessInfo, bankDetails } = useBusiness();
+  const { businessInfo } = useBusiness();
   const { products, loading } = useProducts();
   const navigate = useNavigate();
 
@@ -590,7 +590,7 @@ export const Home = () => {
             </div>
             <h3 className="font-extrabold text-white text-sm">Secure Paystack Checkout</h3>
             <p className="text-xs text-slate-300 leading-relaxed">
-              Pay via bank transfer and upload your transaction receipt directly in your live support chat for immediate admin verification and dispatch.
+              Pay securely with Paystack at checkout. Your payment is confirmed automatically, and you can follow processing and delivery from your order page.
             </p>
           </div>
         </div>

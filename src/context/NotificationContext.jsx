@@ -1,4 +1,4 @@
-import React, { createContext, useState, useEffect, useCallback, useContext } from 'react';
+import React, { createContext, useState, useEffect, useCallback, useContext, useRef } from 'react';
 import api from '../services/api';
 import { AuthContext } from './AuthContext';
 
@@ -13,19 +13,21 @@ export const NotificationContext = createContext({
 
 export const NotificationProvider = ({ children }) => {
   const { user, refreshUser } = useContext(AuthContext);
+  const userId = user?._id || user?.id;
+  const lastCreditSignal = useRef('');
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
 
   const fetchNotifications = useCallback(async () => {
-    if (!user) {
+    if (!userId) {
       setNotifications([]);
       setUnreadCount(0);
       return;
     }
 
     try {
-      const res = await api.get('/api/notifications');
+      const res = await api.get('/api/notifications?limit=100');
       const data = res?.data || res;
       if (data) {
         const rawItems = data.items || data;
@@ -51,7 +53,9 @@ export const NotificationProvider = ({ children }) => {
               n.type === 'INVOICE_ISSUED' ||
               n.type === 'PAYMENT_CONFIRMED')
         );
-        if (hasCreditSignal) {
+        const signal = normalizedItems.filter(n => !n.isRead && ['VIP_CREDIT_UPDATED', 'INVOICE_ISSUED', 'PAYMENT_CONFIRMED'].includes(n.type)).map(n => n._id).join('|');
+        if (hasCreditSignal && signal !== lastCreditSignal.current) {
+          lastCreditSignal.current = signal;
           refreshUser?.();
         }
       }
@@ -61,19 +65,19 @@ export const NotificationProvider = ({ children }) => {
         console.warn('Failed to fetch notifications:', err.message);
       }
     }
-  }, [user, refreshUser]);
+  }, [userId, refreshUser]);
 
   useEffect(() => {
     fetchNotifications();
 
-    if (!user) return;
+    if (!userId) return;
     // Poll every 15 seconds
     const interval = setInterval(() => {
       fetchNotifications();
     }, 15000);
 
     return () => clearInterval(interval);
-  }, [fetchNotifications, user]);
+  }, [fetchNotifications, userId]);
 
   const markAsRead = async (id) => {
     try {
